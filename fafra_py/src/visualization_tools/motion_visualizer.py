@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import List
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
-from fafra_py_legacy.src.dataset_tools.params.motion_dataset import MotionDataset
-from fafra_py_legacy.src.dataset_tools.params.subject import Subject
-from fafra_py_legacy.src.dataset_tools.params.activity import Activity
+from fafra_py.src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
+from fafra_py.src.dataset_tools.params.motion_dataset import MotionDataset
+from fafra_py.src.dataset_tools.params.subject import Subject
+from fafra_py.src.dataset_tools.params.activity import Activity
 
 
 class MotionVisualizer:

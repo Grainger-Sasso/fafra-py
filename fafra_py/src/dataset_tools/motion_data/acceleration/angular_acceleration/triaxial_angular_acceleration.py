@@ -1,5 +1,5 @@
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.angular_acceleration.angular_acceleration import AngularAcceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.angular_acceleration.angular_acceleration import AngularAcceleration
 
 
 class TriaxialAngularAcceleration(TriaxialAcceleration):

@@ -2,15 +2,15 @@ import os
 import pandas as pd
 import numpy as np
 from typing import List
-from fafra_py_legacy.src.dataset_tools.params.motion_data import MotionData
-from fafra_py_legacy.src.dataset_tools.params.motion_dataset import MotionDataset
-from fafra_py_legacy.src.dataset_tools.params.sensor import Sensor
-from fafra_py_legacy.src.dataset_tools.params.subject import Subject
-from fafra_py_legacy.src.dataset_tools.params.activity import Activity
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.linear_acceleration.linear_acceleration import LinearAcceleration
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.linear_acceleration.triaxial_linear_acceleration import TriaxialLinearAcceleration
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.angular_acceleration.angular_acceleration import AngularAcceleration
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.angular_acceleration.triaxial_angular_acceleration import TriaxialAngularAcceleration
+from fafra_py.src.dataset_tools.params.motion_data import MotionData
+from fafra_py.src.dataset_tools.params.motion_dataset import MotionDataset
+from fafra_py.src.dataset_tools.params.sensor import Sensor
+from fafra_py.src.dataset_tools.params.subject import Subject
+from fafra_py.src.dataset_tools.params.activity import Activity
+from fafra_py.src.dataset_tools.motion_data.acceleration.linear_acceleration.linear_acceleration import LinearAcceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.linear_acceleration.triaxial_linear_acceleration import TriaxialLinearAcceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.angular_acceleration.angular_acceleration import AngularAcceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.angular_acceleration.triaxial_angular_acceleration import TriaxialAngularAcceleration
 
 
 class SisFallDataset(MotionDataset):

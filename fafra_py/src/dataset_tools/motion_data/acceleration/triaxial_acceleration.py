@@ -1,5 +1,5 @@
 from typing import List
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
 
 
 class TriaxialAcceleration:

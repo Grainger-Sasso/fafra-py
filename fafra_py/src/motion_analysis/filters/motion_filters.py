@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 from scipy import signal
 from filterpy.kalman import KalmanFilter
-from fafra_py_legacy.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
+from fafra_py.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
 
 
 class MotionFilters:
