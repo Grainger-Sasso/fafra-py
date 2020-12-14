@@ -1,5 +1,5 @@
 import numpy as np
-from fafra_py.src.dataset_tools.params.sensor import Sensor
+from src import Sensor
 
 
 

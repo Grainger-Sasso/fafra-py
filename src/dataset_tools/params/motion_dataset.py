@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from typing import List, Any, Dict
-from fafra_py.src.dataset_tools.params.motion_data import MotionData
-from fafra_py.src.dataset_tools.params.sensor import Sensor
-from fafra_py.src.motion_analysis.filters.motion_filters import MotionFilters
+from src import MotionData
+from src import Sensor
+from src import MotionFilters
 
 
 class MotionDataset:
