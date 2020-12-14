@@ -1,9 +1,9 @@
 from typing import Dict
-from fafra_py_legacy.src.dataset_tools.params.motion_dataset import MotionDataset
-from fafra_py_legacy.src.datasets.sisfall.sisfall_dataset import SisFallDataset
-from fafra_py_legacy.src.motion_analysis.filters.motion_filters import MotionFilters
-from fafra_py_legacy.src.visualization_tools.motion_visualizer import MotionVisualizer
-from fafra_py_legacy.src.motion_analysis.feature_extraction.fall_detection.fall_detector import FallDetector
+from fafra_py.src.dataset_tools.params.motion_dataset import MotionDataset
+from fafra_py.src.datasets.sisfall.sisfall_dataset import SisFallDataset
+from fafra_py.src.motion_analysis.filters.motion_filters import MotionFilters
+from fafra_py.src.visualization_tools.motion_visualizer import MotionVisualizer
+from fafra_py.src.motion_analysis.feature_extraction.fall_detection.fall_detector import FallDetector
 
 
 class FaFRA:

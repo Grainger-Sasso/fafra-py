@@ -1,4 +1,4 @@
-from fafra_py_legacy.src.dataset_tools.params.motion_dataset import MotionDataset
+from fafra_py.src.dataset_tools.params.motion_dataset import MotionDataset
 
 
 class FallDetector:
