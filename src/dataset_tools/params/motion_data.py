@@ -1,9 +1,9 @@
 import pandas as pd
 from typing import List
-from fafra_py.src.dataset_tools.motion_data.acceleration.linear_acceleration.triaxial_linear_acceleration import TriaxialLinearAcceleration
-from fafra_py.src.dataset_tools.motion_data.acceleration.angular_acceleration.triaxial_angular_acceleration import TriaxialAngularAcceleration
-from fafra_py.src.dataset_tools.params.subject import Subject
-from fafra_py.src.dataset_tools.params.activity import Activity
+from src.dataset_tools.motion_data import TriaxialLinearAcceleration
+from src.dataset_tools.motion_data import TriaxialAngularAcceleration
+from src import Subject
+from src import Activity
 
 
 class MotionData:

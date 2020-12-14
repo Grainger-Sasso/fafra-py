@@ -1,6 +1,6 @@
 import numpy as np
-from fafra_py.src.dataset_tools.params.sensor import Sensor
-from fafra_py.src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
+from src import Sensor
+from src.dataset_tools.motion_data import Acceleration
 
 
 class AngularAcceleration(Acceleration):
