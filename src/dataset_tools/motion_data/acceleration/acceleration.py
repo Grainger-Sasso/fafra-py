@@ -1,5 +1,5 @@
 import numpy as np
-from src import Sensor
+from src.dataset_tools.params.sensor import Sensor
 
 
 

@@ -1,6 +1,6 @@
 import numpy as np
-from src.dataset_tools.motion_data import Acceleration
-from src import Sensor
+from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
+from src.dataset_tools.params.sensor import Sensor
 
 
 class LinearAcceleration(Acceleration):

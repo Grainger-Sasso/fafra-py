@@ -2,15 +2,15 @@ import os
 import pandas as pd
 import numpy as np
 from typing import List
-from src import MotionData
-from src import MotionDataset
-from src import Sensor
-from src import Subject
-from src import Activity
-from src.dataset_tools.motion_data import LinearAcceleration
-from src.dataset_tools.motion_data import TriaxialLinearAcceleration
-from src.dataset_tools.motion_data import AngularAcceleration
-from src.dataset_tools.motion_data import TriaxialAngularAcceleration
+from src.dataset_tools.params.motion_data import MotionData
+from src.dataset_tools.params.motion_dataset import MotionDataset
+from src.dataset_tools.params.sensor import Sensor
+from src.dataset_tools.params.subject import Subject
+from src.dataset_tools.params.activity import Activity
+from src.dataset_tools.motion_data.acceleration.linear_acceleration.linear_acceleration import LinearAcceleration
+from src.dataset_tools.motion_data.acceleration.linear_acceleration.triaxial_linear_acceleration import TriaxialLinearAcceleration
+from src.dataset_tools.motion_data.acceleration.angular_acceleration.angular_acceleration import AngularAcceleration
+from src.dataset_tools.motion_data.acceleration.angular_acceleration.triaxial_angular_acceleration import TriaxialAngularAcceleration
 
 
 class SisFallDataset(MotionDataset):

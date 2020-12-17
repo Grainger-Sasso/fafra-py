@@ -1,8 +1,8 @@
 from abc import abstractmethod
 from typing import List, Any, Dict
-from src import MotionData
-from src import Sensor
-from src import MotionFilters
+from src.dataset_tools.params.motion_data import MotionData
+from src.dataset_tools.params.sensor import Sensor
+from src.motion_analysis.filters.motion_filters import MotionFilters
 
 
 class MotionDataset:

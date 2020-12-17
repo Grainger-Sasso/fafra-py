@@ -1,4 +1,4 @@
-from src import MotionDataset
+from src.dataset_tools.params.motion_dataset import MotionDataset
 
 
 class FallDetector:

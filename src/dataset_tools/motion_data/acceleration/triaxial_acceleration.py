@@ -1,5 +1,5 @@
 from typing import List
-from src.dataset_tools.motion_data import Acceleration
+from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
 
 
 class TriaxialAcceleration:

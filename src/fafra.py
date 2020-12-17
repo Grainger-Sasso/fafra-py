@@ -1,9 +1,9 @@
 from typing import Dict
-from src import MotionDataset
-from src.datasets.sisfall import SisFallDataset
-from src import MotionFilters
-from src import MotionVisualizer
-from src import FallDetector
+from src.dataset_tools.params.motion_dataset import MotionDataset
+from src.datasets.sisfall.sisfall_dataset import SisFallDataset
+from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.visualization_tools.motion_visualizer import MotionVisualizer
+from src.motion_analysis.feature_extraction.fall_detection.fall_detector import FallDetector
 
 
 class FaFRA:

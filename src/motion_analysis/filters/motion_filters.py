@@ -2,7 +2,7 @@ import numpy as np
 import itertools
 from scipy import signal
 from filterpy.kalman import KalmanFilter
-from src.dataset_tools.motion_data import Acceleration
+from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
 
 
 class MotionFilters:
