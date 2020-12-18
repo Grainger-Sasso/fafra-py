@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import time
 from scipy import signal
 from filterpy.kalman import KalmanFilter
 from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
@@ -22,33 +23,43 @@ class MotionFilters:
         # Apply filter to input data
         return np.array(signal.filtfilt(b, a, data))
 
-    def apply_kalman_filter(self, x_ax: Acceleration, y_ax: Acceleration, z_ax: Acceleration):
+    def apply_kalman_filter(self, x_ax: Acceleration, y_ax: Acceleration, z_ax: Acceleration, sampling_rate):
         # Filter design based off of model reported here:
         # https://www.mdpi.com/1424-8220/18/4/1101
         # Initial conditions (output vextor is [ax, ay, az, ay-bay] where bay is current sensor bias)
-        bay = -1.0
+        bay_window = np.array([-1.0])
+        bay_window_size = sampling_rate * 1.0
         x0 = np.array([[0.0], [-1.0], [0.0], [0.0]])
         self.__initialize_kalman_filter(x0)
         kf_filtered_data = []
         for x_ax_lp_val, y_ax_lp_val, z_ax_lp_val in zip(x_ax.get_lp_filtered_data(), y_ax.get_lp_filtered_data(),
                                                          z_ax.get_lp_filtered_data()):
+            bay = np.mean(bay_window)
             measurement = np.array([x_ax_lp_val, y_ax_lp_val, z_ax_lp_val, y_ax_lp_val-bay])
             self.kalman_filter.predict()
             self.kalman_filter.update(measurement)
             kf_filtered_data.append(self.kalman_filter.x)
             # TODO: Replace this bias definition with a one second sliding window kf y-axis data
-            bay = np.average(self.kalman_filter.x)
-        x_kf_data = []
-        y_kf_data = []
-        z_kf_data = []
-        # x_kf_data.append(x0[0][0])
-        # y_kf_data.append(x0[1][0])
-        # z_kf_data.append(x0[2][0])
-        for kf_data in kf_filtered_data:
-            x_kf_data.append(kf_data[0][0])
-            y_kf_data.append(kf_data[1][0])
-            z_kf_data.append(kf_data[2][0])
-        return np.array(x_kf_data), np.array(y_kf_data), np.array(z_kf_data)
+            # bay_window = np.average(bay_window, self.kalman_filter.x[1], sampling_rate)
+        len_kf_data = len(kf_filtered_data)
+        x_kf_data = np.zeros(len_kf_data)
+        y_kf_data = np.zeros(len_kf_data)
+        z_kf_data = np.zeros(len_kf_data)
+        unbiased_y_kf_data = np.zeros(len_kf_data)
+        for ix, kf_data in enumerate(kf_filtered_data):
+            x_kf_data[ix] = kf_data[0][0]
+            y_kf_data[ix] = kf_data[1][0]
+            z_kf_data[ix] = kf_data[2][0]
+            unbiased_y_kf_data[ix] = kf_data[3][0]
+        return x_kf_data, y_kf_data, z_kf_data, unbiased_y_kf_data
+
+    def __update_vertical_bias_window(self, bay_win, kf_measurement, sampling_rate):
+        window_size = len(bay_win)/sampling_rate
+        if window_size < 1.0:
+            # Append measurement to bay window
+            np.append(bay_win, kf_measurement)
+        else
+        return None
 
     def __initialize_kalman_filter(self, x0):
         # Filter params, variable names follow Kalman filter param conventions

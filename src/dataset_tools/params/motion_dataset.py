@@ -8,7 +8,7 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 class MotionDataset:
 
     def __init__(self, name: str, path: str, file_format: Any, activity_ids: Any,
-                 subject_data: Any, sampling_rate,sensor_data: Dict[str, Sensor]):
+                 subject_data: Any, sampling_rate, sensor_data: Dict[str, Sensor]):
         self.name: str = name
         self.path: str = path
         self.file_format: Any = file_format
@@ -26,6 +26,14 @@ class MotionDataset:
     @abstractmethod
     def write_dataset_to_csv(self, path):
         pass
+
+    #TODO: Add in rest of get/set methods
+
+    def get_sampling_rate(self):
+        return self.sampling_rate
+
+    def get_sensor_data(self):
+        return self.sensor_data
 
     def get_motion_data(self):
         return self.motion_data
@@ -56,11 +64,12 @@ class MotionDataset:
                 x_ax = tri_acc.get_x_axis()
                 y_ax = tri_acc.get_y_axis()
                 z_ax = tri_acc.get_z_axis()
-                x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data = self.filters.apply_kalman_filter(
+                x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data, unbiased_y_ax_kf_data = self.filters.apply_kalman_filter(
                     x_ax, y_ax, z_ax)
                 x_ax.set_kf_filtered_data(x_kf_filtered_data)
                 y_ax.set_kf_filtered_data(y_kf_filtered_data)
                 z_ax.set_kf_filtered_data(z_kf_filtered_data)
+                y_ax.set_unbiased_kf_filtered_data(unbiased_y_ax_kf_data)
 
     def calculate_first_derivative_data(self):
         for motion_data in self.get_motion_data():

@@ -11,6 +11,7 @@ class Acceleration:
         self.acceleration_data = acc_data
         self.lp_filtered_data: np.array = np.zeros(len(acc_data))
         self.kf_filtered_data: np.array = np.zeros(len(acc_data))
+        self.unbiased_kf_filtered_data: np.array = np.zeros(len(acc_data))
         self.time = time
         self.sensor: Sensor = sensor
         self.first_derivative_data: np.array = np.zeros(len(acc_data))
@@ -30,6 +31,9 @@ class Acceleration:
     def get_kf_filtered_data(self):
         return self.kf_filtered_data
 
+    def get_unbiased_kf_filtered_data(self):
+        return self.unbiased_kf_filtered_data
+
     def get_time(self):
         return self.time
 
@@ -41,6 +45,9 @@ class Acceleration:
 
     def set_kf_filtered_data(self, data: np.array):
         self.kf_filtered_data = data
+
+    def set_unbiased_kf_filtered_data(self, data: np.array):
+        self.unbiased_kf_filtered_data = data
 
     def set_first_derivative_data(self, data: np.array):
         self.first_derivative_data = data
