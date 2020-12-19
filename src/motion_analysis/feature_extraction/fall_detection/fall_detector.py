@@ -20,7 +20,6 @@ class FallDetector:
         # Apply derivative, J1
         motion_dataset.calculate_first_derivative_data()
         # Apply Kalman filter, J2
-        # TODO fix the bias definition used here (need it for periodicity as 0 crossings)
         motion_dataset.apply_kalman_filter()
         # Detect periodicity from Kalman filter
         # Multiply J1 * (J2)^2, score

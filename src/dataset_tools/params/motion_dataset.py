@@ -64,8 +64,7 @@ class MotionDataset:
                 x_ax = tri_acc.get_x_axis()
                 y_ax = tri_acc.get_y_axis()
                 z_ax = tri_acc.get_z_axis()
-                x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data, unbiased_y_ax_kf_data = self.filters.apply_kalman_filter(
-                    x_ax, y_ax, z_ax)
+                x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data, unbiased_y_ax_kf_data = self.filters.apply_kalman_filter(x_ax, y_ax, z_ax, self.sampling_rate)
                 x_ax.set_kf_filtered_data(x_kf_filtered_data)
                 y_ax.set_kf_filtered_data(y_kf_filtered_data)
                 z_ax.set_kf_filtered_data(z_kf_filtered_data)
