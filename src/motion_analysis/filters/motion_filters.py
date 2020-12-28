@@ -1,6 +1,7 @@
 import numpy as np
 import itertools
 import time
+from scipy.ndimage import generic_filter
 from scipy import signal
 from filterpy.kalman import KalmanFilter
 from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
@@ -107,6 +108,47 @@ class MotionFilters:
         """
         # Divide dx by dy
         return np.array([dx/dy for dx, dy in zip(np.diff(x), np.diff(y))])
+
+    def calculate_triaxial_rms(self, x: np.array, y: np.array, z: np.array):
+        # rms = sqrt((1/n)(a^2+b^2+c^2)) where n=3
+        rms_matrix = np.array((x, y, z))
+        return np.sqrt(np.mean(np.power(rms_matrix, 2), axis=0))
+
+
+    def generic_filter_sliding_std_dev(self, data, window_size):
+        return generic_filter(data, np.std, size=window_size)
+
+    def generic_filter_max(self, data, window_size):
+        return generic_filter(data, np.max, size=window_size)
+
+    def strided_sliding_std_dev(self, data, radius):
+        windowed = self.__rolling_window(data, radius)
+        shape = windowed.shape
+        windowed = windowed.reshape(shape[0], shape[1], -1)
+        return windowed.std(axis=-1)
+
+    def __rolling_window(self, a, window):
+        """Takes a numpy array *a* and a sequence of (or single) *window* lengths
+        and returns a view of *a* that represents a moving window."""
+        if not hasattr(window, '__iter__'):
+            return self.__rolling_window_lastaxis(a, window)
+        for i, win in enumerate(window):
+            if win > 1:
+                a = a.swapaxes(i, -1)
+                a = self.__rolling_window_lastaxis(a, win)
+                a = a.swapaxes(-2, i)
+        return a
+
+    def __rolling_window_lastaxis(self, a, window):
+        """Directly taken from Erik Rigtorp's post to numpy-discussion.
+        <http://www.mail-archive.com/numpy-discussion@scipy.org/msg29450.html>"""
+        if window < 1:
+            raise ValueError
+        if window > a.shape[-1]:
+            raise ValueError
+        shape = a.shape[:-1] + (a.shape[-1] - window + 1, window)
+        strides = a.strides + (a.strides[-1],)
+        return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
 
     def __pairwise(self, iterable):
         a, b = itertools.tee(iterable)

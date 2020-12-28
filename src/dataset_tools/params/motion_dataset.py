@@ -35,7 +35,7 @@ class MotionDataset:
     def get_sensor_data(self):
         return self.sensor_data
 
-    def get_motion_data(self):
+    def get_motion_data(self) -> List[MotionData]:
         return self.motion_data
 
     def get_data(self, subject, activity, trial):
