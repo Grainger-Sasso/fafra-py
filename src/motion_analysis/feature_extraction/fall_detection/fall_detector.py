@@ -1,5 +1,4 @@
 import numpy as np
-import scipy
 from src.dataset_tools.params.motion_dataset import MotionDataset
 from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
 from src.motion_analysis.filters.motion_filters import MotionFilters
@@ -13,19 +12,21 @@ class FallDetector:
 
     def detect_falls(self, motion_dataset: MotionDataset, method: str):
         if method == 'sucerquia' or 'Sucerquia':
-            self.__detect_falls_sucerquia(motion_dataset)
+            fall_detections, fall_indices = self.__detect_falls_sucerquia(motion_dataset)
         else:
             raise ValueError(f'Fall detection method provided, {method}, not available')
+        return fall_detections, fall_indices
 
+    # TODO: break sucerquia into its own class
     def __detect_falls_sucerquia(self, motion_dataset: MotionDataset):
         sampling_rate = motion_dataset.get_sampling_rate()
         one_s_window_size = int(sampling_rate * 1)
         number_activities = len(motion_dataset.get_motion_data())
         # Array of boolean values indicating a fall occurrance for every motion data activity in the motion dataset
-        fall_occurred = np.zeros(number_activities, dtype=bool)
+        fall_detections = np.zeros(number_activities, dtype=bool)
         # Array of floating point recording fall times (if they occurred) of motion data activities, otherwise nan
-        fall_times = np.empty(number_activities)
-        fall_times[:] = np.nan
+        fall_indices = np.empty(number_activities)
+        fall_indices[:] = np.nan
         # Apply low pass filter
         motion_dataset.apply_lp_filter()
         # Apply derivative, feeds into metric J1
@@ -37,7 +38,7 @@ class FallDetector:
         # Perform fall detection on every motion data activity
         for motion_data in motion_dataset.get_motion_data():
             fall_detected = False
-            fall_time = np.nan
+            fall_index = np.nan
             for tri_lin_acc in motion_data.get_tri_lin_accs():
                 # Get all axes in triaxial acceleration
                 x_ax = tri_lin_acc.get_x_axis()
@@ -45,18 +46,20 @@ class FallDetector:
                 z_ax = tri_lin_acc.get_z_axis()
                 # Calculate metric J1: J1[k] = RMS(d(a[k])/dt)
                 metric_j1 = self.__calculate_metric_j1(x_ax, y_ax, z_ax)
-                # Calculate metric J2: J2[k] = std(x[k]) for a 1s sliding window for each time step k of the first 3 values of Kalman filtered data
+                # Calculate metric J2: J2[k] = std(x[k]) for a 1s sliding window for each time step k of the first 3
+                # values of Kalman filtered data
                 metric_j2 = self.__calculate_metric_j2(x_ax, y_ax, z_ax, one_s_window_size)
                 metric_j3 = self.__calculate_metric_j3(metric_j1, metric_j2, one_s_window_size)
-                print('yippee')
-
-        # Calculate metric J3: J1 * (J2)^2
-        # For all times, t0-tf
-        # If score > threshold
-        # If data is periodic for 3 second window after potential fall candidate (from unbiased, Kalman filtered vertical axis data)
-        # A fall has occurred, label the time
-        return fall_occurred, fall_times
-
+                # Check if values in array exceed dummy threshold value of 0.14
+                above_thold_values = np.where(metric_j3 > 0.14)[0]
+                if above_thold_values.size > 0:
+                    fall_detected = True
+                    fall_index = above_thold_values[0]
+                break
+            fall_detections[fall_detection_index] = fall_detected
+            fall_indices[fall_detection_index] = fall_index
+            fall_detection_index += 1
+        return fall_detections, fall_indices
 
     def __calculate_metric_j3(self, metric_j1, metric_j2, one_s_window_size):
         j1_sliding_max = np.array(self.motion_filters.generic_filter_max(metric_j1, one_s_window_size))
@@ -85,11 +88,4 @@ class FallDetector:
         z_der_ax = z_ax.get_first_derivative_data()
         metric_j1 = self.motion_filters.calculate_triaxial_rms(x_der_ax, y_der_ax, z_der_ax)
         return metric_j1
-
-    def __pad_j2_std_data(self):
-        pass
-
-    # TODO: Make a generic FallDetector class, make this class a child
-    def __perform_fall_detection_on_window(self):
-        pass
 

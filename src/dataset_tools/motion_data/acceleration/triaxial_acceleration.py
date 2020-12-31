@@ -14,7 +14,7 @@ class TriaxialAcceleration:
         self.y_axis: Acceleration = y_axis
         # Superior-inferior (top-bottom)
         self.z_axis: Acceleration = z_axis
-        self.sensor_name = self.get_sensor_name()
+        self.sensor_name = self.set_sensor_name()
 
     def get_x_axis(self) -> Acceleration:
         return self.x_axis
@@ -29,6 +29,9 @@ class TriaxialAcceleration:
         return [self.x_axis, self.y_axis, self.z_axis]
 
     def get_sensor_name(self):
+        return self.sensor_name
+
+    def set_sensor_name(self):
         if self.x_axis.sensor.name == self.y_axis.sensor.name == self.z_axis.sensor.name:
             sensor_name = self.x_axis.sensor.name
             return sensor_name

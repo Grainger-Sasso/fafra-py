@@ -22,7 +22,8 @@ class FaFRA:
         self.motion_visualizer.plot_motion_data(dataset, subject, activity, trial)
 
     def detect_fall_in_dataset(self, dataset, method):
-        self.fall_detector.detect_falls(dataset, method)
+        fall_detections, fall_indices = self.fall_detector.detect_falls(dataset, method)
+        return fall_detections, fall_indices
 
 
 
@@ -32,7 +33,7 @@ def main():
     fafra.read_datasets()
     dataset_name = 'SisFall'
     dataset = fafra.datasets[dataset_name]
-    fafra.detect_fall_in_dataset(dataset, 'sucerquia')
+    fall_detections, fall_indices = fafra.detect_fall_in_dataset(dataset, 'sucerquia')
     fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')
     # fafra.datasets['SisFall'].write_dataset_to_csv(r'C:\Users\gsass_000\Documents\Fall Project Master\fafra_py_legacy\Fall Datasets\SisFall_csv')
     # fafra.motion_visualizer.plot_motion_data(fafra.datasets[0].motion_data[0])
