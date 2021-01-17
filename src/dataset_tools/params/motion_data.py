@@ -1,9 +1,10 @@
 import pandas as pd
 from typing import List
-from src.dataset_tools.motion_data import TriaxialLinearAcceleration
-from src.dataset_tools.motion_data import TriaxialAngularAcceleration
-from src import Subject
-from src import Activity
+from src.dataset_tools.motion_data.acceleration.linear_acceleration.triaxial_linear_acceleration import TriaxialLinearAcceleration
+from src.dataset_tools.motion_data.acceleration.angular_acceleration.triaxial_angular_acceleration import TriaxialAngularAcceleration
+from src.dataset_tools.params.subject import Subject
+from src.dataset_tools.params.activity import Activity
+from src.motion_analysis.filters.motion_filters import MotionFilters
 
 
 class MotionData:
@@ -42,7 +43,28 @@ class MotionData:
         return [acc for sublist in accs for acc in sublist]
 
     def calculate_first_derivative_data(self):
+        filters = MotionFilters()
         for tri_acc in self.get_triaxial_accs():
             for acc in tri_acc.get_all_axes():
-                acc.set_lp_filtered_data(self.filters.apply_lpass_filter(acc.acceleration_data, self.sampling_rate))
+                acc.set_first_derivative_data(filters.calculate_first_derivative(acc.acceleration_data, acc.time))
+
+    def apply_lp_filter(self, sampling_rate):
+        filters = MotionFilters()
+        for tri_acc in self.get_triaxial_accs():
+            for acc in tri_acc.get_all_axes():
+                acc.set_lp_filtered_data(filters.apply_lpass_filter(acc.acceleration_data, sampling_rate))
+
+    def apply_kalman_filter(self, sampling_rate):
+        filters = MotionFilters()
+        for tri_acc in self.get_triaxial_accs():
+            x_ax = tri_acc.get_x_axis()
+            y_ax = tri_acc.get_y_axis()
+            z_ax = tri_acc.get_z_axis()
+            x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data, unbiased_y_ax_kf_data = filters.apply_kalman_filter(x_ax, y_ax, z_ax, sampling_rate)
+            x_ax.set_kf_filtered_data(x_kf_filtered_data)
+            y_ax.set_kf_filtered_data(y_kf_filtered_data)
+            z_ax.set_kf_filtered_data(z_kf_filtered_data)
+            y_ax.set_unbiased_kf_filtered_data(unbiased_y_ax_kf_data)
+
+
 

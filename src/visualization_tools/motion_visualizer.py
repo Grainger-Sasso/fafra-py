@@ -1,11 +1,11 @@
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 from typing import List
-from src.dataset_tools.motion_data import TriaxialAcceleration
-from src.dataset_tools.motion_data import Acceleration
-from src import MotionDataset
-from src import Subject
-from src import Activity
+from src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
+from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
+from src.dataset_tools.params.motion_dataset import MotionDataset
+from src.dataset_tools.params.subject import Subject
+from src.dataset_tools.params.activity import Activity
 
 
 class MotionVisualizer:

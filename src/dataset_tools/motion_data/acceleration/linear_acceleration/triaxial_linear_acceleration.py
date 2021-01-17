@@ -1,5 +1,5 @@
-from src.dataset_tools.motion_data import TriaxialAcceleration
-from src.dataset_tools.motion_data import LinearAcceleration
+from src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
+from src.dataset_tools.motion_data.acceleration.linear_acceleration.linear_acceleration import LinearAcceleration
 
 
 class TriaxialLinearAcceleration(TriaxialAcceleration):
