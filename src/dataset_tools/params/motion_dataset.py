@@ -29,6 +29,9 @@ class MotionDataset:
 
     #TODO: Add in rest of get/set methods
 
+    def get_name(self):
+        return self.name
+
     def get_sampling_rate(self):
         return self.sampling_rate
 

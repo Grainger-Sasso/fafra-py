@@ -25,12 +25,15 @@ class FaFRA:
 def main():
     fafra = FaFRA()
     fafra.read_datasets()
+    fall_detection_results_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\sucerquia_fall_detector\trial'
     dataset_name = 'SisFall'
     dataset = fafra.datasets[dataset_name]
-    dataset_fall_detections, fall_detection_verifications, dataset_fall_indices = fafra.fall_detector.detect_falls_in_motion_dataset(dataset)
+    # results_df - "measurements": ds_fall_measurements, "predictions": ds_fall_predictions,"comparison": ds_mp_comparison, "indices": np.array(ds_fall_indices)}
+    results_df = fafra.fall_detector.detect_falls_in_motion_dataset(dataset, True, fall_detection_results_dir)
+
     # dataset.apply_lp_filter()
     # dataset.apply_kalman_filter()
-    fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')
+    # fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')
     # fafra.datasets['SisFall'].write_dataset_to_csv(r'C:\Users\gsass_000\Documents\Fall Project Master\fafra_py_legacy\Fall Datasets\SisFall_csv')
     # fafra.motion_visualizer.plot_motion_data(fafra.datasets[0].motion_data[0])
 
