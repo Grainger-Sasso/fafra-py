@@ -1,3 +1,4 @@
+import time
 from abc import abstractmethod
 from typing import List, Any, Dict
 from src.dataset_tools.params.motion_data import MotionData
@@ -67,7 +68,13 @@ class MotionDataset:
 
     def apply_kalman_filter(self):
         filters = MotionFilters()
-        for motion_data in self.get_motion_data():
+        total_md = len(self.get_motion_data())
+        time_0 = time.time()
+        for ix, motion_data in enumerate(self.get_motion_data()):
+            print(ix)
+            print(total_md)
+            print(ix/total_md)
+            print(f'runtime: {time.time()-time_0}')
             for tri_acc in motion_data.get_triaxial_accs():
                 x_ax = tri_acc.get_x_axis()
                 y_ax = tri_acc.get_y_axis()
