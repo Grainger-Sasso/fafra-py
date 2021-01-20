@@ -1,7 +1,7 @@
 import numpy as np
 import itertools
-import time
 from scipy.ndimage import generic_filter
+from scipy.ndimage.filters import uniform_filter
 from scipy import signal
 from filterpy.kalman import KalmanFilter
 from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
@@ -120,6 +120,16 @@ class MotionFilters:
 
     def generic_filter_max(self, data, window_size):
         return generic_filter(data, np.max, size=window_size)
+
+    def windowed_sum(self, a, win):
+        table = np.cumsum(np.cumsum(a, axis=0), axis=1)
+        win_sum = np.empty(tuple(np.subtract(a.shape, win - 1)))
+        win_sum[0, 0] = table[win - 1, win - 1]
+        win_sum[0, 1:] = table[win - 1, win:] - table[win - 1, :-win]
+        win_sum[1:, 0] = table[win:, win - 1] - table[:-win, win - 1]
+        win_sum[1:, 1:] = (table[win:, win:] + table[:-win, :-win] -
+                           table[win:, :-win] - table[:-win, win:])
+        return win_sum
 
     def strided_sliding_std_dev(self, data, radius):
         windowed = self.__rolling_window(data, radius)
