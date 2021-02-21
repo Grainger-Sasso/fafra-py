@@ -25,7 +25,7 @@ class TestSucerquiaFallDetector:
 
     def test_detect_falls_in_motion_dataset(self):
         # Instantiate fall detector
-        sfd = SucerquiaFallDetector()
+        sfd = SucerquiaFallDetector(4.44)
         # Read in acceleration data
         acc_data = self.read_json_file(os.path.join(TEST_DIR, 'unit_test_data', 'acceleration_data.json'))
         # Generate a motion dataset to test
@@ -79,7 +79,7 @@ class TestSucerquiaFallDetector:
 
     def test_detect_falls_in_motion_data(self):
         # Instantiate fall detector
-        sfd = SucerquiaFallDetector()
+        sfd = SucerquiaFallDetector(4.0)
         # Read in acceleration data
         acc_data = self.read_json_file(os.path.join(TEST_DIR, 'unit_test_data', 'acceleration_data.json'))
         sampling_rate = 200.0

@@ -24,6 +24,7 @@ class SisFallDataset(MotionDataset):
     def read_dataset(self):
         # Initialize output
         all_motion_data_in_dataset: List[MotionData] = []
+        num_files_read = 0
         # Iterate through SisFall directory for all data files
         for root, dirs, files in list(os.walk(self.path))[1:]:
             for file in files:
@@ -31,13 +32,14 @@ class SisFallDataset(MotionDataset):
                     continue
                 else:
                     motion_file_path = os.path.join(root, file)
-                    print(motion_file_path)
                     # Open file, read in txt file as csv data
                     with open(motion_file_path) as mfp:
                         data = pd.read_csv(mfp, sep=',', index_col='time')
                         all_motion_data_in_dataset.append(
                             self.__build_motion_data(data, file))
+                    num_files_read += 1
         self.motion_data = all_motion_data_in_dataset
+        print(f'Dataset has read in {num_files_read} files from {self.path}')
 
     def write_dataset_to_csv(self, output_folder_path):
         output_path = os.path.join(output_folder_path, 'SisFall_dataset_csv')
