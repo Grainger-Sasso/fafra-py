@@ -9,10 +9,14 @@ from src.motion_analysis.feature_extraction.fall_detection.sucerquia_fall_detect
 class FaFRA:
 
     def __init__(self):
-        self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass\Desktop\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_small_dataset_csv', 'csv')}
+        # self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass\Desktop\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_small_dataset_csv', 'csv')}
+        self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass\Desktop\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_dataset_csv', 'csv')}
         self.motion_visualizer: MotionVisualizer = MotionVisualizer()
         self.motion_filters: MotionFilters = MotionFilters()
-        self.fall_detector: SucerquiaFallDetector = SucerquiaFallDetector()
+        self.fall_detector: SucerquiaFallDetector = SucerquiaFallDetector(4.0)
+
+    def set_fall_detector(self, fall_detector: SucerquiaFallDetector):
+        self.fall_detector = fall_detector
 
     def read_datasets(self):
         for name, dataset in self.datasets.items():
@@ -28,12 +32,17 @@ def main():
     fall_detection_results_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\sucerquia_fall_detector\trial'
     dataset_name = 'SisFall'
     dataset = fafra.datasets[dataset_name]
+    # dataset = copy.deepcopy(fafra.datasets[dataset_name])
     # results_df - "measurements": ds_fall_measurements, "predictions": ds_fall_predictions,"comparison": ds_mp_comparison, "indices": np.array(ds_fall_indices)}
-    results_df = fafra.fall_detector.detect_falls_in_motion_dataset(dataset, True, fall_detection_results_dir)
-
+    # results_df = fafra.fall_detector.detect_falls_in_motion_dataset(dataset, True, fall_detection_results_dir)
+    metric_thresholds = [4.44]
+    for metric_threshold in metric_thresholds:
+        fall_detector = SucerquiaFallDetector(metric_threshold)
+        fafra.set_fall_detector(fall_detector)
+        results_df = fafra.fall_detector.detect_falls_in_motion_dataset(dataset, True, fall_detection_results_dir)
     # dataset.apply_lp_filter()
     # dataset.apply_kalman_filter()
-    # fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')
+    # fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')b
     # fafra.datasets['SisFall'].write_dataset_to_csv(r'C:\Users\gsass_000\Documents\Fall Project Master\fafra_py_legacy\Fall Datasets\SisFall_csv')
     # fafra.motion_visualizer.plot_motion_data(fafra.datasets[0].motion_data[0])
 

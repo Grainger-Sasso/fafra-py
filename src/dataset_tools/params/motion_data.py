@@ -1,4 +1,6 @@
 import pandas as pd
+import numpy as np
+from scipy import signal
 from typing import List
 from src.dataset_tools.motion_data.acceleration.linear_acceleration.triaxial_linear_acceleration import TriaxialLinearAcceleration
 from src.dataset_tools.motion_data.acceleration.angular_acceleration.triaxial_angular_acceleration import TriaxialAngularAcceleration
@@ -65,6 +67,26 @@ class MotionData:
             y_ax.set_kf_filtered_data(y_kf_filtered_data)
             z_ax.set_kf_filtered_data(z_kf_filtered_data)
             y_ax.set_unbiased_kf_filtered_data(unbiased_y_ax_kf_data)
+
+    def downsample(self, old_sampling_rate, new_sampling_rate):
+        if old_sampling_rate <= new_sampling_rate:
+            raise ValueError(f'Sampling rate of {old_sampling_rate} cannot be downsampled to {new_sampling_rate}')
+
+        #TODO: add in a revision to the motion_df to account for the downsampling
+        for tri_acc in self.get_triaxial_accs():
+            x_ax = tri_acc.get_x_axis()
+            y_ax = tri_acc.get_y_axis()
+            z_ax = tri_acc.get_z_axis()
+            x_ax.set_acceleration_data(self.__downsample_axis(x_ax, old_sampling_rate, new_sampling_rate))
+            y_ax.set_acceleration_data(self.__downsample_axis(y_ax, old_sampling_rate, new_sampling_rate))
+            z_ax.set_acceleration_data(self.__downsample_axis(z_ax, old_sampling_rate, new_sampling_rate))
+
+    def __downsample_axis(self, ax, old_sampling_rate, new_sampling_rate):
+        old_num_samples = len(ax.get_acceleration_data())
+        new_num_samples = int((old_num_samples / old_sampling_rate) * new_sampling_rate)
+        return np.array(signal.resample(ax.get_acceleration_data(), new_num_samples))
+
+
 
 
 

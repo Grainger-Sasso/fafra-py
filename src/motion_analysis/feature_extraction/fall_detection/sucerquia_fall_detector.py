@@ -3,7 +3,6 @@ import pandas as pd
 import os
 import random
 import string
-import time
 from scipy.signal import find_peaks
 from src.dataset_tools.params.motion_dataset import MotionDataset
 from src.dataset_tools.params.motion_data import MotionData
@@ -14,9 +13,10 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 
 class SucerquiaFallDetector:
 
-    def __init__(self):
+    def __init__(self, metric_threshold=4.44):
         self.motion_filters = MotionFilters()
-        self.sucerquia_metric_threshold: float = 4.0
+        self.sucerquia_metric_threshold: float = metric_threshold
+        self.downsampled_rate: float = 25.0
         self.sucerquia_periodicity_threshold: float = 1.5
 
     def detect_falls_in_motion_dataset(self, motion_dataset: MotionDataset, write_results_to_csv=False, output_path=''):
@@ -29,40 +29,21 @@ class SucerquiaFallDetector:
         ds_mp_comparison = np.zeros(number_activities, dtype=bool)
         # Array of floating point recording fall times (if they occurred) of motion data activities, otherwise nan
         ds_fall_indices = [np.nan] * number_activities
-
-        filter_time0 = time.time()
-
+        # Downsample data
+        motion_dataset.downsample_dataset(sampling_rate, self.downsampled_rate)
         # Apply low pass filter
-        print('Applying low-pass filter to dataset')
         motion_dataset.apply_lp_filter()
         # Apply derivative, feeds into metric J1
-        print('Calculating first derivative of dataset')
         motion_dataset.calculate_first_derivative_data()
         # Apply Kalman filter, feeds into metric J2
-        print('Applying kalman filter to dataset')
         motion_dataset.apply_kalman_filter()
-
-        filter_time1 = time.time()
-        print('filter_time: ' + str(filter_time1-filter_time0))
-        total_detect_fall_time = 0.0
-
         # Perform fall detection on every motion data activity
-        print('Detecting falls in dataset')
         for dataset_index, motion_data in enumerate(motion_dataset.get_motion_data()):
-            print(f'Detecting falls on activity {dataset_index} of {number_activities}')
-
-            detect_fall_time0 = time.time()
-
             md_fall_measurement, md_fall_predictions, md_mp_comparison, md_fall_index = self.detect_falls_in_motion_data(motion_data, sampling_rate, True)
-
-            detect_fall_time1 = time.time()
-            total_detect_fall_time += detect_fall_time1 - detect_fall_time0
-
             ds_fall_measurements[dataset_index] = md_fall_measurement
             ds_fall_predictions[dataset_index] = md_fall_predictions
             ds_mp_comparison[dataset_index] = md_mp_comparison
             ds_fall_indices[dataset_index] = md_fall_index
-        print(f'total_detect_fall_time: {total_detect_fall_time}')
         results_df = pd.DataFrame({"measurements": ds_fall_measurements, "predictions": ds_fall_predictions,
                                    "comparison": ds_mp_comparison, "indices": np.array(ds_fall_indices)})
         results_df = self.__add_confustion_metrics_to_ds_results(results_df, number_activities)
