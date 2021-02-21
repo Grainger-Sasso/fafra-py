@@ -1,8 +1,9 @@
+
+from pathos.multiprocessing import ProcessingPool as Pool
 from abc import abstractmethod
 from typing import List, Any, Dict
 from src.dataset_tools.params.motion_data import MotionData
 from src.dataset_tools.params.sensor import Sensor
-from src.motion_analysis.filters.motion_filters import MotionFilters
 
 
 class MotionDataset:
@@ -18,7 +19,6 @@ class MotionDataset:
         self.sensor_data: Dict[str, Sensor] = sensor_data
         self.motion_data: List[MotionData] = []
 
-
     @abstractmethod
     def read_dataset(self):
         pass
@@ -28,6 +28,9 @@ class MotionDataset:
         pass
 
     #TODO: Add in rest of get/set methods
+
+    def get_name(self):
+        return self.name
 
     def get_sampling_rate(self):
         return self.sampling_rate
@@ -56,31 +59,28 @@ class MotionDataset:
         self.motion_data.append(motion_data)
 
     def apply_lp_filter(self):
-        filters = MotionFilters()
-        for motion_data in self.get_motion_data():
-            for tri_acc in motion_data.get_triaxial_accs():
-                for acc in tri_acc.get_all_axes():
-                    acc.set_lp_filtered_data(filters.apply_lpass_filter(acc.acceleration_data, self.sampling_rate))
+        for ix, motion_data in enumerate(self.get_motion_data()):
+            motion_data.apply_lp_filter(self.sampling_rate)
+
+    def parallel_apply_kalman_filter(self):
+        sampling_rates = [self.sampling_rate] * len(self.get_motion_data())
+        p = Pool()
+        return p.map(self.__run_motion_data_apply_kf, self.get_motion_data(), sampling_rates)
+
+    def __run_motion_data_apply_kf(self, motion_data: MotionData, sampling_rate):
+        motion_data.apply_kalman_filter(sampling_rate)
 
     def apply_kalman_filter(self):
-        filters = MotionFilters()
-        for motion_data in self.get_motion_data():
-            for tri_acc in motion_data.get_triaxial_accs():
-                x_ax = tri_acc.get_x_axis()
-                y_ax = tri_acc.get_y_axis()
-                z_ax = tri_acc.get_z_axis()
-                x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data, unbiased_y_ax_kf_data = filters.apply_kalman_filter(x_ax, y_ax, z_ax, self.sampling_rate)
-                x_ax.set_kf_filtered_data(x_kf_filtered_data)
-                y_ax.set_kf_filtered_data(y_kf_filtered_data)
-                z_ax.set_kf_filtered_data(z_kf_filtered_data)
-                y_ax.set_unbiased_kf_filtered_data(unbiased_y_ax_kf_data)
+        for ix, motion_data in enumerate(self.get_motion_data()):
+            motion_data.apply_kalman_filter(self.sampling_rate)
 
     def calculate_first_derivative_data(self):
-        filters = MotionFilters()
-        for motion_data in self.get_motion_data():
-            for tri_acc in motion_data.get_triaxial_accs():
-                for acc in tri_acc.get_all_axes():
-                    acc.set_first_derivative_data(filters.calculate_first_derivative(acc.acceleration_data, acc.time))
+        for ix, motion_data in enumerate(self.get_motion_data()):
+            motion_data.calculate_first_derivative_data()
+
+    def downsample_dataset(self, old_sampling_rate, new_sampling_rate):
+        for ix, motion_data in enumerate(self.get_motion_data()):
+            motion_data.downsample(old_sampling_rate, new_sampling_rate)
 
 
 

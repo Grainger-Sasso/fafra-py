@@ -1,5 +1,8 @@
 import numpy as np
-from scipy.signal import argrelextrema
+import pandas as pd
+import os
+import random
+import string
 from scipy.signal import find_peaks
 from src.dataset_tools.params.motion_dataset import MotionDataset
 from src.dataset_tools.params.motion_data import MotionData
@@ -10,21 +13,24 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 
 class SucerquiaFallDetector:
 
-    def __init__(self):
+    def __init__(self, metric_threshold=4.44):
         self.motion_filters = MotionFilters()
-        self.sucerquia_metric_threshold: float = 4.0
+        self.sucerquia_metric_threshold: float = metric_threshold
+        self.downsampled_rate: float = 25.0
         self.sucerquia_periodicity_threshold: float = 1.5
 
-    def detect_falls_in_motion_dataset(self, motion_dataset: MotionDataset):
+    def detect_falls_in_motion_dataset(self, motion_dataset: MotionDataset, write_results_to_csv=False, output_path=''):
         sampling_rate = motion_dataset.get_sampling_rate()
         number_activities = len(motion_dataset.get_motion_data())
         # Array of boolean values indicating a fall occurrance for every motion data activity in the motion dataset
-        dataset_fall_detections = np.zeros(number_activities, dtype=bool)
-        fall_detection_verifications = np.zeros(number_activities, dtype=bool)
+        ds_fall_measurements = np.zeros(number_activities, dtype=bool)
+        ds_fall_predictions = np.zeros(number_activities, dtype=bool)
+        # Measurement-prediction comparison
+        ds_mp_comparison = np.zeros(number_activities, dtype=bool)
         # Array of floating point recording fall times (if they occurred) of motion data activities, otherwise nan
-        # dataset_fall_indices = np.empty(number_activities, dtype=np.int8)
-        # dataset_fall_indices[:] = np.nan
-        dataset_fall_indices = [np.nan] * number_activities
+        ds_fall_indices = [np.nan] * number_activities
+        # Downsample data
+        motion_dataset.downsample_dataset(sampling_rate, self.downsampled_rate)
         # Apply low pass filter
         motion_dataset.apply_lp_filter()
         # Apply derivative, feeds into metric J1
@@ -33,11 +39,18 @@ class SucerquiaFallDetector:
         motion_dataset.apply_kalman_filter()
         # Perform fall detection on every motion data activity
         for dataset_index, motion_data in enumerate(motion_dataset.get_motion_data()):
-            motion_data_fall_detected, motion_data_fall_detection_verification, motion_data_fall_index = self.detect_falls_in_motion_data(motion_data, sampling_rate, True)
-            dataset_fall_detections[dataset_index] = motion_data_fall_detected
-            fall_detection_verifications[dataset_index] = motion_data_fall_detection_verification
-            dataset_fall_indices[dataset_index] = motion_data_fall_index
-        return dataset_fall_detections, fall_detection_verifications, dataset_fall_indices
+            md_fall_measurement, md_fall_predictions, md_mp_comparison, md_fall_index = self.detect_falls_in_motion_data(motion_data, sampling_rate, True)
+            ds_fall_measurements[dataset_index] = md_fall_measurement
+            ds_fall_predictions[dataset_index] = md_fall_predictions
+            ds_mp_comparison[dataset_index] = md_mp_comparison
+            ds_fall_indices[dataset_index] = md_fall_index
+        results_df = pd.DataFrame({"measurements": ds_fall_measurements, "predictions": ds_fall_predictions,
+                                   "comparison": ds_mp_comparison, "indices": np.array(ds_fall_indices)})
+        results_df = self.__add_confustion_metrics_to_ds_results(results_df, number_activities)
+        if write_results_to_csv:
+            # Write results to csv
+            self.__write_dataset_results_to_csv(results_df, output_path, motion_dataset.get_name())
+        return results_df
 
     def detect_falls_in_motion_data(self, motion_data: MotionData, sampling_rate: float, filter_flag: bool):
         if not filter_flag:
@@ -45,18 +58,38 @@ class SucerquiaFallDetector:
             motion_data.calculate_first_derivative_data()
             motion_data.apply_kalman_filter(sampling_rate)
         # Initialize the fall detection output to indicate fall was not detected
-        motion_data_fall_detected = False
-        motion_data_fall_index = np.nan
+        md_fall_measurement = motion_data.get_activity().get_fall()
+        md_fall_prediction = False
+        md_fall_index = np.nan
         for tri_lin_acc in motion_data.get_tri_lin_accs():
             triaxial_fall_detected, triaxial_fall_index = self.__detect_falls_in_triaxial_acc(tri_lin_acc,
                                                                                               sampling_rate)
             if triaxial_fall_detected:
-                motion_data_fall_detected = triaxial_fall_detected
-                motion_data_fall_index = triaxial_fall_index
+                md_fall_prediction = triaxial_fall_detected
+                md_fall_index = triaxial_fall_index
                 break
-        motion_data_fall_status = motion_data.get_activity().get_fall()
-        fall_detection_verification = motion_data_fall_status == motion_data_fall_detected
-        return motion_data_fall_detected, fall_detection_verification, motion_data_fall_index
+        md_mp_comparison = md_fall_measurement == md_fall_prediction
+        return md_fall_measurement, md_fall_prediction, md_mp_comparison, md_fall_index
+
+    def __add_confustion_metrics_to_ds_results(self, results_df, number_activities):
+        num_correct_arr = [np.nan] * number_activities
+        num_correct = np.count_nonzero(results_df['comparison'])
+        num_correct_arr[0] = num_correct
+        num_incorrect_arr = [np.nan] * number_activities
+        num_incorrect = len(results_df['comparison']) - num_correct
+        num_incorrect_arr[0] = num_incorrect
+        error_rate_arr = [np.nan] * number_activities
+        error_rate = num_incorrect / len(results_df['comparison'])
+        error_rate_arr[0] = error_rate
+        results_df['num_correct'] = num_correct_arr
+        results_df['num_incorrect'] = num_incorrect_arr
+        results_df['error_rate'] = error_rate_arr
+        return results_df
+    def __write_dataset_results_to_csv(self, results_df: pd.DataFrame, output_directory: str, dataset_name: str):
+        random_alphanumeric = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        output_file_name = 'results_' + dataset_name + '_' + random_alphanumeric + '.csv'
+        full_output_path = os.path.join(output_directory, output_file_name)
+        results_df.to_csv(full_output_path)
 
     def __detect_falls_in_triaxial_acc(self, triaxial_acc: TriaxialAcceleration, sampling_rate: float):
         # Initialize output of fall detection to indicate not fall was detected
