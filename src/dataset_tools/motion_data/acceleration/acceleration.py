@@ -44,6 +44,9 @@ class Acceleration:
     def get_sensor(self):
         return self.sensor
 
+    def set_time_data(self, data: np.array):
+        self.time = data
+
     def set_acceleration_data(self, data: np.array):
         self.acceleration_data = data
 

@@ -35,14 +35,14 @@ def main():
     # dataset = copy.deepcopy(fafra.datasets[dataset_name])
     # results_df - "measurements": ds_fall_measurements, "predictions": ds_fall_predictions,"comparison": ds_mp_comparison, "indices": np.array(ds_fall_indices)}
     # results_df = fafra.fall_detector.detect_falls_in_motion_dataset(dataset, True, fall_detection_results_dir)
-    metric_thresholds = [4.44, 4.54, 4.34]
+    metric_thresholds = [4.44, 4.34, 4.20, 3.5, 2.5]
     for metric_threshold in metric_thresholds:
         fall_detector = SucerquiaFallDetector(metric_threshold)
         fafra.set_fall_detector(fall_detector)
         results_df = fafra.fall_detector.detect_falls_in_motion_dataset(dataset, True, fall_detection_results_dir)
     # dataset.apply_lp_filter()
     # dataset.apply_kalman_filter()
-    # fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')b
+    # fafra.plot_motion_data(dataset, 'SA01', 'F05', 'R01')
     # fafra.datasets['SisFall'].write_dataset_to_csv(r'C:\Users\gsass_000\Documents\Fall Project Master\fafra_py_legacy\Fall Datasets\SisFall_csv')
     # fafra.motion_visualizer.plot_motion_data(fafra.datasets[0].motion_data[0])
 
