@@ -1,5 +1,3 @@
-
-from pathos.multiprocessing import ProcessingPool as Pool
 from abc import abstractmethod
 from typing import List, Any, Dict
 from src.dataset_tools.params.motion_data import MotionData
@@ -55,32 +53,27 @@ class MotionDataset:
         else:
             raise ValueError(f'{subject}, {activity}, {trial}')
 
+    def set_sampling_rate(self, sampling_rate):
+        self.sampling_rate = sampling_rate
+
     def add_motion_data(self, motion_data: MotionData):
         self.motion_data.append(motion_data)
 
-    def apply_lp_filter(self):
-        for ix, motion_data in enumerate(self.get_motion_data()):
-            motion_data.apply_lp_filter(self.sampling_rate)
-
-    def parallel_apply_kalman_filter(self):
-        sampling_rates = [self.sampling_rate] * len(self.get_motion_data())
-        p = Pool()
-        return p.map(self.__run_motion_data_apply_kf, self.get_motion_data(), sampling_rates)
-
-    def __run_motion_data_apply_kf(self, motion_data: MotionData, sampling_rate):
-        motion_data.apply_kalman_filter(sampling_rate)
-
-    def apply_kalman_filter(self):
-        for ix, motion_data in enumerate(self.get_motion_data()):
-            motion_data.apply_kalman_filter(self.sampling_rate)
-
-    def calculate_first_derivative_data(self):
-        for ix, motion_data in enumerate(self.get_motion_data()):
-            motion_data.calculate_first_derivative_data()
-
-    def downsample_dataset(self, old_sampling_rate, new_sampling_rate):
-        for ix, motion_data in enumerate(self.get_motion_data()):
-            motion_data.downsample(old_sampling_rate, new_sampling_rate)
+    # def apply_lp_filter(self):
+    #     for ix, motion_data in enumerate(self.get_motion_data()):
+    #         motion_data.apply_lp_filter(self.sampling_rate)
+    #
+    # def apply_kalman_filter(self):
+    #     for ix, motion_data in enumerate(self.get_motion_data()):
+    #         motion_data.apply_kalman_filter(self.sampling_rate)
+    #
+    # def calculate_first_derivative_data(self):
+    #     for ix, motion_data in enumerate(self.get_motion_data()):
+    #         motion_data.calculate_first_derivative_data()
+    #
+    # def downsample_dataset(self, old_sampling_rate, new_sampling_rate):
+    #     for ix, motion_data in enumerate(self.get_motion_data()):
+    #         motion_data.downsample(old_sampling_rate, new_sampling_rate)
 
 
 

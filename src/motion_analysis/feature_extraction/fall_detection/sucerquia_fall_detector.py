@@ -20,7 +20,6 @@ class SucerquiaFallDetector:
         self.sucerquia_periodicity_threshold: float = 1.5
 
     def detect_falls_in_motion_dataset(self, motion_dataset: MotionDataset, write_results_to_csv=False, output_path=''):
-        sampling_rate = motion_dataset.get_sampling_rate()
         number_activities = len(motion_dataset.get_motion_data())
         # Array of boolean values indicating a fall occurrance for every motion data activity in the motion dataset
         ds_fall_measurements = np.zeros(number_activities, dtype=bool)
@@ -30,16 +29,24 @@ class SucerquiaFallDetector:
         # Array of floating point recording fall times (if they occurred) of motion data activities, otherwise nan
         ds_fall_indices = [np.nan] * number_activities
         # Downsample data
-        motion_dataset.downsample_dataset(sampling_rate, self.downsampled_rate)
+        print('downsample')
+        self.motion_filters.downsample_dataset(motion_dataset, self.downsampled_rate)
         # Apply low pass filter
-        motion_dataset.apply_lp_filter()
+        print('lpf')
+        self.motion_filters.apply_lpass_filter_to_dataset(motion_dataset)
+        # motion_dataset.apply_lp_filter()
         # Apply derivative, feeds into metric J1
-        motion_dataset.calculate_first_derivative_data()
+        print('first-derivative')
+        self.motion_filters.calculate_first_derivative_dataset(motion_dataset)
+        # motion_dataset.calculate_first_derivative_data()
         # Apply Kalman filter, feeds into metric J2
-        motion_dataset.apply_kalman_filter()
+        print('kf')
+        self.motion_filters.apply_kalman_filter_to_dataset(motion_dataset)
+        # motion_dataset.apply_kalman_filter()
         # Perform fall detection on every motion data activity
+        print('fall-detection')
         for dataset_index, motion_data in enumerate(motion_dataset.get_motion_data()):
-            md_fall_measurement, md_fall_predictions, md_mp_comparison, md_fall_index = self.detect_falls_in_motion_data(motion_data, sampling_rate, True)
+            md_fall_measurement, md_fall_predictions, md_mp_comparison, md_fall_index = self.detect_falls_in_motion_data(motion_data, motion_dataset.get_sampling_rate(), True)
             ds_fall_measurements[dataset_index] = md_fall_measurement
             ds_fall_predictions[dataset_index] = md_fall_predictions
             ds_mp_comparison[dataset_index] = md_mp_comparison
@@ -85,6 +92,7 @@ class SucerquiaFallDetector:
         results_df['num_incorrect'] = num_incorrect_arr
         results_df['error_rate'] = error_rate_arr
         return results_df
+
     def __write_dataset_results_to_csv(self, results_df: pd.DataFrame, output_directory: str, dataset_name: str):
         random_alphanumeric = ''.join(random.choices(string.ascii_letters + string.digits, k=8))
         output_file_name = 'results_' + dataset_name + '_' + random_alphanumeric + '.csv'
