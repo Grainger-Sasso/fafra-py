@@ -4,6 +4,8 @@ from scipy.ndimage import generic_filter
 from scipy.ndimage.filters import uniform_filter
 from scipy import signal
 from filterpy.kalman import KalmanFilter
+from src.dataset_tools.params.motion_dataset import MotionDataset
+from src.dataset_tools.params.motion_data import MotionData
 from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
 
 
@@ -12,8 +14,15 @@ class MotionFilters:
     def __init__(self):
         self.kalman_filter: KalmanFilter = KalmanFilter(dim_x=4, dim_z=4)
 
-    def moving_average(self, data: np.array, n=3):
+    def apply_moving_average(self, data: np.array, n=3):
         return np.convolve(data, np.ones(n), 'valid') / n
+
+    def apply_lpass_filter_to_dataset(self, motion_dataset: MotionDataset):
+        sampling_rate = motion_dataset.get_sampling_rate()
+        for ix, motion_data in enumerate(motion_dataset.get_motion_data()):
+            for tri_acc in motion_data.get_triaxial_accs():
+                for acc in tri_acc.get_all_axes():
+                    acc.set_lp_filtered_data(self.apply_lpass_filter(acc.acceleration_data, sampling_rate))
 
     def apply_lpass_filter(self, data: np.array, sampling_rate: float):
         # Parameters for Butterworth filter found (3.1. Pre-Processing Stage):
@@ -23,6 +32,49 @@ class MotionFilters:
         b, a = signal.butter(4, cutoff_freq)
         # Apply filter to input data
         return np.array(signal.filtfilt(b, a, data))
+
+    def downsample_dataset(self, motion_dataset: MotionDataset, new_sampling_rate):
+        # TODO: add in a revision to the motion_df to account for the downsampling
+        current_sampling_rate = motion_dataset.get_sampling_rate()
+        if current_sampling_rate < new_sampling_rate:
+            raise ValueError(f'Sampling rate of {current_sampling_rate} cannot be downsampled to {new_sampling_rate}')
+        else:
+            for ix, motion_data in enumerate(motion_dataset.get_motion_data()):
+                for tri_acc in motion_data.get_triaxial_accs():
+                    x_ax = tri_acc.get_x_axis()
+                    y_ax = tri_acc.get_y_axis()
+                    z_ax = tri_acc.get_z_axis()
+                    x_acc_data, x_time_data = self.__downsample_axis(x_ax, current_sampling_rate, new_sampling_rate)
+                    y_acc_data, y_time_data = self.__downsample_axis(y_ax, current_sampling_rate, new_sampling_rate)
+                    z_acc_data, z_time_data = self.__downsample_axis(z_ax, current_sampling_rate, new_sampling_rate)
+                    x_ax.set_acceleration_data(x_acc_data)
+                    x_ax.set_time_data(x_time_data)
+                    y_ax.set_acceleration_data(y_acc_data)
+                    y_ax.set_time_data(y_time_data)
+                    z_ax.set_acceleration_data(z_acc_data)
+                    z_ax.set_time_data(z_time_data)
+            motion_dataset.set_sampling_rate(new_sampling_rate)
+
+    def __downsample_axis(self, ax, current_sampling_rate, new_sampling_rate):
+        old_num_samples = len(ax.get_acceleration_data())
+        new_num_samples = int((old_num_samples / current_sampling_rate) * new_sampling_rate)
+        acc_data = np.array(signal.resample(ax.get_acceleration_data(), new_num_samples))
+        time_data = np.array(signal.resample(ax.get_time(), new_num_samples))
+        return acc_data, time_data
+
+    def apply_kalman_filter_to_dataset(self, motion_dataset: MotionDataset):
+        sampling_rate = motion_dataset.get_sampling_rate()
+        for ix, motion_data in enumerate(motion_dataset.get_motion_data()):
+            for tri_acc in motion_data.get_triaxial_accs():
+                x_ax = tri_acc.get_x_axis()
+                y_ax = tri_acc.get_y_axis()
+                z_ax = tri_acc.get_z_axis()
+                x_kf_filtered_data, y_kf_filtered_data, z_kf_filtered_data, unbiased_y_ax_kf_data = self.apply_kalman_filter(
+                    x_ax, y_ax, z_ax, sampling_rate)
+                x_ax.set_kf_filtered_data(x_kf_filtered_data)
+                y_ax.set_kf_filtered_data(y_kf_filtered_data)
+                z_ax.set_kf_filtered_data(z_kf_filtered_data)
+                y_ax.set_unbiased_kf_filtered_data(unbiased_y_ax_kf_data)
 
     def apply_kalman_filter(self, x_ax: Acceleration, y_ax: Acceleration, z_ax: Acceleration, sampling_rate):
         # TODO: evaluate run-time and run-time optimization strategies
@@ -99,6 +151,12 @@ class MotionFilters:
         # Set the process noise covariance matrix
         self.kalman_filter.Q = Q
 
+    def calculate_first_derivative_dataset(self, motion_dataset: MotionDataset):
+        for ix, motion_data in enumerate(motion_dataset.get_motion_data()):
+            for tri_acc in motion_data.get_triaxial_accs():
+                for acc in tri_acc.get_all_axes():
+                    acc.set_first_derivative_data(self.calculate_first_derivative(acc.acceleration_data, acc.time))
+
     def calculate_first_derivative(self, x, y):
         """
         Calculates d(x)/dy
@@ -113,7 +171,6 @@ class MotionFilters:
         # rms = sqrt((1/n)(a^2+b^2+c^2)) where n=3
         rms_matrix = np.array((x, y, z))
         return np.sqrt(np.mean(np.power(rms_matrix, 2), axis=0))
-
 
     def generic_filter_sliding_std_dev(self, data, window_size):
         return generic_filter(data, np.std, size=window_size)
