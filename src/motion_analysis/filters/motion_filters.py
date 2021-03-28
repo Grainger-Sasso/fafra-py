@@ -44,9 +44,18 @@ class MotionFilters:
                     x_ax = tri_acc.get_x_axis()
                     y_ax = tri_acc.get_y_axis()
                     z_ax = tri_acc.get_z_axis()
-                    x_acc_data, x_time_data = self.__downsample_axis(x_ax, current_sampling_rate, new_sampling_rate)
-                    y_acc_data, y_time_data = self.__downsample_axis(y_ax, current_sampling_rate, new_sampling_rate)
-                    z_acc_data, z_time_data = self.__downsample_axis(z_ax, current_sampling_rate, new_sampling_rate)
+                    x_acc_data = self.downsample_data(x_ax.get_acceleration_data(), current_sampling_rate,
+                                                      new_sampling_rate)
+                    x_time_data = self.downsample_data(x_ax.get_time(), current_sampling_rate,
+                                                      new_sampling_rate)
+                    y_acc_data = self.downsample_data(y_ax.get_acceleration_data(), current_sampling_rate,
+                                                      new_sampling_rate)
+                    y_time_data = self.downsample_data(y_ax.get_time(), current_sampling_rate,
+                                                       new_sampling_rate)
+                    z_acc_data = self.downsample_data(z_ax.get_acceleration_data(), current_sampling_rate,
+                                                      new_sampling_rate)
+                    z_time_data = self.downsample_data(z_ax.get_time(), current_sampling_rate,
+                                                       new_sampling_rate)
                     x_ax.set_acceleration_data(x_acc_data)
                     x_ax.set_time_data(x_time_data)
                     y_ax.set_acceleration_data(y_acc_data)
@@ -55,12 +64,12 @@ class MotionFilters:
                     z_ax.set_time_data(z_time_data)
             motion_dataset.set_sampling_rate(new_sampling_rate)
 
-    def __downsample_axis(self, ax, current_sampling_rate, new_sampling_rate):
-        old_num_samples = len(ax.get_acceleration_data())
-        new_num_samples = int((old_num_samples / current_sampling_rate) * new_sampling_rate)
-        acc_data = np.array(signal.resample(ax.get_acceleration_data(), new_num_samples))
-        time_data = np.array(signal.resample(ax.get_time(), new_num_samples))
-        return acc_data, time_data
+    def downsample_data(self, current_data, current_sampling_rate, new_sampling_rate):
+        current_num_samples = len(current_data)
+        duration = current_num_samples/current_sampling_rate
+        new_num_samples = int(duration * new_sampling_rate)
+        sampling_indices = np.linspace(0, current_num_samples-1, new_num_samples, dtype=int)
+        return current_data[sampling_indices]
 
     def apply_kalman_filter_to_dataset(self, motion_dataset: MotionDataset):
         sampling_rate = motion_dataset.get_sampling_rate()
