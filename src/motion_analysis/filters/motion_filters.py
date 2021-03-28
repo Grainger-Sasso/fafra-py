@@ -44,17 +44,17 @@ class MotionFilters:
                     x_ax = tri_acc.get_x_axis()
                     y_ax = tri_acc.get_y_axis()
                     z_ax = tri_acc.get_z_axis()
-                    x_acc_data = self.downsample_axis(x_ax.get_acceleration_data(), current_sampling_rate,
+                    x_acc_data = self.downsample_data(x_ax.get_acceleration_data(), current_sampling_rate,
                                                       new_sampling_rate)
-                    x_time_data = self.downsample_axis(x_ax.get_time(), current_sampling_rate,
+                    x_time_data = self.downsample_data(x_ax.get_time(), current_sampling_rate,
                                                       new_sampling_rate)
-                    y_acc_data = self.downsample_axis(y_ax.get_acceleration_data(), current_sampling_rate,
+                    y_acc_data = self.downsample_data(y_ax.get_acceleration_data(), current_sampling_rate,
                                                       new_sampling_rate)
-                    y_time_data = self.downsample_axis(y_ax.get_time(), current_sampling_rate,
+                    y_time_data = self.downsample_data(y_ax.get_time(), current_sampling_rate,
                                                        new_sampling_rate)
-                    z_acc_data = self.downsample_axis(z_ax.get_acceleration_data(), current_sampling_rate,
+                    z_acc_data = self.downsample_data(z_ax.get_acceleration_data(), current_sampling_rate,
                                                       new_sampling_rate)
-                    z_time_data = self.downsample_axis(z_ax.get_time(), current_sampling_rate,
+                    z_time_data = self.downsample_data(z_ax.get_time(), current_sampling_rate,
                                                        new_sampling_rate)
                     x_ax.set_acceleration_data(x_acc_data)
                     x_ax.set_time_data(x_time_data)
@@ -66,8 +66,8 @@ class MotionFilters:
 
     def downsample_data(self, current_data, current_sampling_rate, new_sampling_rate):
         current_num_samples = len(current_data)
-        duration = int(current_num_samples/current_sampling_rate)
-        new_num_samples = duration * new_sampling_rate
+        duration = current_num_samples/current_sampling_rate
+        new_num_samples = int(duration * new_sampling_rate)
         sampling_indices = np.linspace(0, current_num_samples-1, new_num_samples, dtype=int)
         return current_data[sampling_indices]
 
