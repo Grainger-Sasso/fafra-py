@@ -3,7 +3,7 @@ from src.dataset_tools.params.motion_dataset import MotionDataset
 from src.datasets.sisfall.sisfall_dataset import SisFallDataset
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.visualization_tools.motion_visualizer import MotionVisualizer
-from src.motion_analysis.feature_extraction.fall_detection.sucerquia_fall_detector import SucerquiaFallDetector
+from src.motion_analysis.fall_detection.sucerquia_fall_detector import SucerquiaFallDetector
 
 
 class FaFRA:
