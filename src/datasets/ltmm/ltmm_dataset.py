@@ -45,7 +45,6 @@ class LTMMDataset:
 
     def read_dataset(self):
         for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
-            print(name)
             ltmm_data = self._build_ltmm_data(name, header_and_data_file_path)
             ltmm_data.read_data_file()
             ltmm_data.read_header_file()
@@ -72,7 +71,7 @@ class LTMMDataset:
     def _build_ltmm_data(self, name: str, header_and_data_file_paths: Dict[str, str]) -> 'LTMMData':
         data_file_path = header_and_data_file_paths['data_file_path']
         header_file_path = header_and_data_file_paths['header_file_path']
-        return LTMMData(name, data_file_path, header_file_path)
+        return LTMMData(data_file_path, header_file_path)
 
 
 class LTMMData:

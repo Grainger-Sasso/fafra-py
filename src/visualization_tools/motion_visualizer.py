@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from typing import List
 from src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
@@ -9,6 +10,24 @@ from src.dataset_tools.params.activity import Activity
 
 
 class MotionVisualizer:
+
+    def plot_data(self, plotting_data: List['PlottingData']):
+        n_subplots = len(plotting_data)
+        sig_len = len(plotting_data[0].get_y_data())
+        t = np.linspace(0, sig_len - 1, sig_len)
+        fig, axes = self._create_axis(n_subplots)
+        for subplot, data in zip(axes, plotting_data):
+            subplot.plot(t, data.get_y_data())
+            subplot.set_title(data.legend)
+        plt.show()
+
+
+    def _create_axis(self, n_subplots):
+        fig = plt.figure()
+        axes = []
+        for i in range(n_subplots):
+            axes.append(fig.add_subplot(n_subplots, 1, i + 1))
+        return fig, axes
 
     def plot_motion_data(self, dataset: MotionDataset, subject, activity, trial):
         motion_data = dataset.get_data(subject, activity, trial)
@@ -56,3 +75,20 @@ class MotionVisualizer:
 
         ax.legend(handles=handles, title=title)
 
+
+class PlottingData:
+
+    def __init__(self, y_data, legend, y_label):
+        self.y_data = y_data
+        self.legend = legend
+        self.x_label = 'Time'
+        self.y_label = y_label
+
+    def get_y_data(self):
+        return self.y_data
+
+    def get_legend(self):
+        return self.legend
+
+    def get_y_label(self):
+        return self.y_label
