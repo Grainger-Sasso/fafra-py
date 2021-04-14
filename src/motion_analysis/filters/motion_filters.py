@@ -181,6 +181,10 @@ class MotionFilters:
         rms_matrix = np.array((x, y, z))
         return np.sqrt(np.mean(np.power(rms_matrix, 2), axis=0))
 
+    def calculate_rms(self, x):
+        return np.sqrt(np.mean(np.power(x, 2), axis=0))
+
+
     def generic_filter_sliding_std_dev(self, data, window_size):
         return generic_filter(data, np.std, size=window_size)
 

@@ -43,9 +43,12 @@ class LTMMDataset:
     def get_header_and_data_file_paths(self):
         return self.header_and_data_file_paths
 
+    def get_ltmm_data_by_faller_status(self, faller_status):
+        return [ltmm_data for ltmm_data in self.get_dataset() if ltmm_data.get_faller_status() == faller_status]
+
     def read_dataset(self):
         for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
-            ltmm_data = self._build_ltmm_data(name, header_and_data_file_path)
+            ltmm_data = self._build_ltmm_data(header_and_data_file_path)
             ltmm_data.read_data_file()
             ltmm_data.read_header_file()
             ltmm_data.set_data_to_float_16()
@@ -68,7 +71,7 @@ class LTMMDataset:
             self.header_and_data_file_paths[name] = {'data_file_path': path,
                                                 'header_file_path': corresponding_header_file_path}
 
-    def _build_ltmm_data(self, name: str, header_and_data_file_paths: Dict[str, str]) -> 'LTMMData':
+    def _build_ltmm_data(self, header_and_data_file_paths: Dict[str, str]) -> 'LTMMData':
         data_file_path = header_and_data_file_paths['data_file_path']
         header_file_path = header_and_data_file_paths['header_file_path']
         return LTMMData(data_file_path, header_file_path)
@@ -81,12 +84,13 @@ class LTMMData:
         self.data = []
         self.header_data: wfdb.io.record = None
         # ADD IN ADDITIONAL ATTRIBUTES FROM THE RECORDS
-        self.name = ''
+        self.id = ''
         self.age = 0.00
         self.sex = ''
         self.sampling_frequency = 100.0
         self.axis = ['vertical-acc', 'medio-lateral-acc', 'anterio-posterior-acc', 'yaw', 'pitch', 'roll']
         self.units = ['g', 'g', 'g', 'deg/s', 'deg/s', 'deg/s']
+        self.faller_status = None
 
     def get_data_file_path(self):
         return self.data_file_path
@@ -100,8 +104,8 @@ class LTMMData:
     def get_header_data(self):
         return self.header_data
 
-    def get_name(self):
-        return self.name
+    def get_id(self):
+        return self.id
 
     def get_age(self):
         return self.age
@@ -118,6 +122,9 @@ class LTMMData:
     def get_units(self):
         return self.units
 
+    def get_faller_status(self):
+        return self.faller_status
+
     def set_data(self, data):
         self.data = data
 
@@ -127,15 +134,24 @@ class LTMMData:
     def read_data_file(self):
         data_path = os.path.splitext(self.data_file_path)[0]
         wfdb_record = wfdb.rdrecord(data_path)
-        self.name = wfdb_record.record_name
+        self.id = wfdb_record.record_name
         self.data = wfdb_record.p_signal
         if wfdb_record.comments[0][4:]:
             self.age = float(wfdb_record.comments[0][4:])
         self.sex = wfdb_record.comments[1][4:]
+        self._set_faller_status()
 
     def read_header_file(self):
         header_path = os.path.splitext(self.header_file_path)[0]
         self.header_data = wfdb.rdheader(header_path)
+
+    def _set_faller_status(self):
+        if self.get_id().casefold()[0] == 'f':
+            self.faller_status = True
+        elif self.get_id().casefold()[0] == 'c':
+            self.faller_status = False
+        else:
+            raise ValueError('LTMM Data faller status unclear from id')
 
 
 class ClinicalDemographicData:

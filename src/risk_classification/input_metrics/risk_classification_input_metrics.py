@@ -8,6 +8,7 @@ class RiskClassificationInputMetrics:
         self.x = x
         # Corresponding outcome conditions for x
         self.y = y
+        self.faller_status = self._set_faller_status()
 
     def get_id(self):
         return self.id
@@ -17,3 +18,6 @@ class RiskClassificationInputMetrics:
 
     def get_y(self):
         return self.y
+
+    def get_faller_status(self):
+        return self.faller_status
