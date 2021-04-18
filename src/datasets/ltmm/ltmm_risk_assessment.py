@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List
 from enum import Enum
-from src.datasets.ltmm.ltmm_dataset import LTMMDataset
+from src.datasets.ltmm.ltmm_dataset import LTMMDataset, LTMMData
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
@@ -25,9 +25,12 @@ class LTMMRiskAssessment:
         # Filter the data
         self._apply_lp_filter()
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
-        # TODO: use the method of separating the two groups
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
+
+        faller_mean_std = self._assess_data_mean_std(ltmm_faller_data)
+        non_faller_mean_std = self._assess_data_mean_std(ltmm_non_faller_data)
+
         # Perform feature extraction, two features, peak location of the fft, and raw rms
         faller_metrics = self._derive_input_metrics(ltmm_faller_data)
         non_faller_metrics = self._derive_input_metrics(ltmm_non_faller_data)
@@ -39,6 +42,19 @@ class LTMMRiskAssessment:
         self._viz_trained_model(model_training_x, model_training_y)
         # Make inference on the cohort
         # Output inferences to csv
+
+    def _assess_data_mean_std(self, ltmm_data: List[LTMMData]):
+        agg_mean = []
+        agg_std = []
+        agg_rms = []
+        for data in ltmm_data:
+            data = np.array(data.get_data())
+            data = data[:, 0:3]
+            agg_mean.append(data.mean(axis=0))
+            agg_std.append(data.std(axis=0))
+            agg_rms.append([self.motion_filters.calculate_rms(data[:,0]), self.motion_filters.calculate_rms(data[:,1]), self.motion_filters.calculate_rms(data[:,2])])
+        return np.array(agg_mean), np.array(agg_std), np.array(agg_rms)
+
 
     def _viz_trained_model(self, x, y):
         self.rc_viz.plot_classification(self.risk_classifier.get_model(), x, y)
