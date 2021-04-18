@@ -23,13 +23,10 @@ class LTMMRiskAssessment:
 
     def assess_cohort_risk(self):
         # Filter the data
-        self._apply_lp_filter()
+        self.apply_lp_filter()
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
-
-        faller_mean_std = self._assess_data_mean_std(ltmm_faller_data)
-        non_faller_mean_std = self._assess_data_mean_std(ltmm_non_faller_data)
 
         # Perform feature extraction, two features, peak location of the fft, and raw rms
         faller_metrics = self._derive_input_metrics(ltmm_faller_data)
@@ -43,18 +40,15 @@ class LTMMRiskAssessment:
         # Make inference on the cohort
         # Output inferences to csv
 
-    def _assess_data_mean_std(self, ltmm_data: List[LTMMData]):
-        agg_mean = []
-        agg_std = []
-        agg_rms = []
-        for data in ltmm_data:
-            data = np.array(data.get_data())
-            data = data[:, 0:3]
-            agg_mean.append(data.mean(axis=0))
-            agg_std.append(data.std(axis=0))
-            agg_rms.append([self.motion_filters.calculate_rms(data[:,0]), self.motion_filters.calculate_rms(data[:,1]), self.motion_filters.calculate_rms(data[:,2])])
-        return np.array(agg_mean), np.array(agg_std), np.array(agg_rms)
-
+    def apply_lp_filter(self):
+        for ltmm_data in self.ltmm_dataset.get_dataset():
+            lpf_data_all_axis = []
+            sampling_rate = ltmm_data.get_sampling_frequency()
+            data = ltmm_data.get_data()
+            for axis in data.T:
+                lpf_data_all_axis.append(self.motion_filters.apply_lpass_filter(axis, sampling_rate))
+            lpf_data_all_axis = np.array(lpf_data_all_axis).T
+            ltmm_data.set_data(lpf_data_all_axis)
 
     def _viz_trained_model(self, x, y):
         self.rc_viz.plot_classification(self.risk_classifier.get_model(), x, y)
@@ -111,19 +105,9 @@ class LTMMRiskAssessment:
         data = ltmm_data.get_data()
         v_axis_acc_data = data.T[0]
         x_fft, y_fft = fft.perform_fft(v_axis_acc_data, sampling_rate)
-        peak_ixs = peak_detector.detect_peaks(y_fft)[0]
+        peak_ixs = peak_detector.detect_peaks(y_fft)
         max_fft_peak_value = max(np.array(y_fft)[peak_ixs])
         return max_fft_peak_value
-
-    def _apply_lp_filter(self):
-        for ltmm_data in self.ltmm_dataset.get_dataset():
-            lpf_data_all_axis = []
-            sampling_rate = ltmm_data.get_sampling_frequency()
-            data = ltmm_data.get_data()
-            for axis in data.T:
-                lpf_data_all_axis.append(self.motion_filters.apply_lpass_filter(axis, sampling_rate))
-            lpf_data_all_axis = np.array(lpf_data_all_axis).T
-            ltmm_data.set_data(lpf_data_all_axis)
 
     def _initialize_dataset(self):
         self.ltmm_dataset.generate_header_and_data_file_paths()

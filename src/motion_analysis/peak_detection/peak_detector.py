@@ -6,4 +6,5 @@ class PeakDetector:
         pass
 
     def detect_peaks(self, x):
-        return signal.find_peaks(x)
+        """Returns peak indices"""
+        return signal.find_peaks(x)[0]
