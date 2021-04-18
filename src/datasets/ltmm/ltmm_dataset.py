@@ -71,6 +71,10 @@ class LTMMDataset:
             self.header_and_data_file_paths[name] = {'data_file_path': path,
                                                 'header_file_path': corresponding_header_file_path}
 
+    def segment_dataset(self, epoch_size):
+        for data in self.get_dataset():
+            data.segment_data(epoch_size)
+
     def _build_ltmm_data(self, header_and_data_file_paths: Dict[str, str]) -> 'LTMMData':
         data_file_path = header_and_data_file_paths['data_file_path']
         header_file_path = header_and_data_file_paths['header_file_path']
@@ -91,6 +95,7 @@ class LTMMData:
         self.axis = ['vertical-acc', 'medio-lateral-acc', 'anterio-posterior-acc', 'yaw', 'pitch', 'roll']
         self.units = ['g', 'g', 'g', 'deg/s', 'deg/s', 'deg/s']
         self.faller_status = None
+        self.data_segments = []
 
     def get_data_file_path(self):
         return self.data_file_path
@@ -125,6 +130,9 @@ class LTMMData:
     def get_faller_status(self):
         return self.faller_status
 
+    def get_data_segments(self):
+        return self.data_segments
+
     def set_data(self, data):
         self.data = data
 
@@ -144,6 +152,31 @@ class LTMMData:
     def read_header_file(self):
         header_path = os.path.splitext(self.header_file_path)[0]
         self.header_data = wfdb.rdheader(header_path)
+
+    def segment_data(self, epoch_size):
+        """
+        Segments data into epochs of a given duration starting from the beginning of the data
+        :param epoch_size: duration of epoch to segment data (in seconds)
+        :return: data segments of given epoch duration
+        """
+        total_time = len(self.data.T[0])/self.sampling_frequency
+        # Calculate number of segments from given epoch size
+        num_of_segs = int(total_time / epoch_size)
+        # Check to see if data can be segmented at least one segment of given epoch size
+        if num_of_segs > 0:
+            self.data_segments = []
+            # Counter for the number of segments to be created
+            segment_count = range(0, num_of_segs+1)
+            # Create segmentation indices
+            seg_ixs = [int(seg * self.sampling_frequency * epoch_size) for seg in segment_count]
+            for seg_num in segment_count:
+                if seg_num != segment_count[-1]:
+                    self.data_segments.append(self.data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
+                else:
+                    continue
+        else:
+            raise ValueError(f'Data of total time {str(total_time)}s can not be '
+                             f'segmented with given epoch size {str(epoch_size)}s')
 
     def _set_faller_status(self):
         if self.get_id().casefold()[0] == 'f':

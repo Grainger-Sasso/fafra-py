@@ -25,12 +25,15 @@ class FrequencyAnalysis:
         self.ltmm_ra.apply_lp_filter()
 
     def analyze_fft(self):
+        sampling_freq = 100.0
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(True)
+        ltmm_faller_data = [data.get_data() for data in ltmm_faller_data]
         ltmm_non_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(False)
+        ltmm_non_faller_data = [data.get_data() for data in ltmm_non_faller_data]
         # Apply fft to the data
-        x_faller_fft, y_faller_fft = self._apply_fft_to_data(ltmm_faller_data)
-        x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data)
+        x_faller_fft, y_faller_fft = self._apply_fft_to_data(ltmm_faller_data, sampling_freq)
+        x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data, sampling_freq)
         # Plot the results
         # self._plot_fft_overlayed(x_faller_fft, y_faller_fft, 'Faller FFT Overlayed')
         # self._plot_fft_overlayed(x_non_faller_fft, y_non_faller_fft, 'Non-faller FFT Overlayed')
@@ -41,6 +44,16 @@ class FrequencyAnalysis:
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(False)
+        # Segment the data by given epoch size
+        epoch_size = 9.99
+        for data in ltmm_faller_data:
+            data.segment_data(epoch_size)
+        for data in ltmm_non_faller_data:
+            data.segment_data(epoch_size)
+        ltmm_faller_data = [data.get_data_segments() for data in ltmm_faller_data]
+        ltmm_faller_data = [item for sublist in ltmm_faller_data for item in sublist]
+        ltmm_non_faller_data = [data.get_data_segments() for data in ltmm_non_faller_data]
+        ltmm_non_faller_data = [item for sublist in ltmm_non_faller_data for item in sublist]
         # Apply autocorrelation to data
         x_faller_ac, y_faller_ac = self._apply_autocorr_to_data(ltmm_faller_data)
         x_non_faller_acc, y_non_faller_ac = self._apply_autocorr_to_data(ltmm_non_faller_data)
@@ -73,22 +86,19 @@ class FrequencyAnalysis:
         y_dataset_ac = []
         ac = AutoCorrelation()
         for ltmm_data in ltmm_dataset:
-            data = ltmm_data.get_data()
-            v_axis_acc_data = data.T[0]
+            v_axis_acc_data = ltmm_data.T[0]
             x_ac, y_ac = ac.autocorrelate(v_axis_acc_data)
             x_dataset_ac.append(x_ac)
             y_dataset_ac.append(y_ac)
         return x_dataset_ac, y_dataset_ac
 
-    def _apply_fft_to_data(self, ltmm_dataset):
+    def _apply_fft_to_data(self, ltmm_dataset, sampling_freq):
         x_dataset_fft = []
         y_dataset_fft = []
         fft = FastFourierTransform()
-        for ltmm_data in ltmm_dataset:
-            sampling_rate = ltmm_data.get_sampling_frequency()
-            data = ltmm_data.get_data()
+        for data in ltmm_dataset:
             v_axis_acc_data = data.T[0]
-            x_fft, y_fft = fft.perform_fft(v_axis_acc_data, sampling_rate)
+            x_fft, y_fft = fft.perform_fft(v_axis_acc_data, sampling_freq)
             x_dataset_fft.append(x_fft)
             y_dataset_fft.append(y_fft)
         return x_dataset_fft, y_dataset_fft
