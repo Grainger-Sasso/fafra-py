@@ -17,7 +17,7 @@ class MotionData:
         self.subject: Subject = subject
         self.activity: Activity = activity
         self.trial: str = trial
-        self.motion_df: pd.DataFrame = motion_df
+        self.motion_df: np.ndarray = motion_df
         self.tri_lin_accs: List[TriaxialLinearAcceleration] = tri_lin_accs
         self.tri_ang_accs: List[TriaxialAngularAcceleration] = tri_ang_accs
 

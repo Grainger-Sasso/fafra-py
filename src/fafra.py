@@ -3,16 +3,19 @@ from src.dataset_tools.params.motion_dataset import MotionDataset
 from src.datasets.sisfall.sisfall_dataset import SisFallDataset
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.visualization_tools.motion_visualizer import MotionVisualizer
-from src.motion_analysis.feature_extraction.fall_detection.sucerquia_fall_detector import SucerquiaFallDetector
+from src.motion_analysis.fall_detection.sucerquia_fall_detector import SucerquiaFallDetector
 
 
 class FaFRA:
 
     def __init__(self):
+        # Sisfall dataset locations
         # self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass\Desktop\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_small_dataset_csv', 'csv')}
         self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass\Desktop\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_dataset_csv', 'csv')}
         # self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass_000\Documents\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_small_dataset_csv', 'csv')}
         # self.datasets: Dict[str, MotionDataset] = {'SisFall': SisFallDataset(r'C:\Users\gsass_000\Documents\Fall Project Master\fafra_py\Fall Datasets\SisFall_csv\SisFall_dataset_csv', 'csv')}
+
+        # LTMM dataset location
 
         self.motion_visualizer: MotionVisualizer = MotionVisualizer()
         self.motion_filters: MotionFilters = MotionFilters()

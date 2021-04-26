@@ -56,6 +56,9 @@ class MotionDataset:
     def set_sampling_rate(self, sampling_rate):
         self.sampling_rate = sampling_rate
 
+    def set_motion_data(self, motion_data: List[MotionData]):
+        self.motion_data = motion_data
+
     def add_motion_data(self, motion_data: MotionData):
         self.motion_data.append(motion_data)
 
