@@ -27,17 +27,27 @@ class FrequencyAnalysis:
     def analyze_fft(self):
         sampling_freq = 100.0
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
+        self.apply_lpf()
         ltmm_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(True)
-        ltmm_faller_data = [data.get_data() for data in ltmm_faller_data]
+        # ltmm_faller_data = [data.get_data() for data in ltmm_faller_data]
         ltmm_non_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(False)
-        ltmm_non_faller_data = [data.get_data() for data in ltmm_non_faller_data]
+        # ltmm_non_faller_data = [data.get_data() for data in ltmm_non_faller_data]
+        epoch_size = 30.00
+        for data in ltmm_faller_data:
+            data.segment_data(epoch_size)
+        for data in ltmm_non_faller_data:
+            data.segment_data(epoch_size)
+        ltmm_faller_data = [data.get_data_segments() for data in ltmm_faller_data]
+        ltmm_faller_data = [item for sublist in ltmm_faller_data for item in sublist]
+        ltmm_non_faller_data = [data.get_data_segments() for data in ltmm_non_faller_data]
+        ltmm_non_faller_data = [item for sublist in ltmm_non_faller_data for item in sublist]
         # Apply fft to the data
         x_faller_fft, y_faller_fft = self._apply_fft_to_data(ltmm_faller_data, sampling_freq)
         x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data, sampling_freq)
         # Plot the results
         # self._plot_fft_overlayed(x_faller_fft, y_faller_fft, 'Faller FFT Overlayed')
         # self._plot_fft_overlayed(x_non_faller_fft, y_non_faller_fft, 'Non-faller FFT Overlayed')
-        self._plot_faller_nonfaller_overlayed(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft, 'FFT')
+        self._plot_faller_nonfaller_overlayed_bars(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft, 'FFT')
         plt.show()
 
     def analyze_autocorr(self):
@@ -111,66 +121,21 @@ class FrequencyAnalysis:
 
     def _plot_faller_nonfaller_overlayed(self, x_faller, y_faller, x_nonfaller, y_nonfaller, type):
         for x, y in zip(x_faller, y_faller):
-            plt.plot(x, y, color='red', alpha=0.2)
+            plt.plot(x, y, color='red', alpha=0.1)
         for x, y, in zip(x_nonfaller, y_nonfaller):
-            plt.plot(x, y, color='blue', alpha=0.2)
+            plt.plot(x, y, color='blue', alpha=0.1)
         plt.title(f'Faller (red) and Non-faller (blue) {type} overlayed')
 
-
-    # def analyze_descriptive_statistics(self):
-    #
-    #     faller_mean_std = self._assess_data_mean_std(ltmm_faller_data)
-    #     non_faller_mean_std = self._assess_data_mean_std(ltmm_non_faller_data)
-    #
-    #     faller_mean_v = faller_mean_std[0][:, 0]
-    #     faller_std_v = faller_mean_std[1][:, 0]
-    #     faller_rms_v = faller_mean_std[2][:, 0]
-    #     non_faller_mean_v = non_faller_mean_std[0][:, 0]
-    #     non_faller_std_v = non_faller_mean_std[1][:, 0]
-    #     non_faller_rms_v = non_faller_mean_std[2][:, 0]
-    #
-    #     faller_mean_ml = faller_mean_std[0][:, 1]
-    #     faller_std_ml = faller_mean_std[1][:, 1]
-    #     faller_rms_ml = faller_mean_std[2][:, 1]
-    #     non_faller_mean_ml = non_faller_mean_std[0][:, 1]
-    #     non_faller_std_ml = non_faller_mean_std[1][:, 1]
-    #     non_faller_rms_ml = non_faller_mean_std[2][:, 1]
-    #
-    #     faller_mean_ap = faller_mean_std[0][:, 2]
-    #     faller_std_ap = faller_mean_std[1][:, 2]
-    #     faller_rms_ap = faller_mean_std[2][:, 2]
-    #     non_faller_mean_ap = non_faller_mean_std[0][:, 2]
-    #     non_faller_std_ap = non_faller_mean_std[1][:, 2]
-    #     non_faller_rms_ap = non_faller_mean_std[2][:, 2]
-    #
-    #     fig7, ax7 = plt.subplots()
-    #     ax7.set_title('Vertical Axis (faller/non - mean, std, rms)')
-    #     data = [faller_mean_v, non_faller_mean_v, faller_std_v, non_faller_std_v, faller_rms_v, non_faller_rms_v]
-    #     ax7.boxplot(data)
-    #
-    #     fig8, ax8 = plt.subplots()
-    #     ax8.set_title('ML Axis (faller/non - mean, std, rms)')
-    #     data = [faller_mean_ml, non_faller_mean_ml, faller_std_ml, non_faller_std_ml, faller_rms_ml,
-    #             non_faller_rms_ml]
-    #     ax8.boxplot(data)
-    #
-    #     fig9, ax9 = plt.subplots()
-    #     ax9.set_title('AP Axis (faller/non - mean, std, rms)')
-    #     data = [faller_mean_ap, non_faller_mean_ap, faller_std_ap, non_faller_std_ap, faller_rms_ap,
-    #             non_faller_rms_ap]
-    #     ax9.boxplot(data)
-    #
-    #     plt.xticks([1, 2, 3, 4, 5, 6],
-    #                ['Faller Mean', 'Non-faller Mean', 'Faller Std. Dev.', 'Non-faller Std. Dev.', 'Faller RMS',
-    #                 'Non-faller RMS'])
-    #
-    #     plt.show()
+    def _plot_faller_nonfaller_overlayed_bars(self, x_faller, y_faller, x_nonfaller, y_nonfaller, type):
+        plt.plot(x_faller, y_faller, color='red', alpha=0.5)
+        plt.plot(x_nonfaller, y_nonfaller, color='blue', alpha=0.5)
+        plt.title(f'Faller (red) and Non-faller (blue) {type} overlayed')
 
 
 def main():
     fa = FrequencyAnalysis()
-    # fa.analyze_fft()
-    fa.analyze_autocorr()
+    fa.analyze_fft()
+    # fa.analyze_autocorr()
 
 if __name__ == '__main__':
     main()
