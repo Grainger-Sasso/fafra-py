@@ -20,14 +20,16 @@ class LTMMRiskAssessment:
         self.rc_viz = ClassificationVisualizer()
         self.input_metrics: List[RiskClassificationInputMetrics] = []
         self.input_metric_names = RiskClassificationMetricNames
+        self.fft = FastFourierTransform()
 
     def assess_cohort_risk(self):
         # Filter the data
         self.apply_lp_filter()
+        # Segment the datasets into smaller epochs to have a greater number of data points
+        self.ltmm_dataset.segment_dataset(10.0)
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
-
         # Perform feature extraction, two features, peak location of the fft, and raw rms
         faller_metrics = self._derive_input_metrics(ltmm_faller_data)
         non_faller_metrics = self._derive_input_metrics(ltmm_non_faller_data)
@@ -99,12 +101,11 @@ class LTMMRiskAssessment:
         return self.motion_filters.calculate_rms(v_axis_data)
 
     def _find_largest_fft_peak(self, ltmm_data):
-        fft = FastFourierTransform()
         peak_detector = PeakDetector()
         sampling_rate = ltmm_data.get_sampling_frequency()
         data = ltmm_data.get_data()
         v_axis_acc_data = data.T[0]
-        x_fft, y_fft = fft.perform_fft(v_axis_acc_data, sampling_rate)
+        x_fft, y_fft = self.fft.perform_fft(v_axis_acc_data, sampling_rate)
         peak_ixs = peak_detector.detect_peaks(y_fft)
         if len(peak_ixs) > 0:
             max_peak_ix = peak_detector.get_largest_peak_ix(y_fft, peak_ixs)
@@ -112,7 +113,6 @@ class LTMMRiskAssessment:
             return max_peak_loc
         else:
             raise ValueError('No peaks detected for FFT data')
-
 
     def _initialize_dataset(self):
         self.ltmm_dataset.generate_header_and_data_file_paths()

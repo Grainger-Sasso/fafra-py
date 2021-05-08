@@ -3,6 +3,7 @@ import glob
 import numpy as np
 import wfdb
 import time
+import copy
 from typing import List, Dict, Tuple
 # from src.dataset_tools.params.motion_data import MotionData
 # from src.dataset_tools.params.motion_dataset import MotionDataset
@@ -49,6 +50,9 @@ class LTMMDataset:
     def get_ltmm_data_by_faller_status(self, faller_status):
         return [ltmm_data for ltmm_data in self.get_dataset() if ltmm_data.get_faller_status() == faller_status]
 
+    def set_dataset(self, dataset):
+        self.dataset = dataset
+
     def read_dataset(self):
         for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
             ltmm_data = self._build_ltmm_data(header_and_data_file_path)
@@ -75,8 +79,18 @@ class LTMMDataset:
                                                 'header_file_path': corresponding_header_file_path}
 
     def segment_dataset(self, epoch_size):
+        segmented_dataset = []
         for data in self.get_dataset():
             data.segment_data(epoch_size)
+            new_ltmm_data = []
+            for data_seg in data.get_data_segments():
+                new_data = copy.deepcopy(data)
+                new_data.set_data(data_seg)
+                new_data.set_data_segments([])
+                new_ltmm_data.append(new_data)
+            segmented_dataset.extend(new_ltmm_data)
+        self.set_dataset(segmented_dataset)
+
 
     def _build_ltmm_data(self, header_and_data_file_paths: Dict[str, str]) -> 'LTMMData':
         data_file_path = header_and_data_file_paths['data_file_path']
@@ -139,6 +153,9 @@ class LTMMData:
     def set_data(self, data):
         self.data = data
 
+    def set_data_segments(self, data_segments):
+        self.data_segments = data_segments
+
     def set_data_to_float_16(self):
         self.data = np.float16(self.data)
 
@@ -146,7 +163,7 @@ class LTMMData:
         data_path = os.path.splitext(self.data_file_path)[0]
         wfdb_record = wfdb.rdrecord(data_path)
         self.id = wfdb_record.record_name
-        self.data = wfdb_record.p_signal
+        self.data = np.array(wfdb_record.p_signal)
         if wfdb_record.comments[0][4:]:
             self.age = float(wfdb_record.comments[0][4:])
         self.sex = wfdb_record.comments[1][4:]
