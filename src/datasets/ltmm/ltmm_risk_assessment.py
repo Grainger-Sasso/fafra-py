@@ -105,8 +105,14 @@ class LTMMRiskAssessment:
         data = ltmm_data.get_data()
         v_axis_acc_data = data.T[0]
         x_fft, y_fft = fft.perform_fft(v_axis_acc_data, sampling_rate)
-        max_fft_peak_value = peak_detector.detect_peaks(self, x_fft, y_fft, largest_peak=True)
-        return max_fft_peak_value
+        peak_ixs = peak_detector.detect_peaks(y_fft)
+        if len(peak_ixs) > 0:
+            max_peak_ix = peak_detector.get_largest_peak_ix(y_fft, peak_ixs)
+            max_peak_loc = peak_detector.get_peak_locations(x_fft, max_peak_ix)
+            return max_peak_loc
+        else:
+            raise ValueError('No peaks detected for FFT data')
+
 
     def _initialize_dataset(self):
         self.ltmm_dataset.generate_header_and_data_file_paths()

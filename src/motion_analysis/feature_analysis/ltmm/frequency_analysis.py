@@ -46,11 +46,13 @@ class FrequencyAnalysis:
         y_faller_fft = self._apply_lpf(y_faller_fft)
         x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data, sampling_freq)
         y_non_faller_fft = self._apply_lpf(y_non_faller_fft)
+        # Get the physiological range of the fft data
+        x_faller_fft, y_faller_fft = self._get_fft_phys_range(x_faller_fft, y_faller_fft)
+        x_non_faller_fft, y_non_faller_fft = self._get_fft_phys_range(x_non_faller_fft, y_non_faller_fft)
         # Get peak locations of the FFT
         faller_peak_locs = self._get_max_peak_locs(x_faller_fft, y_faller_fft)
         non_faller_peak_locs = self._get_max_peak_locs(x_non_faller_fft, y_non_faller_fft)
         # Plot the results
-        data = [faller_peak_locs, non_faller_peak_locs]
         # plt.boxplot(data)
         # self._plot_fft_overlayed(x_faller_fft, y_faller_fft, 'Faller FFT Overlayed')
         # self._plot_fft_overlayed(x_non_faller_fft, y_non_faller_fft, 'Non-faller FFT Overlayed')
@@ -86,6 +88,15 @@ class FrequencyAnalysis:
         # self._plot_faller_nonfaller_overlayed(x_faller_ac, y_faller_ac, x_non_faller_acc, y_non_faller_ac, 'Autocorrelation')
         plt.show()
 
+    def _get_fft_phys_range(self, x_dataset, y_dataset):
+        x_fft_phys = []
+        y_fft_phys = []
+        for x_data, y_data in zip(x_dataset, y_dataset):
+            phys_bds_mask = (1.0 < x_data) & (x_data < 3.0)
+            x_fft_phys.append(x_data[phys_bds_mask])
+            y_fft_phys.append(y_data[phys_bds_mask])
+        return x_fft_phys, y_fft_phys
+
     def _apply_lpf(self, dataset):
         return [self.motion_filters.apply_lpass_filter(data, 100.0) for data in dataset]
 
@@ -94,8 +105,8 @@ class FrequencyAnalysis:
         max_peak_locs = []
         for x_data, y_data in zip(x_dataset, y_dataset):
             peak_ixs = peak_detector.detect_peaks(y_data)
-            if len(peak_ix) > 0:
-                max_peak_ix = peak_detector.get_largest_peak(x_data, y_data, peak_ixs)
+            if len(peak_ixs) > 0:
+                max_peak_ix = peak_detector.get_largest_peak_ix(y_data, peak_ixs)
                 max_peak_loc = peak_detector.get_peak_locations(x_data, max_peak_ix)
                 max_peak_locs.append(max_peak_loc)
             else:

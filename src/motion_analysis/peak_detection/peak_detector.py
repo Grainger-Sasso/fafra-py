@@ -14,5 +14,5 @@ class PeakDetector:
         x = np.array(x)
         return x[peak_ixs]
 
-    def get_largest_peak_ix(self, x, y, peak_ixs):
+    def get_largest_peak_ix(self, y, peak_ixs):
         return [loc for _, loc in sorted(zip(np.array(y)[peak_ixs], peak_ixs), reverse=True)][0]
