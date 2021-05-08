@@ -3,10 +3,11 @@ import numpy as np
 from typing import List
 from src.datasets.ltmm.ltmm_risk_assessment import LTMMRiskAssessment
 from src.datasets.ltmm.ltmm_dataset import LTMMData
-from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.feature_extraction.frequency_analysis.auto_correlation import AutoCorrelation
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
+from src.motion_analysis.filters.motion_filters import MotionFilters
+
 
 
 class FrequencyAnalysis:
@@ -18,7 +19,6 @@ class FrequencyAnalysis:
         clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
         report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
         self.ltmm_ra = LTMMRiskAssessment(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path, report_home_75h_path)
-
 
     def apply_lpf(self):
         # Filter the data
@@ -32,7 +32,7 @@ class FrequencyAnalysis:
         # ltmm_faller_data = [data.get_data() for data in ltmm_faller_data]
         ltmm_non_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(False)
         # ltmm_non_faller_data = [data.get_data() for data in ltmm_non_faller_data]
-        epoch_size = 30.00
+        epoch_size = 20.00
         for data in ltmm_faller_data:
             data.segment_data(epoch_size)
         for data in ltmm_non_faller_data:
@@ -43,11 +43,20 @@ class FrequencyAnalysis:
         ltmm_non_faller_data = [item for sublist in ltmm_non_faller_data for item in sublist]
         # Apply fft to the data
         x_faller_fft, y_faller_fft = self._apply_fft_to_data(ltmm_faller_data, sampling_freq)
+        # y_faller_fft = self._apply_lpf(y_faller_fft)
         x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data, sampling_freq)
+        # y_non_faller_fft = self._apply_lpf(y_non_faller_fft)
+        # Get peak locations of the FFT
+        faller_peak_locs = self._get_peak_locs(x_faller_fft, y_faller_fft)
+        non_faller_peak_locs = self._get_peak_locs(x_non_faller_fft, y_non_faller_fft)
         # Plot the results
+        data = [faller_peak_locs, non_faller_peak_locs]
+        # plt.boxplot(data)
         # self._plot_fft_overlayed(x_faller_fft, y_faller_fft, 'Faller FFT Overlayed')
         # self._plot_fft_overlayed(x_non_faller_fft, y_non_faller_fft, 'Non-faller FFT Overlayed')
-        self._plot_faller_nonfaller_overlayed_bars(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft, 'FFT')
+        # self._plot_faller_nonfaller_overlayed_bars(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft, 'FFT')
+        self._plot_faller_nonfaller_overlayed(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft,
+                                                   'FFT')
         plt.show()
 
     def analyze_autocorr(self):
@@ -77,16 +86,17 @@ class FrequencyAnalysis:
         # self._plot_faller_nonfaller_overlayed(x_faller_ac, y_faller_ac, x_non_faller_acc, y_non_faller_ac, 'Autocorrelation')
         plt.show()
 
+    def _apply_lpf(self, dataset):
+        return [self.motion_filters.apply_lpass_filter(data, 100.0) for data in dataset]
 
-    def _get_peak_locs(self, x_dataset,y_dataset):
+    def _get_peak_locs(self, x_dataset, y_dataset):
         peak_detector = PeakDetector()
         peak_locs = []
         for x_data, y_data in zip(x_dataset, y_dataset):
             peak_ixs = peak_detector.detect_peaks(y_data)
             if len(peak_ixs) > 0:
-                peak1 = peak_ixs[0]
-                peak_loc = x_data[peak1]
-                peak_locs.append(peak_loc)
+                max_peak_x_loc = [loc for _, loc in sorted(zip(y_data[peak_ixs], x_data[peak_ixs]), reverse=True)][0]
+                peak_locs.append(max_peak_x_loc)
             else:
                 continue
         return peak_locs
@@ -119,11 +129,15 @@ class FrequencyAnalysis:
             ax.plot(x, y, color='black', alpha=0.4)
         plt.title(title)
 
-    def _plot_faller_nonfaller_overlayed(self, x_faller, y_faller, x_nonfaller, y_nonfaller, type):
+    def _plot_faller_nonfaller_overlayed(self, x_faller, y_faller, x_nonfaller,
+                                         y_nonfaller, type, faller_peak_locations=False,
+                                         non_faller_peak_locations=False):
         for x, y in zip(x_faller, y_faller):
             plt.plot(x, y, color='red', alpha=0.1)
         for x, y, in zip(x_nonfaller, y_nonfaller):
             plt.plot(x, y, color='blue', alpha=0.1)
+        # if faller_peak_locations and non_faller_peak_locations:
+        #     for
         plt.title(f'Faller (red) and Non-faller (blue) {type} overlayed')
 
     def _plot_faller_nonfaller_overlayed_bars(self, x_faller, y_faller, x_nonfaller, y_nonfaller, type):

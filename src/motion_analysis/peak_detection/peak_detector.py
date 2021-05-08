@@ -5,6 +5,9 @@ class PeakDetector:
     def __init__(self):
         pass
 
-    def detect_peaks(self, x):
+    def detect_peaks(self, x, y, largest_peak=False):
         """Returns peak indices"""
-        return signal.find_peaks(x)[0]
+        peak_ix = signal.find_peaks(y)[0]
+        if largest_peak:
+            peak_ix = [loc for _, loc in sorted(zip(y[peak_ix], x[peak_ix]), reverse=True)][0]
+        return peak_ix

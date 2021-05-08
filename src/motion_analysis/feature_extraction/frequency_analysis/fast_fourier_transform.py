@@ -22,6 +22,14 @@ class FastFourierTransform:
         return x_fft[:len(x_fft) // 2], abs(y_fft[:len(y_fft) // 2])
 
     def _apply_polynomial_detrend(self, data, sampling_rate):
+        """
+        https://www.mathworks.com/matlabcentral/answers/124471-fft-significant-peak-in-0-hz-component
+        https://www.investopedia.com/terms/d/detrend.asp
+        https://towardsdatascience.com/removing-non-linear-trends-from-timeseries-data-b21f7567ed51
+        :param data:
+        :param sampling_rate:
+        :return:
+        """
         time = np.linspace(0, len(data)*(1/sampling_rate), len(data))
         time = np.reshape(time, (len(time), 1))
         pf = PolynomialFeatures(degree=2)
