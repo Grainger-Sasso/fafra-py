@@ -89,8 +89,8 @@ class FrequencyAnalysis:
         x_faller_ac, y_faller_ac = self._apply_autocorr_to_data(ltmm_faller_data)
         x_non_faller_acc, y_non_faller_ac = self._apply_autocorr_to_data(ltmm_non_faller_data)
         # Get first peak loactions of ac data
-        faller_peak_locs = self._get_peak_locs(x_faller_ac, y_faller_ac)
-        non_faller_peak_locs = self._get_peak_locs(x_non_faller_acc, y_non_faller_ac)
+        faller_peak_locs = self._get_max_peak_locs(x_faller_ac, y_faller_ac)
+        non_faller_peak_locs = self._get_max_peak_locs(x_non_faller_acc, y_non_faller_ac)
         # Plot distribution of first peak ixs
         data = [faller_peak_locs, non_faller_peak_locs]
         plt.boxplot(data)
