@@ -19,6 +19,7 @@ class FrequencyAnalysis:
         clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
         report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
         self.ltmm_ra = LTMMRiskAssessment(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path, report_home_75h_path)
+        self.motion_filters = MotionFilters()
 
     def apply_lpf(self):
         # Filter the data
@@ -32,7 +33,7 @@ class FrequencyAnalysis:
         # ltmm_faller_data = [data.get_data() for data in ltmm_faller_data]
         ltmm_non_faller_data = self.ltmm_ra.ltmm_dataset.get_ltmm_data_by_faller_status(False)
         # ltmm_non_faller_data = [data.get_data() for data in ltmm_non_faller_data]
-        epoch_size = 20.00
+        epoch_size = 30.00
         for data in ltmm_faller_data:
             data.segment_data(epoch_size)
         for data in ltmm_non_faller_data:
@@ -47,18 +48,27 @@ class FrequencyAnalysis:
         x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data, sampling_freq)
         y_non_faller_fft = self._apply_lpf(y_non_faller_fft)
         # Get the physiological range of the fft data
-        x_faller_fft, y_faller_fft = self._get_fft_phys_range(x_faller_fft, y_faller_fft)
-        x_non_faller_fft, y_non_faller_fft = self._get_fft_phys_range(x_non_faller_fft, y_non_faller_fft)
+        # x_faller_fft, y_faller_fft = self._get_fft_phys_range(x_faller_fft, y_faller_fft)
+        # x_non_faller_fft, y_non_faller_fft = self._get_fft_phys_range(x_non_faller_fft, y_non_faller_fft)
         # Get peak locations of the FFT
-        faller_peak_locs = self._get_max_peak_locs(x_faller_fft, y_faller_fft)
-        non_faller_peak_locs = self._get_max_peak_locs(x_non_faller_fft, y_non_faller_fft)
+        faller_x_locs, faller_y_locs = self._get_max_peak_locs(x_faller_fft, y_faller_fft)
+        non_faller_x_locs, non_faller_y_locs = self._get_max_peak_locs(x_non_faller_fft, y_non_faller_fft)
+        faller_means = [np.mean(np.array(data)) for data in ltmm_faller_data]
+        faller_means = self.motion_filters.unit_vector_norm(faller_means)
+        non_faller_means = [np.mean(np.array(data)) for data in ltmm_non_faller_data]
+        non_faller_means = self.motion_filters.unit_vector_norm(non_faller_means)
+        faller_std = [np.std(np.array(data)) for data in ltmm_faller_data]
+        faller_std = self.motion_filters.unit_vector_norm(faller_std)
+        non_faller_std = [np.std(np.array(data)) for data in ltmm_non_faller_data]
+        non_faller_std = self.motion_filters.unit_vector_norm(non_faller_std)
         # Plot the results
-        # plt.boxplot(data)
+        data = [faller_y_locs, non_faller_y_locs, faller_x_locs, non_faller_x_locs, faller_means, non_faller_means, faller_std, non_faller_std]
+        plt.boxplot(data)
         # self._plot_fft_overlayed(x_faller_fft, y_faller_fft, 'Faller FFT Overlayed')
         # self._plot_fft_overlayed(x_non_faller_fft, y_non_faller_fft, 'Non-faller FFT Overlayed')
         # self._plot_faller_nonfaller_overlayed_bars(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft, 'FFT')
-        self._plot_faller_nonfaller_overlayed(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft,
-                                                   'FFT')
+        # self._plot_faller_nonfaller_overlayed(x_faller_fft, y_faller_fft, x_non_faller_fft, y_non_faller_fft,
+        #                                            'FFT')
         plt.show()
 
     def analyze_autocorr(self):
@@ -108,10 +118,12 @@ class FrequencyAnalysis:
             if len(peak_ixs) > 0:
                 max_peak_ix = peak_detector.get_largest_peak_ix(y_data, peak_ixs)
                 max_peak_loc = peak_detector.get_peak_locations(x_data, max_peak_ix)
-                max_peak_locs.append(max_peak_loc)
+                max_peak_locs.append([max_peak_loc, y_data[max_peak_ix]])
             else:
                 continue
-        return max_peak_locs
+        faller_x_locs = self.motion_filters.unit_vector_norm(np.array(max_peak_locs)[:, :1].T[0])
+        faller_y_locs = self.motion_filters.unit_vector_norm(np.array(max_peak_locs)[:, 1:].T[0])
+        return faller_x_locs, faller_y_locs
 
     def _apply_autocorr_to_data(self, ltmm_dataset):
         x_dataset_ac = []
