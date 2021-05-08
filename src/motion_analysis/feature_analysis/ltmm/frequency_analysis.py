@@ -43,12 +43,12 @@ class FrequencyAnalysis:
         ltmm_non_faller_data = [item for sublist in ltmm_non_faller_data for item in sublist]
         # Apply fft to the data
         x_faller_fft, y_faller_fft = self._apply_fft_to_data(ltmm_faller_data, sampling_freq)
-        # y_faller_fft = self._apply_lpf(y_faller_fft)
+        y_faller_fft = self._apply_lpf(y_faller_fft)
         x_non_faller_fft, y_non_faller_fft = self._apply_fft_to_data(ltmm_non_faller_data, sampling_freq)
-        # y_non_faller_fft = self._apply_lpf(y_non_faller_fft)
+        y_non_faller_fft = self._apply_lpf(y_non_faller_fft)
         # Get peak locations of the FFT
-        faller_peak_locs = self._get_peak_locs(x_faller_fft, y_faller_fft)
-        non_faller_peak_locs = self._get_peak_locs(x_non_faller_fft, y_non_faller_fft)
+        faller_peak_locs = self._get_max_peak_locs(x_faller_fft, y_faller_fft)
+        non_faller_peak_locs = self._get_max_peak_locs(x_non_faller_fft, y_non_faller_fft)
         # Plot the results
         data = [faller_peak_locs, non_faller_peak_locs]
         # plt.boxplot(data)
@@ -89,17 +89,18 @@ class FrequencyAnalysis:
     def _apply_lpf(self, dataset):
         return [self.motion_filters.apply_lpass_filter(data, 100.0) for data in dataset]
 
-    def _get_peak_locs(self, x_dataset, y_dataset):
+    def _get_max_peak_locs(self, x_dataset, y_dataset):
         peak_detector = PeakDetector()
-        peak_locs = []
+        max_peak_locs = []
         for x_data, y_data in zip(x_dataset, y_dataset):
             peak_ixs = peak_detector.detect_peaks(y_data)
-            if len(peak_ixs) > 0:
-                max_peak_x_loc = [loc for _, loc in sorted(zip(y_data[peak_ixs], x_data[peak_ixs]), reverse=True)][0]
-                peak_locs.append(max_peak_x_loc)
+            if len(peak_ix) > 0:
+                max_peak_ix = peak_detector.get_largest_peak(x_data, y_data, peak_ixs)
+                max_peak_loc = peak_detector.get_peak_locations(x_data, max_peak_ix)
+                max_peak_locs.append(max_peak_loc)
             else:
                 continue
-        return peak_locs
+        return max_peak_locs
 
     def _apply_autocorr_to_data(self, ltmm_dataset):
         x_dataset_ac = []

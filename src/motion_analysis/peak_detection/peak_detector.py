@@ -1,3 +1,4 @@
+import numpy as np
 from scipy import signal
 
 
@@ -5,9 +6,13 @@ class PeakDetector:
     def __init__(self):
         pass
 
-    def detect_peaks(self, x, y, largest_peak=False):
+    def detect_peaks(self, x):
         """Returns peak indices"""
-        peak_ix = signal.find_peaks(y)[0]
-        if largest_peak:
-            peak_ix = [loc for _, loc in sorted(zip(y[peak_ix], x[peak_ix]), reverse=True)][0]
-        return peak_ix
+        return signal.find_peaks(x)[0]
+
+    def get_peak_locations(self, x, peak_ixs):
+        x = np.array(x)
+        return x[peak_ixs]
+
+    def get_largest_peak_ix(self, x, y, peak_ixs):
+        return [loc for _, loc in sorted(zip(np.array(y)[peak_ixs], peak_ixs), reverse=True)][0]
