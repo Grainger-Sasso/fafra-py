@@ -14,7 +14,6 @@ class RiskMetricGenerator:
         self.motion_filters = MotionFilters()
 
     def generate_input_metrics(self, ltmm_dataset: List[LTMMData]):
-        # TODO: include the ltmm_data fall_status as an output, done here instead of elsewhere
         # Initialize intermediate variable for dataset risk classification metrics
         faller_status = []
         dataset_metrics = []
@@ -23,7 +22,7 @@ class RiskMetricGenerator:
             faller_status.append(int(ltmm_data.get_faller_status()))
             dataset_metrics.append(self._derive_metrics(ltmm_data))
         norm_metrics = self._normalize_input_metrics(np.array(dataset_metrics))
-        return norm_metrics, faller_status
+        return list(norm_metrics), list(faller_status)
 
     def _normalize_input_metrics(self, input_metrics):
         norm_metrics = np.apply_along_axis(self.motion_filters.unit_vector_norm, 0, np.array(input_metrics))
