@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 from typing import List
-from src.datasets.ltmm.ltmm_risk_assessment import LTMMRiskAssessment
+from src.fafra.ltmm.ltmm_risk_assessment import LTMMRiskAssessment
 from src.datasets.ltmm.ltmm_dataset import LTMMData
 from src.motion_analysis.filters.motion_filters import MotionFilters
 

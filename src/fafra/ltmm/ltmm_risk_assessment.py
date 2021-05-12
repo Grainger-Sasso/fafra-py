@@ -3,12 +3,11 @@ from typing import List
 from enum import Enum
 from src.datasets.ltmm.ltmm_dataset import LTMMDataset, LTMMData
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
-from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.visualization_tools.motion_visualizer import MotionVisualizer, PlottingData
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.input_metrics.risk_classification_input_metrics import RiskClassificationInputMetrics
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
+from src.fafra.ltmm.ltmm_metrics import RiskMetricGenerator
 
 
 class LTMMRiskAssessment:
@@ -20,8 +19,7 @@ class LTMMRiskAssessment:
         self.rc_viz = ClassificationVisualizer()
         self.input_metrics: List[RiskClassificationInputMetrics] = []
         self.input_metric_names = RiskClassificationMetricNames
-        self.fft = FastFourierTransform()
-        self.peak_detector = PeakDetector()
+        self.metric_generator = RiskMetricGenerator()
 
     def assess_cohort_risk(self):
         # Filter the data
@@ -31,14 +29,19 @@ class LTMMRiskAssessment:
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
-        # Perform feature extraction, two features, peak location of the fft, and raw rms
-        faller_metrics = self._derive_input_metrics(ltmm_faller_data)
-        non_faller_metrics = self._derive_input_metrics(ltmm_non_faller_data)
+        # Perform feature extraction
+        faller_metrics, faller_status = self.metric_generator.generate_input_metrics(ltmm_faller_data)
+        non_faller_metrics, non_faller_status = self.metric_generator.generate_input_metrics(ltmm_non_faller_data)
+        model_training_x = faller_metrics + non_faller_metrics
+        model_training_y = faller_status + non_faller_status
+
         # Pair extracted features with input data outcomes (x, y), format: x - ndarray {100,2} raw metrics; y - ndarray {100,} binary 1,0
         model_training_x, model_training_y = self._format_model_training_data(faller_metrics, non_faller_metrics)
+        # Split the data into test and train categories
         # Train risk model on features
         self._train_risk_model(model_training_x, model_training_y)
         # Plot the trained risk features
+        # TODO: create a means to visualize the data prior to model training
         self._viz_trained_model(model_training_x, model_training_y)
         # Make inference on the cohort
         # Output inferences to csv
@@ -71,79 +74,9 @@ class LTMMRiskAssessment:
         model_training_y = faller_y + non_faller_y
         return np.array(model_training_x), np.array(model_training_y)
 
-    def _derive_input_metrics(self, ltmm_dataset):
-        # TODO: include the ltmm_data fall_status as an output, done here instead of elsewhere
-        # Initialize intermediate variable for dataset risk classification metrics
-        dataset_metrics = []
-        # Derive metrics for all dataset
-        for ltmm_data in ltmm_dataset:
-            dataset_metrics.append(self._derive_metrics(ltmm_data))
-        norm_metrics = self._normalize_input_metrics(dataset_metrics)
-        return norm_metrics
-
-    def _derive_metrics(self, ltmm_data):
-        v_axis_data = np.array(ltmm_data.get_data().T[0])
-        sampling_rate = ltmm_data.get_sampling_frequency()
-        # Get largest peak location of walking fft for vertical axis
-        x_fft_peak_val, y_fft_peak_val = self._find_largest_fft_peak(v_axis_data, sampling_rate)
-        # Get RMS
-        rms = self._get_rms(v_axis_data)
-        # Get mean
-        mean = self._get_mean(v_axis_data)
-        # Get standard deviation
-        std = self._get_std(v_axis_data)
-        return [x_fft_peak_val, y_fft_peak_val, rms, mean, std]
-
-    def _get_mean(self, data):
-        return np.mean(data)
-
-    def _get_std(self, data):
-        return np.std(data)
-
-    # def _normalize_input_metrics(self, dataset_metrics):
-    #     input_metric_names = [metric.value for metric in self.input_metric_names]
-    #     for metric_name in input_metric_names:
-    #         max_metric_value = max(dataset_metrics, key=lambda x: x[metric_name])[metric_name]
-    #         for metric in dataset_metrics:
-    #             metric[metric_name] = metric[metric_name] / max_metric_value
-    #     return dataset_metrics
-
-    def _get_rms(self, data):
-        return self.motion_filters.calculate_rms(data)
-
-    def _find_largest_fft_peak(self, data, sampling_rate):
-        x_fft, y_fft = self.fft.perform_fft(data, sampling_rate)
-        # Get the fft data for the physiologically relevant freqs
-        # x_fft, y_fft = self._get_data_range(x_fft, y_fft)
-        # Apply smoothing to fft data
-        x_fft = self.motion_filters.apply_lpass_filter(x_fft, sampling_rate)
-        y_fft = self.motion_filters.apply_lpass_filter(y_fft, sampling_rate)
-        # Find largest x and y fft peaks
-        # TODO: Add try/except to remove this data object from the input if no peaks are found in fft data
-        return self._find_largest_peak(x_fft, y_fft)
-
-    def _get_data_range(self, x, y, lower_bd=1.0, upper_bd=3.0):
-        phys_bds_mask = (lower_bd <= x) & (x <= upper_bd)
-        return x[phys_bds_mask], y[phys_bds_mask]
-
-    def _find_largest_peak(self, x, y):
-        peak_ixs = self.peak_detector.detect_peaks(y)
-        if len(peak_ixs) > 0:
-            max_peak_ix = self.peak_detector.get_largest_peak_ix(y, peak_ixs)
-            max_peak_x_value = x[max_peak_ix]
-            max_peak_y_value = y[max_peak_ix]
-            return max_peak_x_value, max_peak_y_value
-        else:
-            raise ValueError('No peaks found in fft data')
-
-
     def _initialize_dataset(self):
         self.ltmm_dataset.generate_header_and_data_file_paths()
         self.ltmm_dataset.read_dataset()
-
-    def _normalize_input_metrics(self, input_metrics):
-        return np.apply_along_axis(self.motion_filters.unit_vector_norm, 0, np.array(input_metrics))
-
 
 
 class RiskClassificationMetricNames(Enum):
@@ -169,6 +102,7 @@ def main():
     # plot_after = PlottingData(data_after_lpf, 'Filtered', '')
     # viz = MotionVisualizer()
     # viz.plot_data([plot_before, plot_after])
+
 
 if __name__ == '__main__':
     main()
