@@ -3,13 +3,13 @@ from typing import List
 from enum import Enum
 from sklearn.model_selection import train_test_split
 
-from src.datasets.ltmm.ltmm_dataset import LTMMDataset, LTMMData
+from src.datasets.ltmm.ltmm_dataset import LTMMDataset
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.visualization_tools.motion_visualizer import MotionVisualizer, PlottingData
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.input_metrics.risk_classification_input_metrics import RiskClassificationInputMetrics
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
-from src.fafra.ltmm.ltmm_metrics import RiskMetricGenerator
+from src.fafra.ltmm.metrics.risk_metric_generator import RiskMetricGenerator
+
 
 #TODO make a parent class for risk assessments to be used in main FAFRA so we can use generic calls to methods like initialize_dataset, assess_cohort_risk, etc
 class LTMMRiskAssessment:
@@ -33,8 +33,8 @@ class LTMMRiskAssessment:
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
         # Perform feature extraction
-        faller_metrics, faller_status = self.metric_generator.generate_input_metrics(ltmm_faller_data)
-        non_faller_metrics, non_faller_status = self.metric_generator.generate_input_metrics(ltmm_non_faller_data)
+        faller_metrics, faller_status = self.metric_generator.generate_metrics(ltmm_faller_data)
+        non_faller_metrics, non_faller_status = self.metric_generator.generate_metrics(ltmm_non_faller_data)
         y_prediction, y_test = self._make_model_predictions(faller_metrics, faller_status, non_faller_metrics, non_faller_status)
         # Plot the trained risk features
         # TODO: create a means to visualize the data prior to model training

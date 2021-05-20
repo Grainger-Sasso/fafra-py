@@ -13,7 +13,7 @@ class RiskMetricGenerator:
         self.peak_detector = PeakDetector()
         self.motion_filters = MotionFilters()
 
-    def generate_input_metrics(self, ltmm_dataset: List[LTMMData]):
+    def generate_metrics(self, ltmm_dataset: List[LTMMData]):
         # Initialize intermediate variable for dataset risk classification metrics
         faller_status = []
         dataset_metrics = []
@@ -29,6 +29,10 @@ class RiskMetricGenerator:
         return norm_metrics
 
     def _derive_metrics(self, ltmm_data):
+        # Initialize the output
+        # Dynamically load up the metric instances, creating a list of objects
+        # Call the generate metric method for every metric object
+
         v_axis_data = np.array(ltmm_data.get_data().T[0])
         sampling_rate = ltmm_data.get_sampling_frequency()
         # Get largest peak location of walking fft for vertical axis
