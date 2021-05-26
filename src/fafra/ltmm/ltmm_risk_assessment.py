@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from src.datasets.ltmm.ltmm_dataset import LTMMDataset
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
-from src.risk_classification.input_metrics.risk_classification_input_metrics import RiskClassificationInputMetrics
+from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.fafra.ltmm.metric_generator import MetricGenerator
 
@@ -19,9 +19,9 @@ class LTMMRiskAssessment:
         self.motion_filters = MotionFilters()
         self.risk_classifier = SVMRiskClassifier()
         self.rc_viz = ClassificationVisualizer()
-        self.input_metrics: List[RiskClassificationInputMetrics] = []
+        self.input_metrics: List[RiskClassificationInputMetric] = []
         self.input_metric_names = RiskClassificationMetricNames
-        self.metric_generator = RiskMetricGenerator()
+        self.metric_generator = MetricGenerator()
 
     def assess_cohort_risk(self):
         # TODO: JFC please refactor this to consolidate it and make it readable by humans
