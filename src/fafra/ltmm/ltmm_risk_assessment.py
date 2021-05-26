@@ -8,7 +8,7 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.input_metrics.risk_classification_input_metrics import RiskClassificationInputMetrics
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
-from src.fafra.ltmm.metrics.risk_metric_generator import RiskMetricGenerator
+from src.fafra.ltmm.metric_generator import MetricGenerator
 
 
 #TODO make a parent class for risk assessments to be used in main FAFRA so we can use generic calls to methods like initialize_dataset, assess_cohort_risk, etc

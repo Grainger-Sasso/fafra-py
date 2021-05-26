@@ -3,5 +3,5 @@ from abc import ABC, abstractmethod
 
 class RiskClassificationInputMetric(ABC):
     @abstractmethod
-    def generate_metric(self):
+    def generate_metric(self, **kwargs):
         pass

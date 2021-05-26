@@ -1,13 +1,17 @@
 import numpy as np
+import importlib
+import os
 from typing import List
+import glob
 
+from definitions import ROOT_DIR
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.datasets.ltmm.ltmm_dataset import LTMMDataset, LTMMData
 from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 
-class RiskMetricGenerator:
+class MetricGenerator:
     def __init__(self):
         self.fft = FastFourierTransform()
         self.peak_detector = PeakDetector()
@@ -29,21 +33,26 @@ class RiskMetricGenerator:
         return norm_metrics
 
     def _derive_metrics(self, ltmm_data):
-        # Initialize the output
-        # Dynamically load up the metric instances, creating a list of objects
-        # Call the generate metric method for every metric object
 
+        # Initialize the output
+        risk_metrics = []
         v_axis_data = np.array(ltmm_data.get_data().T[0])
-        sampling_rate = ltmm_data.get_sampling_frequency()
-        # Get largest peak location of walking fft for vertical axis
-        x_fft_peak_val, y_fft_peak_val = self._find_largest_fft_peak(v_axis_data, sampling_rate)
-        # Get RMS
-        rms = self.motion_filters.calculate_rms(v_axis_data)
-        # Get mean
-        mean = np.mean(v_axis_data)
-        # Get standard deviation
-        std = np.std(v_axis_data)
-        return [x_fft_peak_val, y_fft_peak_val, rms, mean, std]
+        sampling_frequency = ltmm_data.get_sampling_frequency()
+        # Generate path for all metric modules, iterate through them
+        for module_path in self._generate_metric_module_paths():
+            # Dynamically load up the metric instances, creating a list of objects
+            metric_module = importlib.import_module(module_path)
+            # Call the generate metric method for every metric object
+            risk_metrics.append(metric_module.Metric().generate_metric(data=v_axis_data, sampling_frequency=sampling_frequency))
+        return risk_metrics
+
+    def _generate_metric_module_paths(self):
+        module_root = 'src.risk_classification.input_metrics.metric_instances.'
+        module_names = glob.glob(os.path.join(ROOT_DIR, 'src', 'risk_classification', 'input_metrics',
+                                              'metric_instances','*_metric.py'), recursive=True)
+        module_names = [(os.path.splitext(mod_name)[0]) for mod_name in module_names]
+        return [module_root + mod_name for mod_name in module_names]
+
 
     def _find_largest_fft_peak(self, data, sampling_rate):
         x_fft, y_fft = self.fft.perform_fft(data, sampling_rate)
@@ -69,3 +78,7 @@ class RiskMetricGenerator:
             return max_peak_x_value, max_peak_y_value
         else:
             raise ValueError('No peaks found in fft data')
+
+    def oldies(self, ltmm_data: LTMMData):
+        v_axis_data = np.array(ltmm_data.get_data().T[0])
+        sampling_rate = ltmm_data.get_sampling_frequency()
