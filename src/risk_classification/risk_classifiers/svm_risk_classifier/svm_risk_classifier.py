@@ -35,3 +35,6 @@ class SVMRiskClassifier:
 
     def make_prediction(self, samples):
         return self.model.predict(samples)
+
+    def score_model(self, x_test, y_test):
+        return self.model.score(x_test, y_test)

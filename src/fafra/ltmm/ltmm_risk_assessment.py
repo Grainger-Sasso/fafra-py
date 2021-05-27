@@ -34,12 +34,12 @@ class LTMMRiskAssessment:
         # Perform feature extraction
         faller_metrics, faller_status = self.metric_generator.generate_metrics(ltmm_faller_data)
         non_faller_metrics, non_faller_status = self.metric_generator.generate_metrics(ltmm_non_faller_data)
-        y_prediction, y_test = self._make_model_predictions(faller_metrics, faller_status, non_faller_metrics, non_faller_status)
-        # Plot the trained risk features
-        # TODO: create a means to visualize the data prior to model training
-        # self._viz_trained_model(model_training_x, model_training_y)
-        # Make inference on the cohort
-        # Output inferences to csv
+        x_train, x_test, y_train, y_test = self._generate_test_train_groups(faller_metrics, faller_status,
+                                                                            non_faller_metrics, non_faller_status)
+        self._train_model(x_train, y_train)
+        y_prediction = self._make_model_predictions(x_test)
+        print(self._score_model_performance(x_test, y_test))
+        # TODO: Output inferences to csv
         return self._compare_prediction_to_test(y_prediction, y_test)
 
     def apply_lp_filter(self):
@@ -62,18 +62,25 @@ class LTMMRiskAssessment:
         perf = sum(results)/len(results)
         return perf
 
-    def _make_model_predictions(self, faller_metrics, faller_status, non_faller_metrics, non_faller_status):
+    def _generate_test_train_groups(self, faller_metrics, faller_status, non_faller_metrics, non_faller_status):
         input_x = faller_metrics + non_faller_metrics
         input_y = faller_status + non_faller_status
-        x_train, x_test, y_train, y_test = train_test_split(input_x, input_y, test_size=0.33, random_state=42)
-        # Split the data into test and train categories
-        # Train risk model on features
-        self._train_risk_model(x_train, y_train)
-        y_prediction = self.risk_classifier.make_prediction(x_test)
-        return y_prediction, y_test
+        x_train, x_test, y_train, y_test = train_test_split(input_x, input_y, test_size=0.33, random_state=21)
+        return x_train, x_test, y_train, y_test
 
-    def _viz_trained_model(self, x, y):
-        self.rc_viz.plot_classification(self.risk_classifier.get_model(), x, y)
+    def _train_model(self, x_train, y_train):
+        self._train_risk_model(x_train, y_train)
+
+    def _make_model_predictions(self, x_test):
+        y_prediction = self.risk_classifier.make_prediction(x_test)
+        return y_prediction
+
+    def _score_model_performance(self, x_test, y_test):
+        return self.risk_classifier.score_model(x_test, y_test)
+
+
+    def _viz_trained_model(self, x):
+        self.rc_viz.plot_classification(self.risk_classifier.get_model(), x)
 
     def _train_risk_model(self, x, y):
         self.risk_classifier.generate_model()
