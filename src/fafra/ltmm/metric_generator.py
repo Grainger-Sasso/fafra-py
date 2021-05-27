@@ -25,6 +25,7 @@ class MetricGenerator:
         for ltmm_data in ltmm_dataset:
             faller_status.append(int(ltmm_data.get_faller_status()))
             dataset_metrics.append(self._derive_metrics(ltmm_data))
+        # dataset_metrics = [metric[2:] for metric in dataset_metrics]
         norm_metrics = self._normalize_input_metrics(np.array(dataset_metrics))
         return list(norm_metrics), list(faller_status)
 

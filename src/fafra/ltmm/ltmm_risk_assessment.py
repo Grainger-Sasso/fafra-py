@@ -20,7 +20,6 @@ class LTMMRiskAssessment:
         self.risk_classifier = SVMRiskClassifier()
         self.rc_viz = ClassificationVisualizer()
         self.input_metrics: List[RiskClassificationInputMetric] = []
-        self.input_metric_names = RiskClassificationMetricNames
         self.metric_generator = MetricGenerator()
 
     def assess_cohort_risk(self):
@@ -83,14 +82,6 @@ class LTMMRiskAssessment:
     def _initialize_dataset(self):
         self.ltmm_dataset.generate_header_and_data_file_paths()
         self.ltmm_dataset.read_dataset()
-
-
-class RiskClassificationMetricNames(Enum):
-    fft_peak_x_value = 'fft_peak_x_value'
-    fft_peak_y_value = 'fft_peak_y_value'
-    rms = 'rms'
-    mean = 'mean'
-    std_dev = 'std_dev'
 
 
 def main():
