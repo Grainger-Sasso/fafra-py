@@ -15,7 +15,7 @@ class Metric(RiskClassificationInputMetric):
         motion_filters = MotionFilters()
         x_fft, y_fft = fft.perform_fft(data, sampling_frequency)
         # Get the fft data for the physiologically relevant freqs
-        x_fft, y_fft = self._get_data_range(x_fft, y_fft)
+        # x_fft, y_fft = self._get_data_range(x_fft, y_fft)
         # Apply smoothing to fft data
         x_fft = motion_filters.apply_lpass_filter(x_fft, sampling_frequency)
         y_fft = motion_filters.apply_lpass_filter(y_fft, sampling_frequency)
