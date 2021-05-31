@@ -1,7 +1,7 @@
 import numpy as np
 from typing import List
 from enum import Enum
-from sklearn.model_selection import train_test_split
+
 
 from src.datasets.ltmm.ltmm_dataset import LTMMDataset
 from src.motion_analysis.filters.motion_filters import MotionFilters
@@ -34,13 +34,22 @@ class LTMMRiskAssessment:
         # Perform feature extraction
         faller_metrics, faller_status = self.metric_generator.generate_metrics(ltmm_faller_data)
         non_faller_metrics, non_faller_status = self.metric_generator.generate_metrics(ltmm_non_faller_data)
+        # Split input metrics into train and test
         x_train, x_test, y_train, y_test = self._generate_test_train_groups(faller_metrics, faller_status,
                                                                             non_faller_metrics, non_faller_status)
-        self._train_model(x_train, y_train)
-        y_prediction = self._make_model_predictions(x_test)
-        print(self._score_model_performance(x_test, y_test))
+        # Fit the metric scaler to the training data
+        self.risk_classifier.fit_scaler(x_train)
+        # Transform the train and test input metrics
+        x_train_transformed = self.risk_classifier.transform_data(x_train)
+        x_test_transformed = self.risk_classifier.transform_data(x_test)
+        # Evaluate model's predictive capability with k-fold cross-validation
+        cv_results = self.risk_classifier.cross_val_model(x_train_transformed, y_train)
+        print(cv_results)
+        # Perform cross-validation for model
+        # y_prediction = self._make_model_predictions(x_test)
+        # print(self._score_model_performance(x_test, y_test))
         # TODO: Output inferences to csv
-        return self._compare_prediction_to_test(y_prediction, y_test)
+        # return self._compare_prediction_to_test(y_prediction, y_test)
 
     def apply_lp_filter(self):
         for ltmm_data in self.ltmm_dataset.get_dataset():
@@ -65,26 +74,15 @@ class LTMMRiskAssessment:
     def _generate_test_train_groups(self, faller_metrics, faller_status, non_faller_metrics, non_faller_status):
         input_x = faller_metrics + non_faller_metrics
         input_y = faller_status + non_faller_status
-        x_train, x_test, y_train, y_test = train_test_split(input_x, input_y, test_size=0.33, random_state=21)
+        x_train, x_test, y_train, y_test = self.risk_classifier.split_input_metrics(input_x, input_y)
         return x_train, x_test, y_train, y_test
-
-    def _train_model(self, x_train, y_train):
-        self._train_risk_model(x_train, y_train)
-
-    def _make_model_predictions(self, x_test):
-        y_prediction = self.risk_classifier.make_prediction(x_test)
-        return y_prediction
 
     def _score_model_performance(self, x_test, y_test):
         return self.risk_classifier.score_model(x_test, y_test)
 
-
     def _viz_trained_model(self, x):
         self.rc_viz.plot_classification(self.risk_classifier.get_model(), x)
 
-    def _train_risk_model(self, x, y):
-        self.risk_classifier.generate_model()
-        self.risk_classifier.fit_model(x, y)
 
     def _initialize_dataset(self):
         self.ltmm_dataset.generate_header_and_data_file_paths()
