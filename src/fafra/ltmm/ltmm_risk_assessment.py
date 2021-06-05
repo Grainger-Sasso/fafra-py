@@ -1,11 +1,12 @@
 import numpy as np
+import time
 from typing import List
-from enum import Enum
 
 
 from src.datasets.ltmm.ltmm_dataset import LTMMDataset
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
+from src.risk_classification.validation.cross_validator import CrossValidator
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.fafra.ltmm.metric_generator import MetricGenerator
@@ -21,6 +22,7 @@ class LTMMRiskAssessment:
         self.rc_viz = ClassificationVisualizer()
         self.input_metrics: List[RiskClassificationInputMetric] = []
         self.metric_generator = MetricGenerator()
+        self.cross_validator = CrossValidator()
 
     def assess_cohort_risk(self):
         # TODO: JFC please refactor this to consolidate it and make it readable by humans
@@ -37,14 +39,13 @@ class LTMMRiskAssessment:
         # Split input metrics into train and test
         x_train, x_test, y_train, y_test = self._generate_test_train_groups(faller_metrics, faller_status,
                                                                             non_faller_metrics, non_faller_status)
-        # Fit the metric scaler to the training data
-        self.risk_classifier.fit_scaler(x_train)
         # Transform the train and test input metrics
-        x_train_transformed = self.risk_classifier.transform_data(x_train)
-        x_test_transformed = self.risk_classifier.transform_data(x_test)
+        x = x_train + x_test
+        y = y_train + y_test
+        x_t = self.risk_classifier.scale_input_data(x)
         # Evaluate model's predictive capability with k-fold cross-validation
-        cv_results = self.risk_classifier.cross_val_model(x_train_transformed, y_train)
-        print(cv_results)
+        cv_results = self.cross_validator.cross_val_model(self.risk_classifier.get_model(), x_t[0:80], y[0:80], 5)
+        # cv_results = self.risk_classifier.cross_val_model(x_train_t, y_train)
         # Perform cross-validation for model
         # y_prediction = self._make_model_predictions(x_test)
         # print(self._score_model_performance(x_test, y_test))
