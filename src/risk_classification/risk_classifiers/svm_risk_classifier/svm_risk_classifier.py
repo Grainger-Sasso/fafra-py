@@ -10,6 +10,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import classification_report
 
 
 class SVMRiskClassifier:
@@ -63,3 +64,6 @@ class SVMRiskClassifier:
 
     def score_model(self, x_test, y_test):
         return self.model.score(x_test, y_test)
+
+    def create_classification_report(self, y_test, y_pred):
+        return classification_report(y_test, y_pred)

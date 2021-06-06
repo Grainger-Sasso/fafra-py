@@ -34,9 +34,9 @@ class LTMMRiskAssessment:
         # Fit model to training data
         self.rc.fit_model(x_train, y_train)
         # Make predictions on the test data
-        y_predictions = self.make_prediction(x_test)
+        y_predictions = self.rc.make_prediction(x_test)
         # Compare predictions to test
-        return self._compare_prediction_to_test(y_predictions, y_test)
+        return self.rc.create_classification_report(y_test, y_predictions)
 
     def cross_validate_model(self, k_folds=5):
         # Preprocess the data
@@ -87,6 +87,7 @@ class LTMMRiskAssessment:
 
 
 def main():
+    st = time.time()
     # ltmm_dataset_name = 'LTMM'
     ltmm_dataset_name = 'LabWalks'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
@@ -97,8 +98,17 @@ def main():
                                 MetricNames.MEAN, MetricNames.ROOT_MEAN_SQUARE, MetricNames.STANDARD_DEVIATION])
     ltmm_ra = LTMMRiskAssessment(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path,
                                  report_home_75h_path, input_metric_names)
-    cv_results = ltmm_ra.cross_validate_model()
-    print(cv_results)
+    print(ltmm_ra.assess_model_accuracy())
+
+
+    # cv_results = ltmm_ra.cross_validate_model()
+    # print(cv_results)
+
+    ft = time.time() - st
+    print('##############################################################')
+    print(ft)
+    print('##############################################################')
+
 
 
 if __name__ == '__main__':
