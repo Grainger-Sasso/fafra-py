@@ -44,8 +44,7 @@ class LTMMRiskAssessment:
         # Generate risk metrics
         x, y = self.generate_risk_metrics()
         # Evaluate model's predictive capability with k-fold cross-validation
-        cv_results = self.cv.cross_val_model(self.rc.get_model(), x, y, k_folds)
-        print(cv_results)
+        return self.cv.cross_val_model(self.rc.get_model(), x, y, k_folds)
 
     def preprocess_data(self):
         # Filter the data
@@ -98,14 +97,8 @@ def main():
                                 MetricNames.MEAN, MetricNames.ROOT_MEAN_SQUARE, MetricNames.STANDARD_DEVIATION])
     ltmm_ra = LTMMRiskAssessment(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path,
                                  report_home_75h_path, input_metric_names)
-    # data_before_lpf = ltmm_ra.ltmm_dataset.get_dataset()[1].get_data().T[0,:]
-    perf = ltmm_ra.assess_cohort_risk()
-    print(perf)
-    # data_after_lpf = ltmm_ra.ltmm_dataset.get_dataset()[1].get_data().T[0,:]
-    # plot_before = PlottingData(data_before_lpf, 'Unfiltered', '')
-    # plot_after = PlottingData(data_after_lpf, 'Filtered', '')
-    # viz = MotionVisualizer()
-    # viz.plot_data([plot_before, plot_after])
+    cv_results = ltmm_ra.cross_validate_model()
+    print(cv_results)
 
 
 if __name__ == '__main__':
