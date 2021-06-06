@@ -34,16 +34,12 @@ class LTMMRiskAssessment:
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
-        # Perform feature extraction
-
+        # Generate metrics
         faller_metrics, faller_status = self.mg.generate_metrics(ltmm_faller_data, self.metric_names)
         non_faller_metrics, non_faller_status = self.mg.generate_metrics(ltmm_non_faller_data, self.metric_names)
-        # Split input metrics into train and test
-        x_train, x_test, y_train, y_test = self._generate_test_train_groups(faller_metrics, faller_status,
-                                                                            non_faller_metrics, non_faller_status)
         # Transform the train and test input metrics
-        x = x_train + x_test
-        y = y_train + y_test
+        x = faller_metrics + non_faller_metrics
+        y = faller_status + non_faller_status
         x_t = self.rc.scale_input_data(x)
         # Evaluate model's predictive capability with k-fold cross-validation
         cv_results = self.cv.cross_val_model(self.rc.get_model(), x_t, y, 5)

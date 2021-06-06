@@ -31,7 +31,7 @@ class MetricGenerator:
         return list(dataset_metrics), list(faller_status)
 
     def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
-        invalid_metrics = [met_nam for met_nam in metric_names if met_nam not in MetricNames]
+        invalid_metrics = [met for met in metric_names if met not in MetricNames]
         if invalid_metrics:
             raise ValueError(f'The following metrics are not valid metrics: {[met.get_name() for met in invalid_metrics]}')
 
