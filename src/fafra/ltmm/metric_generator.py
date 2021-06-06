@@ -1,15 +1,15 @@
 import numpy as np
 import importlib
 import os
-from typing import List
+from typing import List, Tuple
 import glob
-import random
 
 from definitions import ROOT_DIR
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.datasets.ltmm.ltmm_dataset import LTMMDataset, LTMMData
+from src.datasets.ltmm.ltmm_dataset import LTMMData
 from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
+from src.risk_classification.input_metrics.metric_names import MetricNames
 
 
 class MetricGenerator:
@@ -18,29 +18,35 @@ class MetricGenerator:
         self.peak_detector = PeakDetector()
         self.motion_filters = MotionFilters()
 
-    def generate_metrics(self, ltmm_dataset: List[LTMMData]):
+    def generate_metrics(self, ltmm_dataset: List[LTMMData], input_metric_names: Tuple[MetricNames]):
+        # Check metric names input by user are all members of metric names enum
+        self._check_metric_names_valid(input_metric_names)
         # Initialize intermediate variable for dataset risk classification metrics
         faller_status = []
         dataset_metrics = []
         # Derive metrics for all dataset
         for ltmm_data in ltmm_dataset:
             faller_status.append(int(ltmm_data.get_faller_status()))
-            dataset_metrics.append(self._derive_metrics(ltmm_data))
-        # dataset_metrics = [metric[2:] for metric in dataset_metrics]
-        # norm_metrics = self._normalize_input_metrics(np.array(dataset_metrics))
+            dataset_metrics.append(self._derive_metrics(ltmm_data, input_metric_names))
         return list(dataset_metrics), list(faller_status)
 
-    def _derive_metrics(self, ltmm_data):
+    def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
+        invalid_metrics = [met_nam for met_nam in metric_names if met_nam not in MetricNames]
+        if invalid_metrics:
+            raise ValueError(f'The following metrics are not valid metrics: {[met.get_name() for met in invalid_metrics]}')
+
+    def _derive_metrics(self, ltmm_data, metric_names: Tuple[MetricNames]):
         # Initialize the output
         risk_metrics = []
         v_axis_data = np.array(ltmm_data.get_data().T[0])
         sampling_frequency = ltmm_data.get_sampling_frequency()
-        # Generate path for all metric modules, iterate through them
-        for module_path in self._generate_metric_module_paths():
-            # Dynamically load up the metric instances, creating a list of objects
-            metric_module = importlib.import_module(module_path).Metric()
-            metric = metric_module.generate_metric(data=v_axis_data,
-                                                   sampling_frequency=sampling_frequency)
+        # Instantiate metric modules for all metric module paths
+        metric_modules = [importlib.import_module(module_path).Metric() for
+                          module_path in self._generate_metric_module_paths()]
+        # Retain only the metric modules selected by metric names
+        select_metric_modules = [mod for mod in metric_modules if mod.get_metric_name() in metric_names]
+        for mod in select_metric_modules:
+            metric = mod.generate_metric(data=v_axis_data, sampling_frequency=sampling_frequency)
             if isinstance(metric, list) and all(isinstance(m, float) or isinstance(m, int) for m in metric):
                 risk_metrics.extend(metric)
             elif isinstance(metric, int) or isinstance(metric, float):

@@ -1,13 +1,20 @@
 import numpy as np
-import random
 
+from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.motion_analysis.feature_extraction.frequency_analysis.auto_correlation import AutoCorrelation
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 
+METRIC_NAME = MetricNames.AUTOCORRELATION
+
+
 class Metric(RiskClassificationInputMetric):
+    def __init__(self):
+        super().__init__(METRIC_NAME)
+        # super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
+
     def generate_metric(self, **kwargs):
         return self._find_largest_ac_peak(kwargs['data'], kwargs['sampling_frequency'])
 

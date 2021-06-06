@@ -1,12 +1,19 @@
 import numpy as np
 
+from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 
+METRIC_NAME = MetricNames.FAST_FOURIER_TRANSFORM
+
+
 class Metric(RiskClassificationInputMetric):
+    def __init__(self):
+        super().__init__(METRIC_NAME)
+
     def generate_metric(self, **kwargs):
         return self._find_largest_fft_peak(kwargs['data'], kwargs['sampling_frequency'])
 
