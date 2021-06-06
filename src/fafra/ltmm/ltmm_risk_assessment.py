@@ -17,7 +17,6 @@ class LTMMRiskAssessment:
     def __init__(self, ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path,
                  report_home_75h_path, input_metric_names: Tuple[MetricNames]):
         self.ltmm_dataset = LTMMDataset(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path, report_home_75h_path)
-        self._initialize_dataset()
         self.filt = MotionFilters()
         self.rc = SVMRiskClassifier()
         self.rc_viz = ClassificationVisualizer()
@@ -25,12 +24,36 @@ class LTMMRiskAssessment:
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
 
-    def assess_cohort_risk(self):
-        # TODO: JFC please refactor this to consolidate it and make it readable by humans
+    def assess_model_accuracy(self):
+        # Preprocess the data
+        self.preprocess_data()
+        # Generate risk metrics
+        x, y = self.generate_risk_metrics()
+        # Split input data into test and train groups
+        x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)
+        # Fit model to training data
+        self.rc.fit_model(x_train, y_train)
+        # Make predictions on the test data
+        y_predictions = self.make_prediction(x_test)
+        # Compare predictions to test
+        return self._compare_prediction_to_test(y_predictions, y_test)
+
+    def cross_validate_model(self, k_folds=5):
+        # Preprocess the data
+        self.preprocess_data()
+        # Generate risk metrics
+        x, y = self.generate_risk_metrics()
+        # Evaluate model's predictive capability with k-fold cross-validation
+        cv_results = self.cv.cross_val_model(self.rc.get_model(), x, y, k_folds)
+        print(cv_results)
+
+    def preprocess_data(self):
         # Filter the data
         self.apply_lp_filter()
         # Segment the datasets into smaller epochs to have a greater number of data points
         self.ltmm_dataset.segment_dataset(10.0)
+
+    def generate_risk_metrics(self, scale_data=True):
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
         ltmm_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(True)
         ltmm_non_faller_data = self.ltmm_dataset.get_ltmm_data_by_faller_status(False)
@@ -40,16 +63,9 @@ class LTMMRiskAssessment:
         # Transform the train and test input metrics
         x = faller_metrics + non_faller_metrics
         y = faller_status + non_faller_status
-        x_t = self.rc.scale_input_data(x)
-        # Evaluate model's predictive capability with k-fold cross-validation
-        cv_results = self.cv.cross_val_model(self.rc.get_model(), x_t, y, 5)
-        print(cv_results)
-        # cv_results = self.rc.cross_val_model(x_train_t, y_train)
-        # Perform cross-validation for model
-        # y_prediction = self._make_model_predictions(x_test)
-        # print(self._score_model_performance(x_test, y_test))
-        # TODO: Output inferences to csv
-        # return self._compare_prediction_to_test(y_prediction, y_test)
+        if scale_data:
+            x = self.rc.scale_input_data(x)
+        return x, y
 
     def apply_lp_filter(self):
         for ltmm_data in self.ltmm_dataset.get_dataset():
@@ -62,31 +78,13 @@ class LTMMRiskAssessment:
             ltmm_data.set_data(lpf_data_all_axis)
 
     def _compare_prediction_to_test(self, y_predition, y_test):
-        results = []
-        for yp, yt in zip(y_predition, y_test):
-            if yp == yt:
-                results.append(1)
-            else:
-                results.append(0)
-        perf = sum(results)/len(results)
-        return perf
+        comparison = np.array(np.array(y_predition) == np.array(y_predition),
+                              dtype=int)
+        return sum(comparison)/len(comparison)
 
-    def _generate_test_train_groups(self, faller_metrics, faller_status, non_faller_metrics, non_faller_status):
-        input_x = faller_metrics + non_faller_metrics
-        input_y = faller_status + non_faller_status
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_x, input_y)
+    def _generate_test_train_groups(self, x, y):
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
         return x_train, x_test, y_train, y_test
-
-    def _score_model_performance(self, x_test, y_test):
-        return self.rc.score_model(x_test, y_test)
-
-    def _viz_trained_model(self, x):
-        self.rc_viz.plot_classification(self.rc.get_model(), x)
-
-
-    def _initialize_dataset(self):
-        self.ltmm_dataset.generate_header_and_data_file_paths()
-        self.ltmm_dataset.read_dataset()
 
 
 def main():

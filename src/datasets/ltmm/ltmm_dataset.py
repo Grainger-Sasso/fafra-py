@@ -28,6 +28,8 @@ class LTMMDataset:
         self.report_home_75h_path = report_home_75h_path
         self.dataset: List[LTMMData] = []
         self.header_and_data_file_paths = dict()
+        self.generate_header_and_data_file_paths()
+        self.read_dataset()
 
     def get_dataset_name(self):
         return self.dataset_name
