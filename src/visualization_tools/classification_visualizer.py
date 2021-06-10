@@ -5,10 +5,7 @@ import numpy as np
 
 class ClassificationVisualizer:
 
-    def __init__(self):
-        pass
-
-    def plot_classification(self, model, x, y):
+    def plot_classification(self, model, x):
         ax = plt.gca()
         plt.scatter(x[:, 0], x[:, 1], c=y, s=50, cmap='autumn')
         xlim = ax.get_xlim()

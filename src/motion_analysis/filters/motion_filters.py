@@ -229,6 +229,9 @@ class MotionFilters:
         strides = a.strides + (a.strides[-1],)
         return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
 
+    def unit_vector_norm(self, x: np.array):
+        return x / np.linalg.norm(x)
+
     def __pairwise(self, iterable):
         a, b = itertools.tee(iterable)
         next(b, None)

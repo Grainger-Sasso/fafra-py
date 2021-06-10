@@ -1,18 +1,44 @@
 import numpy as np
 from scipy.fft import fft, fftfreq
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.preprocessing import PolynomialFeatures
+from sklearn.metrics import mean_squared_error, r2_score
 
 
 class FastFourierTransform:
     def __init__(self):
         pass
 
-    def perform_fft(self, data: np.array, sampling_rate: float):
+    def perform_fft(self, data: np.array, sampling_rate: float, detrend=True):
         # y_fft = np.fft.fft(data)
         # x_fft = np.fft.fftfreq(n=data.size, d=1/sampling_rate)
         # return x_fft[:len(x_fft)//2], y_fft.real[:len(y_fft)//2]
+        if detrend:
+            data = data - np.mean(data)
+            data = self._apply_polynomial_detrend(data, sampling_rate)
         y_fft = fft(data)
         x_fft = fftfreq(data.size, 1/sampling_rate)
         return x_fft[:len(x_fft) // 2], abs(y_fft[:len(y_fft) // 2])
+
+    def _apply_polynomial_detrend(self, data, sampling_rate):
+        """
+        https://www.mathworks.com/matlabcentral/answers/124471-fft-significant-peak-in-0-hz-component
+        https://www.investopedia.com/terms/d/detrend.asp
+        https://towardsdatascience.com/removing-non-linear-trends-from-timeseries-data-b21f7567ed51
+        :param data:
+        :param sampling_rate:
+        :return:
+        """
+        time = np.linspace(0, len(data)*(1/sampling_rate), len(data))
+        time = np.reshape(time, (len(time), 1))
+        pf = PolynomialFeatures(degree=2)
+        Xp = pf.fit_transform(time)
+        md2 = LinearRegression()
+        md2.fit(Xp, data)
+        trendp = md2.predict(Xp)
+        detrpoly = [data[i] - trendp[i] for i in range(0, len(data))]
+        return np.array(detrpoly)
 
 
 
