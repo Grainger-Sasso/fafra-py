@@ -12,6 +12,7 @@ from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.risk_classification.input_metrics.metric_names import MetricNames
 
 
+# Todo: Create parent class of metric generator, break unique parts ofLTMM metric generator out into child class
 class MetricGenerator:
     def __init__(self):
         self.fft = FastFourierTransform()
