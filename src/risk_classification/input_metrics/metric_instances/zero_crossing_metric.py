@@ -12,7 +12,7 @@ class Metric(RiskClassificationInputMetric):
 
     def generate_metric(self, **kwargs):
         return self._find_zero_crossing(kwargs['data'], kwargs['sampling_frequency'])
-    def _find_zero_crossing(self, data, sampling_frequency):
+    def _find_zero_crossing(self, data, sampling_frequency,enable_mean_crossing=0):
         """
         autocorrelation peak
         :param data:
@@ -23,6 +23,8 @@ class Metric(RiskClassificationInputMetric):
         real_len=len(data_array)-1
         if real_len<1:
             return data_array[0]
+        if enable_mean_crossing==1:
+            data_array=data_array-np.mean(data_array)
         result=data_array[1:len(data_array)]*data_array[0:real_len]
         for idx in range(0,len(result)):
             if result[idx]>=0:
