@@ -10,4 +10,4 @@ class Metric(RiskClassificationInputMetric):
         super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
 
     def generate_metric(self, **kwargs):
-        return kwargs
+        return sum(kwargs['data'])
