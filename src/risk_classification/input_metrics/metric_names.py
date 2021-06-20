@@ -8,6 +8,7 @@ class MetricNames(Enum):
     MEAN = 'mean'
     ROOT_MEAN_SQUARE = 'rms'
     STANDARD_DEVIATION = 'std'
+    SIGNAL_MAGNITUDE_AREA = 'sma'
 
     def get_name(self):
         # Self is the member here
