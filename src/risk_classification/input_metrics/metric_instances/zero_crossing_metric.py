@@ -11,28 +11,34 @@ class Metric(RiskClassificationInputMetric):
         super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
 
     def generate_metric(self, **kwargs):
-        return self._find_zero_crossing(kwargs['data'], kwargs['sampling_frequency'])
-    def _find_zero_crossing(self, data, sampling_frequency,enable_mean_crossing=0):
+        return self._find_zero_crossing(kwargs['data'], kwargs['sampling_frequency'],enable_mean_crossing = 0)
+    
+    def _find_zero_crossing(self, data, sampling_frequency,enable_mean_crossing = 0):
         """
-        autocorrelation peak
-        :param data:
-        :param sampling_frequency:
-        :return:
+        zero crossing
+        :param data:input would be a 1D array
+        :param sampling_frequency:would be a single float number
+        :return:the zero crossing or mean crossing for an array
         """
-        data_array=np.array(data)
-        real_len=len(data_array)-1
-        if real_len<1:
-            return data_array[0]
-        if enable_mean_crossing==1:
-            data_array=data_array-np.mean(data_array)
-        result=data_array[1:len(data_array)]*data_array[0:real_len]
-        for idx in range(0,len(result)):
-            if result[idx]>=0:
-                result[idx]=0
+        data_array = np.array(data)
+        real_len = len(data_array)-1
+        if real_len < 1:
+            raise TooFewDataError
+        if enable_mean_crossing:
+            data_array = data_array-np.mean(data_array)
+        result = data_array[1:len(data_array)]*data_array[0:real_len]
+        for idx, elem in enumerate(result):
+            if elem >= 0:
+                result[idx] = 0 
             else:
-                result[idx]=1
-        result=result.sum()/((1/sampling_frequency)-1)
+                result[idx] = 1
+        result = result.sum()/((1/sampling_frequency)-1)
         return result
-
+class Error(Exception):
+    """Base class for other exceptions"""
+    pass
+class TooFewDataError(Error):
+    """Raised when input data array has too few elements"""
+    pass
 
         
