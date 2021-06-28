@@ -1,6 +1,6 @@
 import unittest
 import random
-from src.risk_classification.input_metrics.metric_instances import sma_metric
+from src.risk_classification.input_metrics.metric_instances.sma_metric import Metric
 
 class TestSMA(unittest.TestCase):
     def setUp(self):
@@ -11,10 +11,11 @@ class TestSMAMetric(TestSMA):
         for i in range(1, 10):
             mysum = 0
             values = []
-            for i in range(1, 30):
+            for j in range(1, 30):
                 random_num = random.uniform(-100, 100)
                 mysum += random_num
                 values.append(random_num)
-            self.assertEqual(self.SMA.generate_metric(values), mysum)
+            kwargs = {'data' : values}
+            self.assertEqual(self.SMA.generate_metric(**kwargs), mysum)
 if __name__ == '__main__':
     unittest.main()
