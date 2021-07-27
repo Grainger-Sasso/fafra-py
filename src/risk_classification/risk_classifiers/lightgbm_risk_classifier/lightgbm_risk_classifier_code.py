@@ -8,6 +8,7 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
+import pandas as pd
 import lightgbm
 
 class LightGBMRiskClassifier:
