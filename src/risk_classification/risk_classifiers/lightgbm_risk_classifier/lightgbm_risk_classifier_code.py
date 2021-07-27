@@ -26,4 +26,10 @@ class LightGBMRiskClassifier:
 
     def set_scaler(self, scaler = preprocessing.StandardScaler()):
         self.scaler = scaler
-    
+
+    def scale_input_data(self, x):
+
+        self.scaler.fit(x)
+        return self.scaler.transform(x)
+
+
