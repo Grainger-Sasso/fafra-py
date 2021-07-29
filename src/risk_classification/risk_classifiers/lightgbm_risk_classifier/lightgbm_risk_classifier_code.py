@@ -11,6 +11,7 @@ from sklearn.metrics import classification_report
 import numpy as np
 import lightgbm as lgb
 
+
 class LightGBMRiskClassifier:
     # Actual preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
@@ -23,13 +24,13 @@ class LightGBMRiskClassifier:
     def get_model(self) -> lgb.LGBMClassifier():
         return self.model
 
-    def set_model(self, model = lgb.LGBMClassifier()):
-        self.model = model
+    def set_model(self, params: dict):
+        self.model = lgb.LGBMClassifier(params)
 
     def get_scaler(self) -> preprocessing.StandardScaler():
         return self.scaler
 
-    def set_scaler(self, scaler = preprocessing.StandardScaler()):
+    def set_scaler(self, scaler=preprocessing.StandardScaler()):
         self.scaler = scaler
 
     def scale_input_data(self, x):
@@ -45,7 +46,7 @@ class LightGBMRiskClassifier:
         x_test_t = self.scaler.transform(x_test)
         return x_train_t, x_test_t
 
-    def split_input_metrics(self, x, y, test_size=0.33, random_state=42):
+    def split_input_metrics(self, x, y, test_size=0.3, random_state=42):
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state)
         return x_train, x_test, y_train, y_test
 
@@ -69,3 +70,7 @@ class LightGBMRiskClassifier:
 
     def create_classification_report(self, y_test, y_pred):
         return classification_report(y_test, y_pred)
+
+    # must implement k-fold cross validation in code (not needed for first dataset, which has only 340 examples)
+
+# use numpy to read csv data and then choose values of hyperparameters to create good LightGBM risk classifier object
