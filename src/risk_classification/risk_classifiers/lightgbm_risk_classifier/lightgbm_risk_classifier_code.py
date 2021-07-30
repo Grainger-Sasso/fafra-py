@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn import preprocessing
@@ -10,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 import numpy as np
 import lightgbm as lgb
+import optuna
 
 
 class LightGBMRiskClassifier:
@@ -73,4 +75,7 @@ class LightGBMRiskClassifier:
 
     # must implement k-fold cross validation in code (not needed for first dataset, which has only 340 examples)
 
+
 # use numpy to read csv data and then choose values of hyperparameters to create good LightGBM risk classifier object
+x = np.genfromtxt('C:\\Users\\fancy\\Downloads\\x_data_metrics.csv', delimiter=',')
+y = np.genfromtxt('C:\\Users\\fancy\\Downloads\\y_data_metrics.csv', delimiter=',')
