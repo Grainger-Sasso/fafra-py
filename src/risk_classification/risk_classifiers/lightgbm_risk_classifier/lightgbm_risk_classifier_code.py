@@ -18,16 +18,19 @@ class LightGBMRiskClassifier:
     # Actual preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
     # Also, should eventually use 5-fold cross-validation
-    def __init__(self, params: dict):
+
+    def __init__(self, params: dict = None):
         # params is a dict of parameters, including hyperparameters, for the LightGBM risk classifier
+        if params is None:
+            params = {}
         self.model = lgb.LGBMClassifier(params)
         self.scaler = preprocessing.StandardScaler()
 
     def get_model(self) -> lgb.LGBMClassifier():
         return self.model
 
-    def set_model(self, params: dict):
-        self.model = lgb.LGBMClassifier(params)
+    def set_model(self, model: lgb.LGBMClassifier()):
+        self.model = model
 
     def get_scaler(self) -> preprocessing.StandardScaler():
         return self.scaler
@@ -51,6 +54,35 @@ class LightGBMRiskClassifier:
     def split_input_metrics(self, x, y, test_size=0.3, random_state=42):
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state)
         return x_train, x_test, y_train, y_test
+
+    # objective function for optuna
+    def opt_objective(self, trial):
+        # use numpy to read data CSVs into numpy arrays
+        x = np.genfromtxt('C:\\Users\\fancy\\Downloads\\x_data_metrics.csv', delimiter=',')
+        y = np.genfromtxt('C:\\Users\\fancy\\Downloads\\y_data_metrics.csv', delimiter=',')
+        train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25)
+        lgbdata = lgb.Dataset(train_x, label=train_y)
+
+        # set parameter search spaces for optuna to conduct hyperparameter optimization for max validation accuracy
+        params = {
+            "objective": "binary",
+            "metric": "binary_logloss",
+            "verbosity": -1,
+            "boosting_type": "gbdt",
+            "lambda_l1": trial.suggest_float("lambda_l1", 1e-15, 60.0, log=True),
+            "lambda_l2": trial.suggest_float("lambda_l2", 1e-15, 60.0, log=True),
+            "num_leaves": trial.suggest_int("num_leaves", 2, 256),
+            "feature_fraction": trial.suggest_float("feature_fraction", 0.01, 1.0),
+            "bagging_fraction": trial.suggest_float("bagging_fraction", 0.01, 1.0),
+            "bagging_freq": trial.suggest_int("bagging_freq", 1, 20),
+            "min_child_samples": trial.suggest_int("min_child_samples", 3, 100),
+        }
+
+        self.set_model(lgb.train(params, lgbdata))
+        raw_predictions = self.make_prediction(valid_x)
+        predictions = np.rint(raw_predictions)
+        accuracy = sklearn.metrics.accuracy_score(valid_y, predictions)
+        return accuracy
 
     def fit_model(self, x: np.ndarray, y: np.ndarray):
         """
@@ -76,6 +108,13 @@ class LightGBMRiskClassifier:
     # must implement k-fold cross validation in code (not needed for first dataset, which has only 340 examples)
 
 
-# use numpy to read csv data and then choose values of hyperparameters to create good LightGBM risk classifier object
-x = np.genfromtxt('C:\\Users\\fancy\\Downloads\\x_data_metrics.csv', delimiter=',')
-y = np.genfromtxt('C:\\Users\\fancy\\Downloads\\y_data_metrics.csv', delimiter=',')
+lgbm_risk_classifier = LightGBMRiskClassifier()
+
+if __name__ == "__main__":
+    study = optuna.create_study(direction="maximize")
+    study.optimize(lgbm_risk_classifier.opt_objective, n_trials=1000)
+
+    trial = study.best_trial
+    lgbm_risk_classifier.set_model(LightGBMRiskClassifier(trial.params))
+
+    print("Best trial value was {}".format(trial.value))
