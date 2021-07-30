@@ -58,8 +58,8 @@ class LightGBMRiskClassifier:
     # objective function for optuna
     def opt_objective(self, trial):
         # use numpy to read data CSVs into numpy arrays
-        x = np.genfromtxt('C:\\Users\\fancy\\Downloads\\x_data_metrics.csv', delimiter=',')
-        y = np.genfromtxt('C:\\Users\\fancy\\Downloads\\y_data_metrics.csv', delimiter=',')
+        x = np.genfromtxt('x_data_metrics.csv', delimiter=',')
+        y = np.genfromtxt('y_data_metrics.csv', delimiter=',')
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25)
         lgbdata = lgb.Dataset(train_x, label=train_y)
 
