@@ -29,8 +29,10 @@ class LightGBMRiskClassifier:
     def get_model(self) -> lgb.LGBMClassifier():
         return self.model
 
-    def set_model(self, model: lgb.LGBMClassifier()):
-        self.model = model
+    def set_model(self, params: dict = None):
+        if params is None:
+            params = {}
+        self.model = lgb.LGBMClassifier(params)
 
     def get_scaler(self) -> preprocessing.StandardScaler():
         return self.scaler
@@ -115,6 +117,6 @@ if __name__ == "__main__":
     study.optimize(lgbm_risk_classifier.opt_objective, n_trials=1000)
 
     trial = study.best_trial
-    lgbm_risk_classifier.set_model(LightGBMRiskClassifier(trial.params))
+    lgbm_risk_classifier.set_model(trial.params)
 
     print("Best trial value was {}".format(trial.value))
