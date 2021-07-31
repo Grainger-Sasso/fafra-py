@@ -42,3 +42,4 @@ wfdb==3.3.0
 lightgbm~=3.2.1
 setuptools~=52.0.0
 optuna~=2.8.0
+hmmlearn~=0.2.6
