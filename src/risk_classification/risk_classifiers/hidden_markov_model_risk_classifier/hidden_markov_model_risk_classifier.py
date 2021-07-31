@@ -46,7 +46,10 @@ class GaussianHMMRiskClassifier:
             #temp_hmmgmm.fit(x, lengths)
 
             # if temp_hmmgmm's model is better than self.model:
-                # self.set_model(temp_
+                # self.model.startprob_ = temp_hmmgmm.startprob_
+                # self.model.transmat_ = temp_hmmgmm.transmat_
+                # self.model.means_ = temp_hmmgmm.means_
+                # self.model.covars_ = temp_hmmgmm.covars_
 
 # insert params into hmm_gmm_risk_classifier below (using names of hmm.GaussianHMM params; no need to input in a dict)
 # gaussian_hmm_risk_classifier = GaussianHMMRiskClassifier(*insert params w/names here*)
