@@ -14,8 +14,10 @@ from hmmlearn import hmm
 
 # using Gaussian emission since Carapace Analytics will be using accelerometric, not gyroscopic, data;
 # Yuwono et. al showed that the accelerometric data input to RCE tends to be Gaussian, so no mixture
-# seems to be required (since FFT and DFT are both linear combinations of the signals)
-# and hence our Bayes filter needs to cover just Gaussian distributions (hence we'll use a Kalman filter as
+# seems to be required (since FFT and DFT are both linear combinations of the signals);
+# also, Yuwono et. al used only one mixture in their Hidden Markov Model (though they did not specify whether it
+# was Gaussian, although it is reasonable to assume that the mixture they used was indeed Gaussian), and hence
+# our Bayes filter needs to cover just Gaussian distributions (hence we'll use a Kalman filter as
 # our Bayes filter since Kalman filter is the Bayes filter for Gaussian distributions)
 
 class GaussianHMMRiskClassifier:
