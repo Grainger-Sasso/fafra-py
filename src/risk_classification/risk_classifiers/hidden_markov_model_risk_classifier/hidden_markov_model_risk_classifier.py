@@ -43,7 +43,7 @@ class GaussianHMMRiskClassifier:
     def set_hmm_params(self, other):
         # other must be another instance of GaussianHMMRiskClassifier()
 
-        if !isinstance(other, GaussianHMMRiskClassifier):
+        if not isinstance(other, GaussianHMMRiskClassifier):
             raise TypeError("Input variable 'other' was not an instance of GaussianHMMRiskClassifier")
 
         self.model.startprob_ = other.model.startprob_
