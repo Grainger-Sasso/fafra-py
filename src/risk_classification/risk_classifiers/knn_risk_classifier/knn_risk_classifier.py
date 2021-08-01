@@ -1,6 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
+
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import classification_report, confusion_matrix
@@ -12,17 +14,17 @@ from sklearn.preprocessing import StandardScaler
 
 
 class KNNRiskClassifier:
-    def __init__(self, kernel='linear', N=1, w='distance'):
-        self.model: KNN=KNeighborsClassifier(n_neighbors=N, weights=w)
+    def __init__(self, N=5, w='distance'):
+        self.model: KNN = KNeighborsClassifier(n_neighbors=N, weights=w)
         self.scaler: StandardScaler = preprocessing.StandardScaler()
 
-    def get_model(self) -> KNN:
+    def get_model(self)->'KNN':
         return self.model
 
     def get_scaler(self) -> StandardScaler:
         return self.scaler
 
-    def set_model(self, model: KNN):
+    def set_model(self, model: 'KNN'):
         self.model = model
 
     def set_scaler(self, scaler: StandardScaler):
@@ -65,3 +67,28 @@ class KNNRiskClassifier:
 
     def create_classification_report(self, y_test, y_pred):
         return classification_report(y_test, y_pred)
+
+def main():
+    classifier = KNNRiskClassifier()
+    #read data file
+    rootPath = 'D:/carapace/metric_test_data'
+    train_x_path = os.path.join(rootPath, 'x_data_metrics.csv')
+    train_y_path = os.path.join(rootPath, 'y_data_metrics.csv')
+    train_x = pd.read_csv(train_x_path, delimiter=',', header=None)
+    train_y = pd.read_csv(train_y_path, delimiter=',', header=None)
+    scaler = classifier.get_scaler()
+    x_data_scaled = scaler.fit_transform(train_x)
+    x_train, x_test, y_train, y_test = classifier.split_input_metrics(x_data_scaled, train_y.values.ravel())
+    classifier.fit_model(x_train, y_train)
+    ypred = classifier.make_prediction(x_test)
+    #create confusion matrix and see the classification report
+    result = confusion_matrix(y_test, ypred)
+    print("Confusion Matrix is {}".format(result))
+    report = classifier.create_classification_report(y_test, ypred)
+    print(report)
+    print("Accuracy: ", classifier.score_model(x_test, y_test))
+
+
+
+if __name__ ==  '__main__':
+    main()
