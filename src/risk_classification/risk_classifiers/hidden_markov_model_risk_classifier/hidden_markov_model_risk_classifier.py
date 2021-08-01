@@ -11,15 +11,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 import numpy as np
 from hmmlearn import hmm
-from hmmlearn.base import ConvergenceMonitor
-
 
 # using Gaussian emission since Carapace Analytics will be using accelerometric, not gyroscopic, data;
 # Yuwono et. al showed that the accelerometric data input to RCE tends to be Gaussian, so no mixture
 # seems to be required (since FFT and DFT are both linear combinations of the signals)
 # and hence our Bayes filter needs to cover just Gaussian distributions (hence we'll use a Kalman filter as
 # our Bayes filter since Kalman filter is the Bayes filter for Gaussian distributions)
-
 
 class GaussianHMMRiskClassifier:
     def __init__(self, **kwargs):

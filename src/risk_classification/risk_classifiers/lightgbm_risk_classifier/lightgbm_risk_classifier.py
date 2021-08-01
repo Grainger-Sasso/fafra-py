@@ -13,7 +13,6 @@ import numpy as np
 import lightgbm as lgb
 import optuna
 
-
 class LightGBMRiskClassifier:
     # Actual preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
