@@ -59,26 +59,39 @@ class GaussianHMMRiskClassifier:
     def converged(self):
         return self.monitor_.iter == self.monitor_.n_iter or self.monitor_.history[-1] >= self.monitor_.tol
 
-    # HMM is used in an unsupervised manner in Yuwono's paper
-    def fit_model(self, x: np.ndarray, lengths: list):
+    # HMM is used in an unsupervised manner in Yuwono's paper. We will use LOOCV on the x data to ensure
+    # that our HMM is maximally generalizable.
+    def fit_model(self, x: np.ndarray, y: np.ndarray, length: int):
+        # randomly split x data into train/validation (need labels y in order to do this
+        x_train, y_1, x_valid, y_2 = train_test_split(x, y, test_size=0.25)
 
-        # initially attempt to fit self.model to the data (using EM algorithm)
-        self.model.fit(x, lengths)
+        # initially attempt to fit self.model to the train split (using EM algorithm)
+        lengths = [length for i in range(0, 0.75 * x.shape[0])]
+        self.model.fit(x_train, lengths)
 
-        # try EM algorithm 500 times, choosing only the trial that has the best HMM parameters
+        # get current model's validation score
+        valid_lengths = [length for i in range(0, x_valid.shape[0])]
+        current_score = self.model.score(x_valid, valid_lengths)
+
+        # try EM algorithm 499 more times (total 500 times), choosing only the trial that has the best HMM parameters
         for n in range(1, 500):
+            # create another random split of x data into train/validation
+            x_train, y_1, x_valid, y_2 = train_test_split(x, y, test_size=0.25)
 
             # Create a temporary instance of GaussianHMMRiskClassifier w/ same constructor inputs as self, then
-            # fit temporary model to the data (using EM algorithm).
+            # fit temporary model to the train split (using EM algorithm).
             temp_hmmgmm = GaussianHMMRiskClassifier(self.model.__dict__)
-            temp_hmmgmm.model.fit(x, lengths)
+            temp_hmmgmm.model.fit(x_train, lengths)
 
             if self.converged() and temp_hmmgmm.converged():
                 # If self.model's log likelihood on x after training is < the temp model's score's log likelihood
                 # on x after training, then the temp model is a better GaussianHMM than self.model,
                 # so set self.model's HMM parameters to the temp model's.
-                if self.model.score(x, lengths) < temp_hmmgmm.model.score(x, lengths):
+                valid_lengths = [length for i in range(0, x_valid.shape[0])]
+                temp_score = temp_hmmgmm.model.score(x_valid, valid_lengths)
+                if current_score < temp_score:
                     self.set_hmm_params(temp_hmmgmm)
+                    current_score = temp_score
 
             # If self.model did not converge, then set self.model's HMM params to temp model's HMM params
             # if temp model converged.
