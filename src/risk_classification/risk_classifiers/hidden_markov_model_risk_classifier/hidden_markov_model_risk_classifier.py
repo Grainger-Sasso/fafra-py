@@ -107,4 +107,4 @@ class GaussianHMMRiskClassifier:
                 self.set_hmm_params(temp_hmmgmm)
 
 # insert params into hmm_gmm_risk_classifier below (using names of hmm.GaussianHMM params; no need to input in a dict)
-# gaussian_hmm_risk_classifier = GaussianHMMRiskClassifier(*insert params w/names here*)
+# gaussian_hmm_risk_classifier = GaussianHMMRiskClassifier(n_iter = ..., n_components = ...)
