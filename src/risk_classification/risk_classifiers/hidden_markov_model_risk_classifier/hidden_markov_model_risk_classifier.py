@@ -12,6 +12,7 @@ from sklearn.metrics import classification_report
 import numpy as np
 from hmmlearn import hmm
 
+
 # using Gaussian emission since Carapace Analytics will be using accelerometric, not gyroscopic, data;
 # Yuwono et. al showed that the accelerometric data input to RCE tends to be Gaussian, so no mixture
 # seems to be required (since FFT and DFT are both linear combinations of the signals);
@@ -22,9 +23,15 @@ from hmmlearn import hmm
 
 class GaussianHMMRiskClassifier:
     def __init__(self, **kwargs):
-        # use covariance_type="full" since diagonal covariance matrix allows for accurate modelling iff
-        # the number of mixtures is > 1 (according to a stackexchange answer)
+        # Use covariance_type="full" since diagonal covariance matrix allows for accurate modelling iff
+        # the number of mixtures is > 1 (according to a stackexchange answer).
+        # n_components = length of input data vectors.
+        # Set n_iter to some integer >= 100 and <= thousands.
+        # Leave "params" and "init_params" to their default value (which is "stmc").
+        # Leave all other GaussianHMM constructor parameters to their default values.
+        # That covers all the GaussianHMM constructor parameters.
         if kwargs is None:
+            # instead of kwargs = {}, will know n_components (and n_iter) when data dimensions will be known
             kwargs = {}
         self.model = hmm.GaussianHMM(kwargs)
 
@@ -73,7 +80,8 @@ class GaussianHMMRiskClassifier:
         valid_lengths = [length for i in range(0, x_valid.shape[0])]
         current_score = self.model.score(x_valid, valid_lengths)
 
-        # try EM algorithm 499 more times (total 500 times), choosing only the trial that has the best HMM parameters
+        # Try EM algorithm 499 more times (for a total of 500 times), choosing only the trial that has the
+        # best HMM parameters.
         for n in range(1, 500):
             # create another random split of x data into train/validation
             x_train, y_1, x_valid, y_2 = train_test_split(x, y, test_size=0.25)
