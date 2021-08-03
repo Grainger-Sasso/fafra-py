@@ -106,7 +106,7 @@ class GaussianHMMRiskClassifier:
             elif temp_hmmgmm.converged():
                 self.set_hmm_params(temp_hmmgmm)
 
-    # must also implement k-fold CV for GaussianHMMRiskClassifier
+    # maybe should implement unsupervised k-fold CV for GaussianHMMRiskClassifier
 
 # insert params into hmm_gmm_risk_classifier below (using names of hmm.GaussianHMM params; no need to input in a dict)
 # gaussian_hmm_risk_classifier = GaussianHMMRiskClassifier(n_iter = ..., n_components = ...)

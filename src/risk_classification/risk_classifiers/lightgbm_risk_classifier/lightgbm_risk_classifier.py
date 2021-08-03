@@ -146,5 +146,7 @@ if __name__ == "__main__":
     tuner = optuna.integration.lightgbm.LightGBMTunerCV(
         params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
     tuner.run()
+    print("Best LOOCV trial value was {}".format(trial.value))
+    print("\n")
     print("Best k-fold CV score was {}".format(tuner.best_score))
     #lgbm_risk_classifier.set_model(tuner.best_params)
