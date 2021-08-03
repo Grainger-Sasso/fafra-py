@@ -123,7 +123,6 @@ if __name__ == "__main__":
     trial = study.best_trial
     lgbm_risk_classifier.set_model(trial.params)
 
-
     # now try lightgbm with k-fold CV (k = 5 or k = 10)
     x = np.genfromtxt('x_data_metrics.csv', delimiter=',')
     y = np.genfromtxt('y_data_metrics.csv', delimiter=',')
