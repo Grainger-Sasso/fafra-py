@@ -68,7 +68,7 @@ class GaussianHMMRiskClassifier:
 
     # HMM is used in an unsupervised manner in Yuwono's paper. We will use LOOCV on the x data to ensure
     # that our HMM is maximally generalizable.
-    def fit_model(self, x: np.ndarray, y: np.ndarray, length: int):
+    def fit_model_loocv(self, x: np.ndarray, y: np.ndarray, length: int):
         # randomly split x data into train/validation (need labels y in order to do this
         x_train, y_1, x_valid, y_2 = train_test_split(x, y, test_size=0.25)
 
@@ -105,6 +105,8 @@ class GaussianHMMRiskClassifier:
             # if temp model converged.
             elif temp_hmmgmm.converged():
                 self.set_hmm_params(temp_hmmgmm)
+
+    # must also implement k-fold CV for GaussianHMMRiskClassifier
 
 # insert params into hmm_gmm_risk_classifier below (using names of hmm.GaussianHMM params; no need to input in a dict)
 # gaussian_hmm_risk_classifier = GaussianHMMRiskClassifier(n_iter = ..., n_components = ...)
