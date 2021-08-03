@@ -2,8 +2,7 @@ from sklearn.datasets import make_blobs
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import confusion_matrix
-from sklearn.metrics import accuracy_score
+import sklearn.metrics
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import KFold
@@ -60,9 +59,11 @@ class LightGBMRiskClassifier:
     # objective function for optuna
     def opt_objective(self, trial):
         # use numpy to read data CSVs into numpy arrays
-        x = np.genfromtxt('x_data_metrics.csv', delimiter=',')
-        y = np.genfromtxt('y_data_metrics.csv', delimiter=',')
+        x = np.genfromtxt('C:\\Users\\fancy\\Downloads\\x_data_metrics.csv', delimiter=',')
+        y = np.genfromtxt('C:\\Users\\fancy\\Downloads\\y_data_metrics.csv', delimiter=',')
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25)
+
+        # create lgb dataset for lightgbm training
         lgbdata = lgb.Dataset(train_x, label=train_y)
 
         # set parameter search spaces for optuna to conduct hyperparameter optimization for max validation accuracy
@@ -80,8 +81,8 @@ class LightGBMRiskClassifier:
             "min_child_samples": trial.suggest_int("min_child_samples", 3, 100),
         }
 
-        self.set_model(lgb.train(params, lgbdata))
-        raw_predictions = self.make_prediction(valid_x)
+        my_lgbm = lgb.train(params, lgbdata)
+        raw_predictions = my_lgbm.predict(valid_x)
         predictions = np.rint(raw_predictions)
         accuracy = sklearn.metrics.accuracy_score(valid_y, predictions)
         return accuracy
@@ -113,35 +114,26 @@ class LightGBMRiskClassifier:
 lgbm_risk_classifier = LightGBMRiskClassifier()
 
 if __name__ == "__main__":
+    print("Starting training")
+    print("\n")
     optuna.logging.set_verbosity(optuna.logging.ERROR)
-
     # try lightgbm with LOOCV
-
     study = optuna.create_study(direction="maximize")
     study.optimize(lgbm_risk_classifier.opt_objective, n_trials=1000)
-
     trial = study.best_trial
-    #lgbm_risk_classifier.set_model(trial.params)
+    lgbm_risk_classifier.set_model(trial.params)
 
-    print("Best LOOCV trial value was {}".format(trial.value))
 
     # now try lightgbm with k-fold CV (k = 5 or k = 10)
     x = np.genfromtxt('x_data_metrics.csv', delimiter=',')
     y = np.genfromtxt('y_data_metrics.csv', delimiter=',')
-    lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, labels=y)
+    lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, label=y)
     k = 5
     params = {
         "objective": "binary",
         "metric": "binary_logloss",
         "verbosity": -1,
         "boosting_type": "gbdt",
-        "lambda_l1": trial.suggest_float("lambda_l1", 1e-15, 60.0, log=True),
-        "lambda_l2": trial.suggest_float("lambda_l2", 1e-15, 60.0, log=True),
-        "num_leaves": trial.suggest_int("num_leaves", 2, 256),
-        "feature_fraction": trial.suggest_float("feature_fraction", 0.01, 1.0),
-        "bagging_fraction": trial.suggest_float("bagging_fraction", 0.01, 1.0),
-        "bagging_freq": trial.suggest_int("bagging_freq", 1, 20),
-        "min_child_samples": trial.suggest_int("min_child_samples", 3, 100),
     }
     tuner = optuna.integration.lightgbm.LightGBMTunerCV(
         params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
