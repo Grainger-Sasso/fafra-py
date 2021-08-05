@@ -6,6 +6,7 @@ from sklearn.metrics import confusion_matrix
 from sklearn.metrics import accuracy_score
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
+from sklearn.model_selection import KFold
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
@@ -35,6 +36,10 @@ class GaussianHMMRiskClassifier:
             kwargs = {}
         self.model = hmm.GaussianHMM(kwargs)
 
+        # Boolean variable of instance self to keep track of whether self.model has been trained using
+        # k-fold cross-validation.
+        self.isKFoldtrained = False
+
     def get_model(self) -> hmm.GaussianHMM():
         return self.model
 
@@ -58,14 +63,6 @@ class GaussianHMMRiskClassifier:
         self.model.means_ = other.model.means_,
         self.model.covars_ = other.model.covars_
 
-    # def train_valid_split(self, x: np.ndarray, y: np.ndarray, test_size=0.25, random_state=42):
-    #     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state)
-    #     return x_train, x_test, y_train, y_test
-
-    # Check if self.model converged to a model on the EM training algorithm
-    def converged(self):
-        return self.monitor_.iter == self.monitor_.n_iter or self.monitor_.history[-1] >= self.monitor_.tol
-
     # HMM is used in an unsupervised manner in Yuwono's paper. We will use LOOCV on the x data to ensure
     # that our HMM is maximally generalizable.
     def fit_model_loocv(self, x: np.ndarray, y: np.ndarray, length: int):
@@ -80,7 +77,7 @@ class GaussianHMMRiskClassifier:
         valid_lengths = [length for i in range(0, x_valid.shape[0])]
         current_score = self.model.score(x_valid, valid_lengths)
 
-        # Try EM algorithm 499 more times (for a total of 500 times), choosing only the trial that has the
+        # Try EM algorithm 500 times, choosing only the trial that has the
         # best HMM parameters.
         for n in range(1, 500):
             # create another random split of x data into train/validation
@@ -91,22 +88,15 @@ class GaussianHMMRiskClassifier:
             temp_hmmgmm = GaussianHMMRiskClassifier(self.model.__dict__)
             temp_hmmgmm.model.fit(x_train, lengths)
 
-            if self.converged() and temp_hmmgmm.converged():
-                # If self.model's log likelihood on x after training is < the temp model's score's log likelihood
-                # on x after training, then the temp model is a better GaussianHMM than self.model,
-                # so set self.model's HMM parameters to the temp model's.
-                valid_lengths = [length for i in range(0, x_valid.shape[0])]
-                temp_score = temp_hmmgmm.model.score(x_valid, valid_lengths)
-                if current_score < temp_score:
-                    self.set_hmm_params(temp_hmmgmm)
-                    current_score = temp_score
-
-            # If self.model did not converge, then set self.model's HMM params to temp model's HMM params
-            # if temp model converged.
-            elif temp_hmmgmm.converged():
+            temp_score = temp_hmmgmm.model.score(x_valid, valid_lengths)
+            if current_score < temp_score:
                 self.set_hmm_params(temp_hmmgmm)
+                current_score = temp_score
 
-    # maybe should implement unsupervised k-fold CV for GaussianHMMRiskClassifier
+    # private function that returns predictor defined by the k models in k-fold cross-validation
+    # only commit this function; do not push it
+    def __kfold_function(self, *args):
+        return lambda x: (1 / len(args)) * np.sum(gaussianhmm(x) for gaussianhmm in args)
 
 # insert params into hmm_gmm_risk_classifier below (using names of hmm.GaussianHMM params; no need to input in a dict)
 # gaussian_hmm_risk_classifier = GaussianHMMRiskClassifier(n_iter = ..., n_components = ...)

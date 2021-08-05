@@ -13,10 +13,10 @@ import numpy as np
 import lightgbm as lgb
 import optuna
 
+
 class LightGBMRiskClassifier:
     # Actual preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
-    # Also, should eventually use 5-fold cross-validation
 
     def __init__(self, params: dict = None):
         # params is a dict of parameters, including hyperparameters, for the LightGBM risk classifier
@@ -117,6 +117,7 @@ if __name__ == "__main__":
     print("Starting training")
     print("\n")
     optuna.logging.set_verbosity(optuna.logging.ERROR)
+
     # try lightgbm with LOOCV
     study = optuna.create_study(direction="maximize")
     study.optimize(lgbm_risk_classifier.opt_objective, n_trials=1000)
@@ -137,7 +138,8 @@ if __name__ == "__main__":
     tuner = optuna.integration.lightgbm.LightGBMTunerCV(
         params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
     tuner.run()
+
     print("Best LOOCV trial value was {}".format(trial.value))
     print("\n")
     print("Best k-fold CV score was {}".format(tuner.best_score))
-    #lgbm_risk_classifier.set_model(tuner.best_params)
+    # lgbm_risk_classifier.set_model(tuner.best_params)
