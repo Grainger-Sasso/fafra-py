@@ -108,8 +108,6 @@ class LightGBMRiskClassifier:
     def create_classification_report(self, y_test, y_pred):
         return classification_report(y_test, y_pred)
 
-    # must implement k-fold cross validation in code (not needed for first dataset, which has only 340 examples)
-
 
 lgbm_risk_classifier = LightGBMRiskClassifier()
 
