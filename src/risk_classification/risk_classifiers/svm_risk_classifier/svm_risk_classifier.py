@@ -1,5 +1,7 @@
 import numpy as np
 import cvxopt
+import os
+import pandas as pd
 from sklearn.datasets import make_blobs
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
@@ -67,3 +69,30 @@ class SVMRiskClassifier:
 
     def create_classification_report(self, y_test, y_pred):
         return classification_report(y_test, y_pred)
+
+
+def main():
+    classifier = SVMRiskClassifier()
+    #read data file
+    rootPath = 'D:/carapace/metric_test_data'
+    train_x_path = os.path.join(rootPath, 'x_data_metrics.csv')
+    train_y_path = os.path.join(rootPath, 'y_data_metrics.csv')
+    train_x = pd.read_csv(train_x_path, delimiter=',', header=None)
+    train_y = pd.read_csv(train_y_path, delimiter=',', header=None)
+    scaler = classifier.get_scaler()
+    x_data_scaled = scaler.fit_transform(train_x)
+    x_train, x_test, y_train, y_test = classifier.split_input_metrics(x_data_scaled, train_y.values.ravel())
+    print(x_train,file=open("./x_train.txt",'a'))
+    classifier.fit_model(x_train, y_train)
+    ypred = classifier.make_prediction(x_test)
+    #create confusion matrix and see the classification report
+    result = confusion_matrix(y_test, ypred)
+    print("Confusion Matrix is {}".format(result))
+    report = classifier.create_classification_report(y_test, ypred)
+    print(report)
+    print("Accuracy: ", classifier.score_model(x_test, y_test))
+
+
+
+if __name__ ==  '__main__':
+    main()
