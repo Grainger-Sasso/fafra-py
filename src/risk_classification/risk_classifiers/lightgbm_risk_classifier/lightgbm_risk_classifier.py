@@ -15,7 +15,7 @@ import optuna
 
 
 class LightGBMRiskClassifier:
-    # Actual preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
+    # Preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
 
     def __init__(self, params: dict = None):
@@ -23,7 +23,6 @@ class LightGBMRiskClassifier:
         if params is None:
             params = {}
         self.model = lgb.LGBMClassifier(params)
-        self.scaler = preprocessing.StandardScaler()
 
     def get_model(self) -> lgb.LGBMClassifier():
         return self.model
@@ -33,34 +32,14 @@ class LightGBMRiskClassifier:
             params = {}
         self.model = lgb.LGBMClassifier(params)
 
-    def get_scaler(self) -> preprocessing.StandardScaler():
-        return self.scaler
-
-    def set_scaler(self, scaler=preprocessing.StandardScaler()):
-        self.scaler = scaler
-
-    def scale_input_data(self, x):
-        self.scaler.fit(x)
-        return self.scaler.transform(x)
-
-    def scale_train_test_data(self, x_train, x_test):
-        # Fit the scaler to the training data
-        self.scaler.fit(x_train)
-        # Transform the training data
-        x_train_t = self.scaler.transform(x_train)
-        # Transform the test data
-        x_test_t = self.scaler.transform(x_test)
-        return x_train_t, x_test_t
-
-    def split_input_metrics(self, x, y, test_size=0.3, random_state=42):
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state)
-        return x_train, x_test, y_train, y_test
+    # output the dataset that the user input; if user input none, then use numpy to generate default data
+    def current_dataset(self, x=np.genfromtxt('x_data_metrics.csv'), y=np.genfromtxt('y_data_metrics.csv')):
+        return x, y
 
     # objective function for optuna
     def opt_objective(self, trial):
-        # use numpy to read data CSVs into numpy arrays
-        x = np.genfromtxt('C:\\Users\\fancy\\Downloads\\x_data_metrics.csv', delimiter=',')
-        y = np.genfromtxt('C:\\Users\\fancy\\Downloads\\y_data_metrics.csv', delimiter=',')
+        # get current dataset
+        x, y = self.current_dataset()
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25)
 
         # create lgb dataset for lightgbm training
@@ -87,17 +66,45 @@ class LightGBMRiskClassifier:
         accuracy = sklearn.metrics.accuracy_score(valid_y, predictions)
         return accuracy
 
-    def fit_model(self, x: np.ndarray, y: np.ndarray):
-        """
-        Fits LightGBM model to input training vectors, x, and target values, y (notation is canonically used)
-        :param x: Training vectors
-        :type: np.ndarray
-        :param y: Target values
-        :type: np.ndarray
-        :return: Trained model
-        :rtype: lgb.LGBMClassifier()
-        """
-        self.model.fit(x, y)
+    # train lightgbm risk classifier using 25% holdout cross-validation
+    def train_loocv(self):
+        print("Starting LOOCV training with test size of 0.25:\n")
+        optuna.logging.set_verbosity(optuna.logging.ERROR)
+
+        # train lightgbm
+        study = optuna.create_study(direction="maximize")
+        study.optimize(self.opt_objective, n_trials=1000)
+
+        # get best trial's lightgbm (hyper)parameters and print best trial score
+        trial = study.best_trial
+        self.set_model(trial.params)
+        print("Best LOOCV value was {}\n".format(trial.value))
+
+    # train lightgbm risk classifier using k-fold cross-validation with default cross-validation being 5-fold
+    def train_KFold(self, k: int = 5):
+        print("Starting {}-fold CV training:".format(k))
+        optuna.logging.set_verbosity(optuna.logging.ERROR)
+
+        # get current dataset and create a lightgbm-compatible version of it
+        x, y = self.current_dataset()
+        lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, label=y)
+
+        # set training parameters
+        params = {
+            "objective": "binary",
+            "metric": "binary_logloss",
+            "verbosity": -1,
+            "boosting_type": "gbdt",
+        }
+
+        # perform k-fold cross-validation (uses 1000 boosting rounds with 100 early stopping rounds
+        tuner = optuna.integration.lightgbm.LightGBMTunerCV(
+            params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
+        tuner.run()
+
+        # get best trial's lightgbm (hyper)parameters and print best trial score
+        self.set_model(tuner.best_params)
+        print("Best {}-fold CV score was {}".format(k, tuner.best_score))
 
     def make_prediction(self, samples):
         return self.model.predict(samples)
@@ -109,35 +116,11 @@ class LightGBMRiskClassifier:
         return classification_report(y_test, y_pred)
 
 
-lgbm_risk_classifier = LightGBMRiskClassifier()
-
 if __name__ == "__main__":
-    print("Starting training")
-    print("\n")
-    optuna.logging.set_verbosity(optuna.logging.ERROR)
+    lgbm_risk_classifier = LightGBMRiskClassifier()
 
-    # try lightgbm with LOOCV
-    study = optuna.create_study(direction="maximize")
-    study.optimize(lgbm_risk_classifier.opt_objective, n_trials=1000)
-    trial = study.best_trial
-    lgbm_risk_classifier.set_model(trial.params)
+    # do 25% holdout CV on default dataset
+    lgbm_risk_classifier.train_loocv()
 
-    # now try lightgbm with k-fold CV (k = 5 or k = 10)
-    x = np.genfromtxt('x_data_metrics.csv', delimiter=',')
-    y = np.genfromtxt('y_data_metrics.csv', delimiter=',')
-    lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, label=y)
-    k = 5
-    params = {
-        "objective": "binary",
-        "metric": "binary_logloss",
-        "verbosity": -1,
-        "boosting_type": "gbdt",
-    }
-    tuner = optuna.integration.lightgbm.LightGBMTunerCV(
-        params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
-    tuner.run()
-
-    print("Best LOOCV trial value was {}".format(trial.value))
-    print("\n")
-    print("Best k-fold CV score was {}".format(tuner.best_score))
-    # lgbm_risk_classifier.set_model(tuner.best_params)
+    # do k-fold CV on default dataset (default k = 5)
+    lgbm_risk_classifier.train_KFold()
