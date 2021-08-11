@@ -87,7 +87,8 @@ class LightGBMRiskClassifier:
         # to aid distributed or GPU learning, or hyperparameters to control logging messages during training.
         
         # However, if one wants to use second-order optimization training instead of first-order, then include the hyperparameter min_sum_hessian_in_leaf 
-        # in the below params dict, and make sure that the lower bound of the search space of min_sum_hessian_in_leaf is not too small.
+        # in the below params dict, and make sure that the lower bound of the search space of min_sum_hessian_in_leaf is not too small (if it is too small,
+        # then overfitting will happen).
         
         params = {
             "objective": "binary",
