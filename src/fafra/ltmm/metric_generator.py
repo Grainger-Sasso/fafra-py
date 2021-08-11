@@ -47,6 +47,7 @@ class MetricGenerator:
         # Retain only the metric modules selected by metric names
         select_metric_modules = [mod for mod in metric_modules if mod.get_metric_name() in metric_names]
         for mod in select_metric_modules:
+            # Todo: add a better way to add in kwargs to this method
             metric = mod.generate_metric(data=v_axis_data, sampling_frequency=sampling_frequency)
             if isinstance(metric, list) and all(isinstance(m, float) or isinstance(m, int) for m in metric):
                 risk_metrics.extend(metric)

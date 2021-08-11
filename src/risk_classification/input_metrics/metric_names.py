@@ -9,6 +9,7 @@ class MetricNames(Enum):
     ROOT_MEAN_SQUARE = 'rms'
     STANDARD_DEVIATION = 'std'
     SIGNAL_MAGNITUDE_AREA = 'sma'
+    GAIT_SPEED_ESTIMATOR = 'gse'
 
     def get_name(self):
         # Self is the member here
