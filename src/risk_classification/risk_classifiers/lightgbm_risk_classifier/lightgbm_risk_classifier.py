@@ -91,6 +91,8 @@ class LightGBMRiskClassifier:
         # in the below params dict, and make sure that the lower bound of the search space of min_sum_hessian_in_leaf is not too small (if it is too small,
         # then overfitting will happen).
         
+        # This finishes the entire discussion on LightGBM hyperparameters
+        
         params = {
             "objective": "binary",
             "metric": "binary_logloss",
