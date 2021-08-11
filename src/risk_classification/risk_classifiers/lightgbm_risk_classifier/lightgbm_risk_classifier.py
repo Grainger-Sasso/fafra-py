@@ -138,7 +138,9 @@ class LightGBMRiskClassifier:
         x, y = self.current_dataset()
         lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, label=y)
 
-        # set training parameters
+        # Set training parameters for Optuna's LightGBM k-fold CV algorithm.
+        # These are the only parameters to input to Optuna's LightGBM k-fold CV algorithm that actually affect training (other than categorical_feature). All the other 
+        # parameters to Optuna's LightGBM k-fold CV algorithm affect only logging messages or saving LightGBM models.
         params = {
             "objective": "binary",
             "metric": "binary_logloss",
