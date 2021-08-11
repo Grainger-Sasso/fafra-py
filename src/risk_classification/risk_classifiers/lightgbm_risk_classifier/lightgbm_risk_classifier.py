@@ -82,7 +82,7 @@ class LightGBMRiskClassifier:
 
     # train lightgbm risk classifier using k-fold cross-validation with default cross-validation being 5-fold
     def train_KFold(self, k: int = 5):
-        print("Starting {}-fold CV training:".format(k))
+        print("Starting {}-fold CV training:\n".format(k))
         optuna.logging.set_verbosity(optuna.logging.ERROR)
 
         # get current dataset and create a lightgbm-compatible version of it
