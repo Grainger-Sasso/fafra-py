@@ -17,7 +17,8 @@ import optuna
 # LightGBM documentation: https://lightgbm.readthedocs.io/
 # Optuna documentation: https://optuna.readthedocs.io/
 
-# Optuna is a fast, extensive hyperparameter tuning library.
+# Optuna is a fast, extensive hyperparameter tuning library. Its hyperparameter tuning framework is exponentially faster than naive grid search. Optuna also supports 
+# making plots for analysis of hyperparameters and features, such as a plot of feature importances.
 
 class LightGBMRiskClassifier:
     # Preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
