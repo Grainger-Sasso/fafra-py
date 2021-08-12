@@ -8,8 +8,7 @@ METRIC_NAME = MetricNames.ZERO_CROSSING
 
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
-        #super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
-        super(RiskClassificationInputMetric, self).__init__()
+        super().__init__(METRIC_NAME)
 
     def generate_metric(self, **kwargs):
         return self._find_zero_crossing(kwargs['data'],kwargs['enable_mean_crossing'])
