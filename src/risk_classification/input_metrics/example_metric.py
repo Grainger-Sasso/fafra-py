@@ -9,8 +9,7 @@ METRIC_DATA_TYPE = MetricDataTypes.EXAMPLE
 
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
-        super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
-        # super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
+        super().__init__(METRIC_NAME)
 
     def generate_metric(self, **kwargs):
         return sum(kwargs['data'])

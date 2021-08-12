@@ -1,5 +1,5 @@
 from enum import Enum
-
+ 
 
 class MetricNames(Enum):
     EXAMPLE = 'example'
@@ -8,6 +8,7 @@ class MetricNames(Enum):
     MEAN = 'mean'
     ROOT_MEAN_SQUARE = 'rms'
     STANDARD_DEVIATION = 'std'
+    ZERO_CROSSING = 'zc'
     SIGNAL_MAGNITUDE_AREA = 'sma'
     GAIT_SPEED_ESTIMATOR = 'gse'
 
