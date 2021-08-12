@@ -8,6 +8,10 @@ METRIC_NAME = MetricNames.GAIT_SPEED_ESTIMATOR
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
         super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
+        self.data_type = 'triaxial'
+
+    def get_data_type(self):
+        return self.data_type
 
     def generate_metric(self, **kwargs):
         # Initialize the gait speed metric
@@ -50,4 +54,3 @@ class Metric(RiskClassificationInputMetric):
         # it is valid, otherwise, it is invalid
         walk_bout_valid = False
         return walk_bout_valid
-

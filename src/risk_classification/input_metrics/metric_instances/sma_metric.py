@@ -8,6 +8,10 @@ METRIC_NAME = MetricNames.SIGNAL_MAGNITUDE_AREA
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
         super().__init__(METRIC_NAME)
+        self.data_type = 'vertical'
+
+    def get_data_type(self):
+        return self.data_type
 
     def generate_metric(self, **kwargs):
         return sum(kwargs['data'])

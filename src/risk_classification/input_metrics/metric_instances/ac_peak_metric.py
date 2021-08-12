@@ -13,7 +13,11 @@ METRIC_NAME = MetricNames.AUTOCORRELATION
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
         super().__init__(METRIC_NAME)
+        self.data_type = 'vertical'
         # super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
+
+    def get_data_type(self):
+        return self.data_type
 
     def generate_metric(self, **kwargs):
         return self._find_largest_ac_peak(kwargs['data'], kwargs['sampling_frequency'])

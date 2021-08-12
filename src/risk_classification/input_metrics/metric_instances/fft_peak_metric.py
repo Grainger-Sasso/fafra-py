@@ -13,6 +13,10 @@ METRIC_NAME = MetricNames.FAST_FOURIER_TRANSFORM
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
         super().__init__(METRIC_NAME)
+        self.data_type = 'vertical'
+
+    def get_data_type(self):
+        return self.data_type
 
     def generate_metric(self, **kwargs):
         return self._find_largest_fft_peak(kwargs['data'], kwargs['sampling_frequency'])
