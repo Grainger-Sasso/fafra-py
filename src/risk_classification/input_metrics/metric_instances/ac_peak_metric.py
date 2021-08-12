@@ -1,6 +1,7 @@
 import numpy as np
 
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.motion_analysis.feature_extraction.frequency_analysis.auto_correlation import AutoCorrelation
@@ -8,16 +9,12 @@ from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 
 METRIC_NAME = MetricNames.AUTOCORRELATION
+METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
 
 
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
-        super().__init__(METRIC_NAME)
-        self.data_type = 'vertical'
-        # super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
-
-    def get_data_type(self):
-        return self.data_type
+        super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
         return self._find_largest_ac_peak(kwargs['data'], kwargs['sampling_frequency'])

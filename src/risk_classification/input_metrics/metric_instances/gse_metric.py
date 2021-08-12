@@ -1,24 +1,25 @@
+import numpy as np
+
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 
 
 METRIC_NAME = MetricNames.GAIT_SPEED_ESTIMATOR
+METRIC_DATA_TYPE = MetricDataTypes.LTMM
 
 
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
-        super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
-        self.data_type = 'triaxial'
-
-    def get_data_type(self):
-        return self.data_type
+        super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
         # Initialize the gait speed metric
         gait_speed = None
         # Access data required for gait speed estimation from keyword arguments
-        acc_data = kwargs['data']
-        user_data = kwargs['user_data']
+        ltmm_data = kwargs['data']
+        v_axis_data = np.array(ltmm_data.get_data().T[0])
+        # user_data = kwargs['user_data']
         ma_step_window_size = kwargs['ma_step_window_size']
         min_walk_dur = kwargs['min_walk_dur']
         # If the walking bout is long enough to detect step length

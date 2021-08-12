@@ -94,8 +94,7 @@ def main():
     ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
-    input_metric_names = tuple([MetricNames.AUTOCORRELATION, MetricNames.FAST_FOURIER_TRANSFORM,
-                                MetricNames.MEAN, MetricNames.ROOT_MEAN_SQUARE, MetricNames.STANDARD_DEVIATION])
+    input_metric_names = tuple([MetricNames.GAIT_SPEED_ESTIMATOR])
     ltmm_ra = LTMMRiskAssessment(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path,
                                  report_home_75h_path, input_metric_names)
     print(ltmm_ra.assess_model_accuracy())

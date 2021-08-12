@@ -10,6 +10,7 @@ from src.datasets.ltmm.ltmm_dataset import LTMMData
 from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 
 
 # Todo: Create parent class of metric generator, break unique parts ofLTMM metric generator out into child class
@@ -39,7 +40,6 @@ class MetricGenerator:
     def _derive_metrics(self, ltmm_data, metric_names: Tuple[MetricNames]):
         # Initialize the output
         risk_metrics = []
-        v_axis_data = np.array(ltmm_data.get_data().T[0])
         sampling_frequency = ltmm_data.get_sampling_frequency()
         # Instantiate metric modules for all metric module paths
         metric_modules = [importlib.import_module(module_path).Metric() for
@@ -48,12 +48,29 @@ class MetricGenerator:
         select_metric_modules = [mod for mod in metric_modules if mod.get_metric_name() in metric_names]
         for mod in select_metric_modules:
             # Todo: add a better way to add in kwargs to this method
-            metric = mod.generate_metric(data=v_axis_data, sampling_frequency=sampling_frequency)
+            data_type = mod.get_data_type()
+            self._check_metric_data_type(data_type)
+            data = self._get_metric_data_type(data_type, ltmm_data)
+            metric = mod.generate_metric(data=data, sampling_frequency=sampling_frequency)
             if isinstance(metric, list) and all(isinstance(m, float) or isinstance(m, int) for m in metric):
                 risk_metrics.extend(metric)
             elif isinstance(metric, int) or isinstance(metric, float):
                 risk_metrics.append(metric)
         return risk_metrics
+
+    def _get_metric_data_type(self, data_type, ltmm_data):
+        if data_type == MetricDataTypes.LTMM:
+            data = ltmm_data
+        elif data_type == MetricDataTypes.VERTICAL:
+            data = np.array(ltmm_data.get_data().T[0])
+        else:
+            raise ValueError(f'Data type provided is not recognized {data_type}')
+        return data
+
+    def _check_metric_data_type(self, data_type):
+        if data_type not in MetricDataTypes:
+            raise ValueError(
+                f'The following metric data type is invalid: {data_type.get_name()}')
 
     def _generate_metric_module_paths(self):
         module_root = 'src.risk_classification.input_metrics.metric_instances.'
