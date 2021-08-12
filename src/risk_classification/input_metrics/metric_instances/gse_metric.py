@@ -4,6 +4,7 @@ from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.datasets.ltmm.ltmm_dataset import LTMMData
+from src.visualization_tools.gse_viz import GSEViz
 
 
 METRIC_NAME = MetricNames.GAIT_SPEED_ESTIMATOR
@@ -15,6 +16,7 @@ class Metric(RiskClassificationInputMetric):
         super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
         self.ma_step_window_size = 5
         self.min_walk_dur = 3.0
+        self.viz = GSEViz()
 
 
     def generate_metric(self, **kwargs):
@@ -26,6 +28,7 @@ class Metric(RiskClassificationInputMetric):
         ml_acc_data = ltmm_data.get_axis_acc_data('mediolateral')
         ap_acc_data = ltmm_data.get_axis_acc_data('anteroposterior')
         user_height = ltmm_data.get_height()
+        self.viz.plot_motion_data(ltmm_data)
         # user_data = kwargs['user_data']
         # If the walking bout is long enough to detect step length
         if self.check_walking_duration():
