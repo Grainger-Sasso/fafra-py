@@ -7,10 +7,7 @@ METRIC_NAME = MetricNames.EXAMPLE
 
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
-        #super(Metric, self).__init__(METRIC_NAME)
-        #super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
-        #super().__init__(METRIC_NAME)
-        RiskClassificationInputMetric.__init__(self, METRIC_NAME)
+        super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
         return sum(kwargs['data'])
