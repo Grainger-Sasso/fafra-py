@@ -77,7 +77,7 @@ class KNNRiskClassifier:
 def main():
     classifier = KNNRiskClassifier()
     '''read data file'''
-    rootPath = 'D:/carapace/metric_test_data'
+    rootPath = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\test_data\student_test_metrics'
     
     train_x_path = os.path.join(rootPath, 'x_data_metrics.csv')
     train_y_path = os.path.join(rootPath, 'y_data_metrics.csv')
