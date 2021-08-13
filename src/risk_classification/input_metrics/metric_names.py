@@ -8,6 +8,7 @@ class MetricNames(Enum):
     MEAN = 'mean'
     ROOT_MEAN_SQUARE = 'rms'
     STANDARD_DEVIATION = 'std'
+    COEFFICIENT_OF_VARIANCE = 'cov'
     ZERO_CROSSING = 'zc'
     SIGNAL_MAGNITUDE_AREA = 'sma'
     GAIT_SPEED_ESTIMATOR = 'gse'
