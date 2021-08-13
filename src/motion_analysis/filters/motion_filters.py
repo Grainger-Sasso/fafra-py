@@ -85,7 +85,7 @@ class MotionFilters:
                 z_ax.set_kf_filtered_data(z_kf_filtered_data)
                 y_ax.set_unbiased_kf_filtered_data(unbiased_y_ax_kf_data)
 
-    def apply_kalman_filter(self, x_ax: Acceleration, y_ax: Acceleration, z_ax: Acceleration, sampling_rate):
+    def apply_kalman_filter(self, x_ml_ax, y_v_ax, z_ap_ax, sampling_rate):
         # TODO: evaluate run-time and run-time optimization strategies
         # Filter design based off of model reported here:
         # https://www.mdpi.com/1424-8220/18/4/1101
@@ -97,8 +97,7 @@ class MotionFilters:
         x0 = np.array([[0.0], [-1.0], [0.0], [0.0]])
         self.__initialize_kalman_filter(x0)
         kf_filtered_data = []
-        for x_ax_lp_val, y_ax_lp_val, z_ax_lp_val in zip(x_ax.get_lp_filtered_data(), y_ax.get_lp_filtered_data(),
-                                                         z_ax.get_lp_filtered_data()):
+        for x_ax_lp_val, y_ax_lp_val, z_ax_lp_val in zip(x_ml_ax, y_v_ax, z_ap_ax):
             bay = np.mean(bay_window)
             all_bays.append(bay)
             measurement = np.array([x_ax_lp_val, y_ax_lp_val, z_ax_lp_val, y_ax_lp_val-bay])

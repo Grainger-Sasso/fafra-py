@@ -1,5 +1,5 @@
 
-class GaitDetector:
+class GaitAnalyzer:
 
     def __init__(self):
         pass

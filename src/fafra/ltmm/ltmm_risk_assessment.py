@@ -49,8 +49,18 @@ class LTMMRiskAssessment:
     def preprocess_data(self):
         # Filter the data
         self.apply_lp_filter()
+        # self.apply_kalman_filter()
+        # Remove effects of gravity in vertical axis
+        self.norm_vert_axis()
         # Segment the datasets into smaller epochs to have a greater number of data points
         self.ltmm_dataset.segment_dataset(10.0)
+
+    def norm_vert_axis(self):
+        for ltmm_data in self.ltmm_dataset.get_dataset():
+            tri_ax_data = ltmm_data.get_data()
+            vert_ax_data = np.array(tri_ax_data.T[0])
+            norm_vert_ax_data = np.array([x - 1.0 for x in vert_ax_data])
+            tri_ax_data[:, 0] = norm_vert_ax_data
 
     def generate_risk_metrics(self, scale_data=True):
         # Separate dataset into fallers and nonfallers, perform rest of steps for each group
@@ -66,6 +76,19 @@ class LTMMRiskAssessment:
             x = self.rc.scale_input_data(x)
         return x, y
 
+    def apply_kalman_filter(self):
+        for ltmm_data in self.ltmm_dataset.get_dataset()[:2]:
+            v_y_ax_data = ltmm_data.get_axis_acc_data('vertical')
+            ml_x_ax_data = ltmm_data.get_axis_acc_data('mediolateral')
+            ap_z_ax_data = ltmm_data.get_axis_acc_data('anteroposterior')
+            sampling_rate = ltmm_data.get_sampling_frequency()
+            kf_x_ml, kf_y_v, kf_z_ap, kf_ub_y_v = self.filt.apply_kalman_filter(ml_x_ax_data, v_y_ax_data,
+                                                                                ap_z_ax_data, sampling_rate)
+            ltmm_data.get_data()[:, 0] = kf_ub_y_v
+            ltmm_data.get_data()[:, 1] = kf_x_ml
+            ltmm_data.get_data()[:, 2] = kf_z_ap
+            print('kf')
+
     def apply_lp_filter(self):
         for ltmm_data in self.ltmm_dataset.get_dataset():
             lpf_data_all_axis = []
@@ -75,6 +98,7 @@ class LTMMRiskAssessment:
                 lpf_data_all_axis.append(self.filt.apply_lpass_filter(axis, sampling_rate))
             lpf_data_all_axis = np.array(lpf_data_all_axis).T
             ltmm_data.set_data(lpf_data_all_axis)
+            print('lpf')
 
     def _compare_prediction_to_test(self, y_predition, y_test):
         comparison = np.array(np.array(y_predition) == np.array(y_predition),
