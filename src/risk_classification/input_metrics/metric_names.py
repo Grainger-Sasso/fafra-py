@@ -8,6 +8,7 @@ class MetricNames(Enum):
     MEAN = 'mean'
     ROOT_MEAN_SQUARE = 'rms'
     STANDARD_DEVIATION = 'std'
+    SIGNAL_ENERGY = 'se'
     COEFFICIENT_OF_VARIANCE = 'cov'
     ZERO_CROSSING = 'zc'
     SIGNAL_MAGNITUDE_AREA = 'sma'
