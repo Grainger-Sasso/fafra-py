@@ -4,6 +4,7 @@ import numpy as np
 import wfdb
 import time
 import copy
+import numpy as np
 from typing import List, Dict, Tuple
 # from src.dataset_tools.params.motion_data import MotionData
 # from src.dataset_tools.params.motion_dataset import MotionDataset
@@ -111,10 +112,12 @@ class LTMMData:
         self.age = 0.00
         self.sex = ''
         self.sampling_frequency = 100.0
-        self.axis = ['vertical-acc', 'medio-lateral-acc', 'anterio-posterior-acc', 'yaw', 'pitch', 'roll']
+        self.axis = ['vertical-acc', 'mediolateral-acc', 'anteroposterior-acc', 'yaw', 'pitch', 'roll']
         self.units = ['g', 'g', 'g', 'deg/s', 'deg/s', 'deg/s']
         self.faller_status = None
         self.data_segments = []
+        # Mock height in cm
+        self.height = 175.0
 
     def get_data_file_path(self):
         return self.data_file_path
@@ -124,6 +127,17 @@ class LTMMData:
 
     def get_data(self):
         return self.data
+
+    def get_axis_acc_data(self, axis):
+        if axis == 'vertical':
+            data = np.array(self.get_data().T[0])
+        elif axis == 'mediolateral':
+            data = np.array(self.get_data().T[1])
+        elif axis == 'anteroposterior':
+            data = np.array(self.get_data().T[2])
+        else:
+            raise ValueError(f'{axis} is not a valid axis')
+        return data
 
     def get_header_data(self):
         return self.header_data
@@ -151,6 +165,9 @@ class LTMMData:
 
     def get_data_segments(self):
         return self.data_segments
+
+    def get_height(self):
+        return self.height
 
     def set_data(self, data):
         self.data = data
