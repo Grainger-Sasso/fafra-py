@@ -5,8 +5,8 @@ from src.risk_classification.input_metrics.metric_data_types import MetricDataTy
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 
 
-METRIC_NAME = MetricNames.EXAMPLE
-METRIC_DATA_TYPE = MetricDataTypes.COV
+METRIC_NAME = MetricNames.COEFFICIENT_OF_VARIANCE
+METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
 
 
 class Metric(RiskClassificationInputMetric):
