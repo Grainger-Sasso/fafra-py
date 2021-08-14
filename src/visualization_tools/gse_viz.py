@@ -7,10 +7,8 @@ from src.datasets.ltmm.ltmm_dataset import LTMMData
 
 class GSEViz:
 
-    def plot_motion_data(self, ltmm_data: LTMMData):
-        tri_lin_acc = [ltmm_data.get_axis_acc_data('vertical'),
-                       ltmm_data.get_axis_acc_data('mediolateral'),
-                       ltmm_data.get_axis_acc_data('anteroposterior')]
+    def plot_motion_data(self, v_acc, ml_acc, ap_acc, sampling_frequency):
+        tri_lin_acc = [v_acc, ml_acc, ap_acc]
         sampling_freq = ltmm_data.get_sampling_frequency()
         self.__plot_triaxial_acc(tri_lin_acc, sampling_freq)
 

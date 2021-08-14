@@ -76,6 +76,14 @@ class LTMMRiskAssessment:
             x = self.rc.scale_input_data(x)
         return x, y
 
+    def _call_metric_generator(self, ltmm_dataset):
+        faller_status = []
+        dataset_metrics = []
+        for ltmm_data in ltmm_dataset:
+            faller_status.append(int(ltmm_data.get_faller_status()))
+            dataset_metrics.append(self._derive_metrics(ltmm_data, input_metric_names))
+        return list(dataset_metrics), list(faller_status)
+
     def apply_kalman_filter(self):
         for ltmm_data in self.ltmm_dataset.get_dataset()[:2]:
             v_y_ax_data = ltmm_data.get_axis_acc_data('vertical')
