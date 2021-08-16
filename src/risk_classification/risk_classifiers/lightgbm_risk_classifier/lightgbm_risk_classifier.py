@@ -24,11 +24,19 @@ class LightGBMRiskClassifier:
     # Preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
 
-    def __init__(self, params: dict = None):
-        # params is a dict of parameters, including hyperparameters, for the LightGBM risk classifier
+    def __init__(self, params: dict = None, x=np.genfromtxt('x_data_metrics.csv'), y=np.genfromtxt('y_data_metrics.csv')):
+        """Constructor for LightGBMRiskClassifier.
+           
+           Args: 
+            x, y (np.ndarray, np.ndarray): the current dataset (x is the matrix of examples, y is the vector of labels); if user did not input any dataset, set x, y to be the 
+                                           first dataset that Grainger gave
+            params (dict): is a dict of parameters, including hyperparameters, for the LightGBM risk classifier
+        
+        """
         if params is None:
             params = {}
         self.model = lgb.LGBMClassifier(params)
+        self.current_dataset = x, y
 
     def get_model(self) -> lgb.LGBMClassifier():
         return self.model
@@ -38,14 +46,16 @@ class LightGBMRiskClassifier:
             params = {}
         self.model = lgb.LGBMClassifier(params)
 
-    # output the dataset that the user input; if user input none, then use numpy to generate default data
-    def current_dataset(self, x=np.genfromtxt('x_data_metrics.csv'), y=np.genfromtxt('y_data_metrics.csv')):
+    def get_current_dataset(self, x=np.genfromtxt('x_data_metrics.csv'), y=np.genfromtxt('y_data_metrics.csv')):
         return x, y
-
+    
+    def set_current_dataset(self, x, y):
+        self.current_dataset = x, y
+        
     # LOOCV objective function for optuna
     def opt_objective(self, trial):
         # get current dataset and then perform validation split
-        x, y = self.current_dataset()
+        x, y = self.current_dataset
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25)
 
         # create lgb dataset for lightgbm training
