@@ -1,9 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Dict
 
-from src.dataset_tools.imu_data_filter_type import IMUDataFilterType
-from src.dataset_tools.imu_data import IMUData
-from src.dataset_tools.imu_metadata import IMUMetadata
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+from src.dataset_tools.risk_assessment_data.imu_metadata import IMUMetadata
+from src.dataset_tools.risk_assessment_data.clinical_demographic_data import ClinicalDemographicData
 
 
 class UserData(ABC):
@@ -14,7 +15,7 @@ class UserData(ABC):
         self.clinical_demo_file_path = clinical_demo_file_path
         self.imu_data: Dict[IMUDataFilterType: IMUData] = imu_data
         self.imu_metadata: IMUMetadata = imu_metadata
-        self.clinical_demo_data = clinical_demo_data
+        self.clinical_demo_data: ClinicalDemographicData = clinical_demo_data
 
     def get_imu_data_file_path(self):
         return self.imu_data_file_path

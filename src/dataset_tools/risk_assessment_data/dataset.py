@@ -1,7 +1,7 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import List
 
-from src.dataset_tools.user_data import UserData
+from src.dataset_tools.ra_data.user_data import UserData
 
 
 class Dataset(ABC):
@@ -22,7 +22,11 @@ class Dataset(ABC):
         return self.clinical_demo_path
 
     def get_dataset(self) -> List['UserData']:
-        return self.dataset
+        return self.user_data
 
     def set_dataset(self, dataset):
-        self.dataset = dataset
+        self.user_data = dataset
+
+    def get_data_by_faller_status(self, faller_status):
+        return [user_data for user_data in self.get_dataset() if
+                user_data.get_clinical_demo_data().get_faller_status() == faller_status]

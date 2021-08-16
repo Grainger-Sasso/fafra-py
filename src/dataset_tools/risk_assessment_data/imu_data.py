@@ -48,3 +48,7 @@ class IMUData:
         return {'yaw': self.yaw_gyr_data,
                 'pitch': self.pitch_gyr_data,
                 'roll': self.roll_gyr_data}
+
+    def get_all_data(self):
+        return np.array([self.v_acc_data, self.ml_acc_data, self.ap_acc_data,
+                         self.yaw_gyr_data, self.pitch_gyr_data, self.roll_gyr_data])

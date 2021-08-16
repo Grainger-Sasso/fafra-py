@@ -3,12 +3,14 @@ import time
 from typing import List, Tuple
 
 
-from src.datasets.ltmm.ltmm_dataset import LTMMDataset
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
+from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import LTMMDatasetBuilder
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.validation.cross_validator import CrossValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
-from src.fafra.ltmm.metric_generator import MetricGenerator
+from src.risk_assessments.ltmm.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.metric_names import MetricNames
 
 

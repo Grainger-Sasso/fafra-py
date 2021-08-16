@@ -3,41 +3,45 @@ import importlib
 import os
 from typing import List, Tuple
 import glob
-
 from definitions import ROOT_DIR
+
+from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.datasets.ltmm.ltmm_dataset import LTMMData
-from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
+from src.motion_analysis.frequency_analysis import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 
 
-# Todo: Create parent class of metric generator, break unique parts ofLTMM metric generator out into child class
+# Todo: Create parent class of metric generator, break unique parts of LTMM metric generator out into child class
 class MetricGenerator:
     def __init__(self):
         self.fft = FastFourierTransform()
         self.peak_detector = PeakDetector()
         self.motion_filters = MotionFilters()
 
-    def generate_metrics(self, ltmm_dataset: List[LTMMData], input_metric_names: Tuple[MetricNames]):
+    def generate_metrics(self, dataset: List[UserData], input_metric_names: Tuple[MetricNames]):
         # Check metric names input by user are all members of metric names enum
         self._check_metric_names_valid(input_metric_names)
         # Initialize intermediate variable for dataset risk classification metrics
-
+        faller_status = []
+        dataset_metrics = []
         # Derive metrics for all dataset
-        for ltmm_data in ltmm_dataset:
-            self._derive_metrics(ltmm_data, input_metric_names)
-
+        for user_data in dataset:
+            faller_status.append(int(user_data.get_clinical_demo_data().get_faller_status()))
+            dataset_metrics.append(self._derive_metrics(user_data, input_metric_names))
+        return list(dataset_metrics), list(faller_status)
 
     def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
         invalid_metrics = [met for met in metric_names if met not in MetricNames]
         if invalid_metrics:
             raise ValueError(f'The following metrics are not valid metrics: {[met.get_name() for met in invalid_metrics]}')
 
-    def _derive_metrics(self, tri_ax_acc, tri_ax_gyr, samp_freq, metric_names: Tuple[MetricNames]):
+    def _derive_metrics(self, user_data: UserData, metric_names: Tuple[MetricNames]):
         # Initialize the output
         risk_metrics = []
+        sampling_frequency = user_data.get_imu_metadata().get_sampling_frequency()
         # Instantiate metric modules for all metric module paths
         metric_modules = [importlib.import_module(module_path).Metric() for
                           module_path in self._generate_metric_module_paths()]
@@ -46,8 +50,8 @@ class MetricGenerator:
         for mod in select_metric_modules:
             # Todo: add a better way to add in kwargs to this method
             data_type = mod.get_data_type()
-            # self._check_metric_data_type(data_type)
-            # data = self._get_metric_data_type(data_type, ltmm_data)
+            self._check_metric_data_type(data_type)
+            data = self._get_metric_data_type(data_type, user_data)
             metric = mod.generate_metric(data=data, sampling_frequency=sampling_frequency)
             if isinstance(metric, list) and all(isinstance(m, float) or isinstance(m, int) for m in metric):
                 risk_metrics.extend(metric)
@@ -55,11 +59,11 @@ class MetricGenerator:
                 risk_metrics.append(metric)
         return risk_metrics
 
-    def _get_metric_data_type(self, data_type, ltmm_data):
+    def _get_metric_data_type(self, data_type, user_data: UserData):
         if data_type == MetricDataTypes.LTMM:
-            data = ltmm_data
+            data = user_data.get_imu_data().get_all_data()
         elif data_type == MetricDataTypes.VERTICAL:
-            data = np.array(ltmm_data.get_data().T[0])
+            data = user_data.get_imu_data().get_acc_axis_data('vertical')
         else:
             raise ValueError(f'Data type provided is not recognized {data_type}')
         return data

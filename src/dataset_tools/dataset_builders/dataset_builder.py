@@ -1,11 +1,12 @@
 from abc import ABC, abstractmethod
 
-from src.dataset_tools.dataset import Dataset
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
+from src.dataset_tools.dataset_builders.dataset_builder_names import DatasetBuilderNames
 
 
 class DatasetBuilder(ABC):
-    def __init__(self, dataset_name, dataset_path, clinical_demo_path):
-        self.dataset_name = dataset_name
+    def __init__(self, dataset_name: DatasetBuilderNames, dataset_path, clinical_demo_path):
+        self.dataset_name: DatasetBuilderNames = dataset_name
         self.dataset_path = dataset_path
         self.clinical_demo_path = clinical_demo_path
 
