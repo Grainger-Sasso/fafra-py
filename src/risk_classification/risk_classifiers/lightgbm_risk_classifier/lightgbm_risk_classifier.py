@@ -158,7 +158,7 @@ class LightGBMRiskClassifier:
             "boosting_type": "gbdt",
         }
 
-        # perform k-fold cross-validation (uses 1000 boosting rounds with 100 early stopping rounds
+        # perform k-fold cross-validation (uses 1000 boosting rounds with 100 early stopping rounds)
         tuner = optuna.integration.lightgbm.LightGBMTunerCV(
             params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
         tuner.run()
