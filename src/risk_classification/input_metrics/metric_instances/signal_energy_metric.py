@@ -1,6 +1,7 @@
 import numpy as np
 
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 
 

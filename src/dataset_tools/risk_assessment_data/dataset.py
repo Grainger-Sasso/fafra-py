@@ -1,7 +1,7 @@
 from abc import ABC
 from typing import List
 
-from src.dataset_tools.ra_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.user_data import UserData
 
 
 class Dataset(ABC):

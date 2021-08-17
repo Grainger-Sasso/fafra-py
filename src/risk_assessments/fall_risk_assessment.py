@@ -3,20 +3,17 @@ import time
 import os
 import glob
 import importlib
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
 from definitions import ROOT_DIR
 
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
-from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
-from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import LTMMDatasetBuilder
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.validation.cross_validator import CrossValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
-from src.risk_assessments.ltmm.metric_generator import MetricGenerator
+from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.metric_names import MetricNames
 
 

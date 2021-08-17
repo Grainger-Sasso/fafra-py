@@ -1,9 +1,7 @@
 import numpy as np
 from scipy.fft import fft, fftfreq
-import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
-from sklearn.metrics import mean_squared_error, r2_score
 
 
 class FastFourierTransform:

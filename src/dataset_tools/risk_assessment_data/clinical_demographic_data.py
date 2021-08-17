@@ -1,4 +1,3 @@
-
 class ClinicalDemographicData:
     def __init__(self, id: str, age: float, sex: str, faller_status: bool, height: float):
         self.id = id

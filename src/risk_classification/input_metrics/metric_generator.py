@@ -7,8 +7,7 @@ from definitions import ROOT_DIR
 
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.datasets.ltmm.ltmm_dataset import LTMMData
-from src.motion_analysis.frequency_analysis import FastFourierTransform
+from src.motion_analysis.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
