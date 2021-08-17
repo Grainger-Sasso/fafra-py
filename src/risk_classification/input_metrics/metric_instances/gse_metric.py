@@ -5,7 +5,7 @@ from src.motion_analysis.feature_extraction.gait.gait_analyzer import GaitAnalyz
 
 
 METRIC_NAME = MetricNames.GAIT_SPEED_ESTIMATOR
-METRIC_DATA_TYPE = MetricDataTypes.LTMM
+METRIC_DATA_TYPE = MetricDataTypes.ALL
 
 
 class Metric(RiskClassificationInputMetric):

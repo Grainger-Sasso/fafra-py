@@ -141,7 +141,7 @@ class FallRiskAssessment:
         # Evaluate model's predictive capability with k-fold cross-validation
         return self.cv.cross_val_model(self.rc.get_model(), x, y, k_folds)
 
-    def _call_metric_generator(self, ltmm_dataset):
+    def _call_metric_generator(self, ltm m_dataset):
         faller_status = []
         dataset_metrics = []
         for ltmm_data in ltmm_dataset:
