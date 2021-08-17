@@ -22,10 +22,10 @@ class Dataset(ABC):
         return self.clinical_demo_path
 
     def get_dataset(self) -> List['UserData']:
-        return self.user_data
+        return self.dataset
 
     def set_dataset(self, dataset):
-        self.user_data = dataset
+        self.dataset = dataset
 
     def get_data_by_faller_status(self, faller_status):
         return [user_data for user_data in self.get_dataset() if

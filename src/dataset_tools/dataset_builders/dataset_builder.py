@@ -5,7 +5,6 @@ from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 
 
 class DatasetBuilder(ABC):
-
     def __init__(self, dataset_name):
         self.dataset_name: DatasetNames = dataset_name
 
@@ -13,7 +12,7 @@ class DatasetBuilder(ABC):
         return self.dataset_name
 
     @abstractmethod
-    def build_dataset(self, dataset_name, dataset_path, clinical_demo_path,
+    def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size) -> Dataset:
         pass
 

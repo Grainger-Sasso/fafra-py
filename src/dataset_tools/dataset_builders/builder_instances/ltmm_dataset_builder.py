@@ -16,7 +16,7 @@ from src.dataset_tools.risk_assessment_data.clinical_demographic_data import Cli
 DATASET_NAME = DatasetNames.LTMM
 
 
-class LTMMDatasetBuilder(DatasetBuilder):
+class DatasetBuilder(DatasetBuilder):
     def __init__(self, ):
         super().__init__(DATASET_NAME)
         self.header_and_data_file_paths = dict()
@@ -32,7 +32,7 @@ class LTMMDatasetBuilder(DatasetBuilder):
 
     def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size):
-        self._generate_header_and_data_file_paths()
+        self._generate_header_and_data_file_paths(dataset_path)
         dataset = []
         for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
             data_file_path = header_and_data_file_path['data_file_path']
@@ -59,9 +59,9 @@ class LTMMDatasetBuilder(DatasetBuilder):
             clinical_demo_file_path: str = 'N/A'
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
             clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
-            if self.segment_dataset:
+            if segment_dataset:
                 # Segment the data and build a UserData object for each epoch
-                data_segments = self.segment_data(data, self.epoch_size)
+                data_segments = self.segment_data(data, epoch_size)
                 for segment in data_segments:
                     imu_data = self._generate_imu_data_instance(segment)
                     dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
@@ -71,7 +71,7 @@ class LTMMDatasetBuilder(DatasetBuilder):
                 imu_data = self._generate_imu_data_instance(data)
                 dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-        return Dataset(self.get_dataset_name(), self.get_dataset_path(), self.get_clinical_demo_path(), dataset)
+        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
 
     def segment_data(self, data, epoch_size):
         """
@@ -110,15 +110,15 @@ class LTMMDatasetBuilder(DatasetBuilder):
         return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data)
 
-    def _generate_header_and_data_file_paths(self):
+    def _generate_header_and_data_file_paths(self, dataset_path):
         data_file_paths = {}
         header_file_paths = {}
         # Get all data file paths
-        for data_file_path in glob.glob(os.path.join(self.get_dataset_path(), '*.dat')):
+        for data_file_path in glob.glob(os.path.join(dataset_path, '*.dat')):
             data_file_name = os.path.splitext(os.path.basename(data_file_path))[0]
             data_file_paths[data_file_name] = data_file_path
         # Get all header file paths
-        for header_file_path in glob.glob(os.path.join(self.get_dataset_path(), '*.hea')):
+        for header_file_path in glob.glob(os.path.join(dataset_path, '*.hea')):
             header_file_name = os.path.splitext(os.path.basename(header_file_path))[0]
             header_file_paths[header_file_name] = header_file_path
         # Match corresponding data and header files

@@ -50,11 +50,12 @@ class FallRiskAssessment:
 
     def _build_datasets(self, dataset_info):
         # Read in all builder modules
+        module_paths = self._generate_builder_module_paths()
         metric_modules = [importlib.import_module(module_path).DatasetBuilder()
                           for module_path in self._generate_builder_module_paths()]
         for info in dataset_info:
             name = info['dataset_name']
-            mod_list = [mod for mod in metric_modules if mod.get_dataset_name() == name].pop(0)
+            mod_list = [mod for mod in metric_modules if mod.get_dataset_name() == name]
             if len(mod_list) == 1:
                 mod = mod_list.pop(0)
                 self.datasets[name] = mod.build_dataset(info['dataset_path'],
@@ -199,7 +200,7 @@ def main():
     dataset_info = [{'dataset_name': DatasetNames.LTMM,
                      'dataset_path': ltmm_dataset_path,
                      'clinical_demo_path': clinical_demo_path,
-                     'segment_data': True,
+                     'segment_dataset': True,
                      'epoch_size': 10.0}]
     fra = FallRiskAssessment('')
     print(fra.perform_risk_assessment(dataset_info, input_metric_names))

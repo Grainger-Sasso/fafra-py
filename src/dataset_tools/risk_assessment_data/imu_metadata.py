@@ -11,7 +11,7 @@ class IMUMetadata:
         return self.metadata
 
     def get_sampling_frequency(self):
-        return self.sampling_frequency
+        return self.sampling_freq
 
     def get_units(self):
         return self.units
