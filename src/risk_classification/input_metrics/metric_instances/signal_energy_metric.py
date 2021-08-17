@@ -5,6 +5,7 @@ from src.risk_classification.input_metrics.risk_classification_input_metric impo
 
 
 METRIC_NAME = MetricNames.SIGNAL_ENERGY
+METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
 
 
 class Metric(RiskClassificationInputMetric):
