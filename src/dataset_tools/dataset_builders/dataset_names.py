@@ -1,7 +1,8 @@
 from enum import Enum
  
 
-class DatasetBuilderNames(Enum):
+class DatasetNames(Enum):
+    EXAMPLE = 'example'
     LTMM = 'ltmm'
 
     def get_name(self):

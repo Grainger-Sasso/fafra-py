@@ -3,7 +3,7 @@ import time
 import os
 import glob
 import importlib
-from typing import Tuple, Dict
+from typing import Tuple, Dict, List, Any
 from definitions import ROOT_DIR
 
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
@@ -15,29 +15,29 @@ from src.risk_classification.validation.cross_validator import CrossValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 
 
 class FallRiskAssessment:
-    def __init__(self, dataset_names, input_metric_names: Tuple[MetricNames], risk_classifier):
+    def __init__(self, risk_classifier):
         # Required input parameters
-        self.dataset_names = dataset_names
         self.dataset_builders: Dict[str: DatasetBuilder] = {}
         self.datasets: Dict[str: Dataset] = {}
-        self.input_metric_names = input_metric_names
         self.rc = risk_classifier
         self.filter = MotionFilters()
         self.rc_viz = ClassificationVisualizer()
-        self.metric_names: Tuple[MetricNames] = input_metric_names
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
 
-    def perform_risk_assessment(self):
+    def perform_risk_assessment(self, dataset_info: List[Dict[str, Any]],
+                                input_metric_names: Tuple[MetricNames]):
+        # input_metrics
         # Build datasets from given names
-        self._build_datasets()
+        self._build_datasets(dataset_info)
         # Preprocess imu data
         self._preprocess_data()
         # Derive risk metrics
-        x, y = self.generate_risk_metrics()
+        x, y = self.generate_risk_metrics(input_metric_names)
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)
@@ -48,19 +48,29 @@ class FallRiskAssessment:
         # Compare predictions to test
         return self.rc.create_classification_report(y_test, y_predictions)
 
-    def _build_datasets(self):
-        metric_modules = [importlib.import_module(module_path).DatasetBuilder() for
-                          module_path in self._generate_builder_module_paths()]
-        # Retain only the builder modules selected by builder names
-        select_metric_modules = [mod for mod in metric_modules if mod.get_metric_name() in self.dataset_names]
-        for name, mod in zip(self.dataset_names, select_metric_modules):
-            self.datasets[name] = mod.build_dataset()
+    def _build_datasets(self, dataset_info):
+        # Read in all builder modules
+        metric_modules = [importlib.import_module(module_path).DatasetBuilder()
+                          for module_path in self._generate_builder_module_paths()]
+        for info in dataset_info:
+            name = info['dataset_name']
+            mod_list = [mod for mod in metric_modules if mod.get_dataset_name() == name].pop(0)
+            if len(mod_list) == 1:
+                mod = mod_list.pop(0)
+                self.datasets[name] = mod.build_dataset(info['dataset_path'],
+                                                        info['clinical_demo_path'],
+                                                        info['segment_dataset'],
+                                                        info['epoch_size'])
+            else:
+                raise ValueError(f'Metric module name not found:{name}')
 
     def _generate_builder_module_paths(self):
         module_root = 'src.dataset_tools.dataset_builders.builder_instances.'
-        module_names = glob.glob(os.path.join(ROOT_DIR, 'src', 'dataset_tools', 'dataset_builders',
-                                              'builder_instances', '*_dataset_builder.py'), recursive=True)
-        module_names = [os.path.splitext(os.path.basename(mod_name))[0] for mod_name in module_names]
+        module_names = glob.glob(os.path.join(ROOT_DIR, 'src', 'dataset_tools',
+                                              'dataset_builders', 'builder_instances',
+                                              '*_dataset_builder.py'), recursive=True)
+        module_names = [os.path.splitext(os.path.basename(mod_name))[0] for
+                        mod_name in module_names]
         module_names = [module_root + mod_name for mod_name in module_names]
         return module_names
 
@@ -78,7 +88,8 @@ class FallRiskAssessment:
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         lpf_data_all_axis = []
         for axis in raw_data.T:
-            lpf_data_all_axis.append(self.filter.apply_lpass_filter(axis, samp_freq))
+            lpf_data_all_axis.append(self.filter.apply_lpass_filter(axis,
+                                                                    samp_freq))
         lpf_data_all_axis = np.array(lpf_data_all_axis).T
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
@@ -99,7 +110,7 @@ class FallRiskAssessment:
             v_acc_data = np.array([x - 1.0 for x in v_acc_data])
             imu_data.v_acc_data = v_acc_data
 
-    def generate_risk_metrics(self, scale_data=True):
+    def generate_risk_metrics(self, input_metric_names, scale_data=True):
         # Separate datasets into fallers and nonfallers
         faller_dataset = []
         non_fallers_dataset = []
@@ -107,8 +118,10 @@ class FallRiskAssessment:
             faller_dataset.append(dataset.get_data_by_faller_status(True))
             non_fallers_dataset.append(dataset.get_data_by_faller_status(False))
         # Generate metrics
-        faller_metrics, faller_status = self.mg.generate_metrics(faller_dataset, self.metric_names)
-        non_faller_metrics, non_faller_status = self.mg.generate_metrics(non_fallers_dataset, self.metric_names)
+        faller_metrics, faller_status = self.mg.generate_metrics(faller_dataset,
+                                                                 input_metric_names)
+        non_faller_metrics, non_faller_status = self.mg.generate_metrics(non_fallers_dataset,
+                                                                         input_metric_names)
         # Transform the train and test input metrics
         x = faller_metrics + non_faller_metrics
         y = faller_status + non_faller_status
@@ -143,7 +156,8 @@ class FallRiskAssessment:
         dataset_metrics = []
         for ltmm_data in ltmm_dataset:
             faller_status.append(int(ltmm_data.get_faller_status()))
-            dataset_metrics.append(self._derive_metrics(ltmm_data, input_metric_names))
+            dataset_metrics.append(self._derive_metrics(ltmm_data,
+                                                        input_metric_names))
         return list(dataset_metrics), list(faller_status)
 
     def apply_kalman_filter(self):
@@ -152,8 +166,10 @@ class FallRiskAssessment:
             ml_x_ax_data = ltmm_data.get_axis_acc_data('mediolateral')
             ap_z_ax_data = ltmm_data.get_axis_acc_data('anteroposterior')
             sampling_rate = ltmm_data.get_sampling_frequency()
-            kf_x_ml, kf_y_v, kf_z_ap, kf_ub_y_v = self.filter.apply_kalman_filter(ml_x_ax_data, v_y_ax_data,
-                                                                                  ap_z_ax_data, sampling_rate)
+            kf_x_ml, kf_y_v, kf_z_ap, kf_ub_y_v = self.filter.apply_kalman_filter(ml_x_ax_data,
+                                                                                  v_y_ax_data,
+                                                                                  ap_z_ax_data,
+                                                                                  sampling_rate)
             ltmm_data.get_data()[:, 0] = kf_ub_y_v
             ltmm_data.get_data()[:, 1] = kf_x_ml
             ltmm_data.get_data()[:, 2] = kf_z_ap
@@ -172,17 +188,21 @@ class FallRiskAssessment:
 
 
 def main():
+    # dataset_info: [{dataset_name: DatasetName, dataset_path: path, clin: clin_path, segment_data: bool, epoch: float, mod: MOD}]
     st = time.time()
     # ltmm_dataset_name = 'LTMM'
-    ltmm_dataset_name = 'LabWalks'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
     ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
-    report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
+    # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
     input_metric_names = tuple([MetricNames.GAIT_SPEED_ESTIMATOR])
-    ltmm_ra = LTMMRiskAssessment(ltmm_dataset_name, ltmm_dataset_path, clinical_demo_path,
-                                 report_home_75h_path, input_metric_names)
-    print(ltmm_ra.assess_model_accuracy())
+    dataset_info = [{'dataset_name': DatasetNames.LTMM,
+                     'dataset_path': ltmm_dataset_path,
+                     'clinical_demo_path': clinical_demo_path,
+                     'segment_data': True,
+                     'epoch_size': 10.0}]
+    fra = FallRiskAssessment('')
+    print(fra.perform_risk_assessment(dataset_info, input_metric_names))
 
 
     # cv_results = ltmm_ra.cross_validate_model()

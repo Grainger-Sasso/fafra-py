@@ -3,7 +3,7 @@ import os
 import wfdb
 import numpy as np
 
-from src.dataset_tools.dataset_builders.dataset_builder_names import DatasetBuilderNames
+from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
@@ -13,16 +13,16 @@ from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataF
 from src.dataset_tools.risk_assessment_data.clinical_demographic_data import ClinicalDemographicData
 
 
-DATASET_BUILDER_NAME = DatasetBuilderNames.LTMM
+DATASET_NAME = DatasetNames.LTMM
 
 
 class LTMMDatasetBuilder(DatasetBuilder):
-    def __init__(self, dataset_path, clinical_demo_path, report_home_75h_path):
-        super().__init__(DATASET_BUILDER_NAME, dataset_path, clinical_demo_path)
-        self.report_home_75h_path = report_home_75h_path
+    def __init__(self, ):
+        super().__init__(DATASET_NAME)
         self.header_and_data_file_paths = dict()
         self.sampling_frequency = 100.0
-        self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g', 'anteroposterior-acc': 'g',
+        self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
+                      'anteroposterior-acc': 'g',
                       'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
         # Mock height in cm
         self.height = 175.0
@@ -30,7 +30,8 @@ class LTMMDatasetBuilder(DatasetBuilder):
     def get_header_and_data_file_paths(self):
         return self.header_and_data_file_paths
 
-    def build_dataset(self, segment_data=True, epoch_size=10.0):
+    def build_dataset(self, dataset_path, clinical_demo_path,
+                      segment_dataset, epoch_size):
         self._generate_header_and_data_file_paths()
         dataset = []
         for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
@@ -58,9 +59,9 @@ class LTMMDatasetBuilder(DatasetBuilder):
             clinical_demo_file_path: str = 'N/A'
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
             clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
-            if segment_data:
+            if self.segment_dataset:
                 # Segment the data and build a UserData object for each epoch
-                data_segments = self.segment_data(data, epoch_size)
+                data_segments = self.segment_data(data, self.epoch_size)
                 for segment in data_segments:
                     imu_data = self._generate_imu_data_instance(segment)
                     dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
