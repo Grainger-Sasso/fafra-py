@@ -61,7 +61,7 @@ class MetricGenerator:
 
     def _get_metric_data_type(self, data_type, user_data: UserData):
         if data_type == MetricDataTypes.LTMM:
-            data = user_data.get_imu_data().get_all_data()
+            data = user_data
         elif data_type == MetricDataTypes.VERTICAL:
             data = user_data.get_imu_data().get_acc_axis_data('vertical')
         else:

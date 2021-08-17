@@ -32,7 +32,7 @@ class LTMMDatasetBuilder(DatasetBuilder):
     def get_header_and_data_file_paths(self):
         return self.header_and_data_file_paths
 
-    def build_dataset(self, segment_data=True, segment_epoch_duration=10.0):
+    def build_dataset(self, segment_data=True, epoch_size=10.0):
         self._generate_header_and_data_file_paths()
         dataset = []
         for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
@@ -54,37 +54,62 @@ class LTMMDatasetBuilder(DatasetBuilder):
                 faller_status = False
             else:
                 raise ValueError('LTMM Data faller status unclear from id')
+
             imu_data_file_path: str = data_file_path
             imu_metadata_file_path: str = header_file_path
             clinical_demo_file_path: str = 'N/A'
-            v_acc_data = np.array(data.T[0])
-            ml_acc_data = np.array(data.T[1])
-            ap_acc_data = np.array(data.T[2])
-            yaw_gyr_data = np.array(data.T[3])
-            pitch_gyr_data = np.array(data.T[4])
-            roll_gyr_data = np.array(data.T[5])
-            imu_data: IMUData = IMUData(v_acc_data, ml_acc_data, ap_acc_data,
-                                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data)
-            imu_metadata: IMUMetadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
-            clinical_demo_data: ClinicalDemographicData = ClinicalDemographicData(id, age, sex,
-                                                                                  faller_status, self.height)
-            dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
-                                    {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-
+            imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
+            clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
+            if segment_data:
+                # Segment the data and build a UserData object for each epoch
+                data_segments = self.segment_data(data, epoch_size)
+                for segment in data_segments:
+                    imu_data = self._generate_imu_data_instance(segment)
+                    dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+                                            {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+            else:
+                # Build a UserData object for the whole data
+                imu_data = self._generate_imu_data_instance(data)
+                dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+                                        {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         return Dataset(self.get_dataset_name(), self.get_dataset_path(), self.get_clinical_demo_path(), dataset)
 
-    def segment_dataset(self, epoch_size):
-        segmented_dataset = []
-        for data in self.get_dataset():
-            data.segment_data(epoch_size)
-            new_ltmm_data = []
-            for data_seg in data.get_data_segments():
-                new_data = copy.deepcopy(data)
-                new_data.set_data(data_seg)
-                new_data.set_data_segments([])
-                new_ltmm_data.append(new_data)
-            segmented_dataset.extend(new_ltmm_data)
-        self.set_dataset(segmented_dataset)
+    def segment_data(self, data, epoch_size):
+        """
+        Segments data into epochs of a given duration starting from the beginning of the data
+        :param: data: data to be segmented
+        :param epoch_size: duration of epoch to segment data (in seconds)
+        :return: data segments of given epoch duration
+        """
+        total_time = len(data.T[0])/self.sampling_frequency
+        # Calculate number of segments from given epoch size
+        num_of_segs = int(total_time / epoch_size)
+        # Check to see if data can be segmented at least one segment of given epoch size
+        if num_of_segs > 0:
+            data_segments = []
+            # Counter for the number of segments to be created
+            segment_count = range(0, num_of_segs+1)
+            # Create segmentation indices
+            seg_ixs = [int(seg * self.sampling_frequency * epoch_size) for seg in segment_count]
+            for seg_num in segment_count:
+                if seg_num != segment_count[-1]:
+                    data_segments.append(data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
+                else:
+                    continue
+        else:
+            raise ValueError(f'Data of total time {str(total_time)}s can not be '
+                             f'segmented with given epoch size {str(epoch_size)}s')
+        return data_segments
+
+    def _generate_imu_data_instance(self, data):
+        v_acc_data = np.array(data.T[0])
+        ml_acc_data = np.array(data.T[1])
+        ap_acc_data = np.array(data.T[2])
+        yaw_gyr_data = np.array(data.T[3])
+        pitch_gyr_data = np.array(data.T[4])
+        roll_gyr_data = np.array(data.T[5])
+        return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
+                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data)
 
     def _generate_header_and_data_file_paths(self):
         data_file_paths = {}
