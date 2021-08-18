@@ -22,7 +22,7 @@ class FallRiskAssessment:
     def __init__(self, risk_classifier):
         # Required input parameters
         self.dataset_builders: Dict[str: DatasetBuilder] = {}
-        self.datasets: Dict[str: Dataset] = {}
+        self.datasets: Dict[DatasetNames: Dataset] = {}
         self.rc = risk_classifier
         self.filter = MotionFilters()
         self.rc_viz = ClassificationVisualizer()
@@ -88,20 +88,19 @@ class FallRiskAssessment:
         raw_data = user_data.get_imu_data()[IMUDataFilterType.RAW].get_all_data()
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         lpf_data_all_axis = []
-        for axis in raw_data.T:
+        for axis in raw_data:
             lpf_data_all_axis.append(self.filter.apply_lpass_filter(axis,
                                                                     samp_freq))
-        lpf_data_all_axis = np.array(lpf_data_all_axis).T
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
 
     def _generate_imu_data_instance(self, data):
-        v_acc_data = np.array(data.T[0])
-        ml_acc_data = np.array(data.T[1])
-        ap_acc_data = np.array(data.T[2])
-        yaw_gyr_data = np.array(data.T[3])
-        pitch_gyr_data = np.array(data.T[4])
-        roll_gyr_data = np.array(data.T[5])
+        v_acc_data = np.array(data[0])
+        ml_acc_data = np.array(data[1])
+        ap_acc_data = np.array(data[2])
+        yaw_gyr_data = np.array(data[3])
+        pitch_gyr_data = np.array(data[4])
+        roll_gyr_data = np.array(data[5])
         return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data)
 
