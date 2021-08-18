@@ -8,7 +8,7 @@ class GaitAnalyzer:
     def __init__(self):
         self.ma_step_window_size = 5
         self.min_walk_dur = 3.0
-        self.viz = GSEViz()
+        self.gse_viz = GSEViz()
 
     def estimate_gait_speed(self, user_data: UserData):
         # Initialize the gait speed metric
@@ -18,7 +18,7 @@ class GaitAnalyzer:
         ml_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('mediolateral')
         ap_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
-        self.viz.plot_motion_data(user_data)
+        self.gse_viz.plot_gse_results(user_data, [1])
         # user_data = kwargs['user_data']
         # If the walking bout is long enough to detect step length
         if self.check_walking_duration():
