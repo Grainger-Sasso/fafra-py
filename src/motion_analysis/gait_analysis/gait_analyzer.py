@@ -1,4 +1,6 @@
+from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
 class GaitAnalyzer:
@@ -8,15 +10,15 @@ class GaitAnalyzer:
         self.min_walk_dur = 3.0
         self.viz = GSEViz()
 
-    def estimate_gait_speed(self, ltmm_data):
+    def estimate_gait_speed(self, user_data: UserData):
         # Initialize the gait speed metric
         gait_speed = None
         # Access data required for gait speed estimation from keyword arguments
-        v_acc_data = ltmm_data.get_axis_acc_data('vertical')
-        ml_acc_data = ltmm_data.get_axis_acc_data('mediolateral')
-        ap_acc_data = ltmm_data.get_axis_acc_data('anteroposterior')
-        user_height = ltmm_data.get_height()
-        self.viz.plot_motion_data(ltmm_data)
+        v_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+        ml_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('mediolateral')
+        ap_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('anteroposterior')
+        user_height = user_data.get_clinical_demo_data().get_height()
+        self.viz.plot_motion_data(user_data)
         # user_data = kwargs['user_data']
         # If the walking bout is long enough to detect step length
         if self.check_walking_duration():

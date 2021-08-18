@@ -117,6 +117,11 @@ class FallRiskAssessment:
         for name, dataset in self.datasets.items():
             faller_dataset.append(dataset.get_data_by_faller_status(True))
             non_fallers_dataset.append(dataset.get_data_by_faller_status(False))
+        # Flatten the list of datasets
+        faller_dataset = [user_data for data in faller_dataset for user_data in
+                          data]
+        non_fallers_dataset = [user_data for data in non_fallers_dataset for user_data in
+                          data]
         # Generate metrics
         faller_metrics, faller_status = self.mg.generate_metrics(faller_dataset,
                                                                  input_metric_names)
@@ -174,8 +179,6 @@ class FallRiskAssessment:
             ltmm_data.get_data()[:, 1] = kf_x_ml
             ltmm_data.get_data()[:, 2] = kf_z_ap
             print('kf')
-
-
 
     def _compare_prediction_to_test(self, y_predition, y_test):
         comparison = np.array(np.array(y_predition) == np.array(y_predition),

@@ -11,6 +11,7 @@ from src.motion_analysis.frequency_analysis.fast_fourier_transform import FastFo
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
 # Todo: Create parent class of metric generator, break unique parts of LTMM metric generator out into child class
@@ -59,10 +60,10 @@ class MetricGenerator:
         return risk_metrics
 
     def _get_metric_data_type(self, data_type, user_data: UserData):
-        if data_type == MetricDataTypes.LTMM:
+        if data_type == MetricDataTypes.USER_DATA:
             data = user_data
         elif data_type == MetricDataTypes.VERTICAL:
-            data = user_data.get_imu_data().get_acc_axis_data('vertical')
+            data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
         else:
             raise ValueError(f'Data type provided is not recognized {data_type}')
         return data

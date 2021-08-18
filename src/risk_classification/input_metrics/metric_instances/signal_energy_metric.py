@@ -11,7 +11,7 @@ METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
 
 class Metric(RiskClassificationInputMetric):
     def __init__(self):
-        super(RiskClassificationInputMetric, self).__init__(METRIC_NAME)
+         super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
         # convert the data into numpy array 

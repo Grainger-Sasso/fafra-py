@@ -3,7 +3,7 @@ from enum import Enum
 
 class MetricDataTypes(Enum):
     EXAMPLE = 'example'
-    ALL = 'all'
+    USER_DATA = 'user_data'
     VERTICAL = 'vertical'
 
     def get_name(self):
