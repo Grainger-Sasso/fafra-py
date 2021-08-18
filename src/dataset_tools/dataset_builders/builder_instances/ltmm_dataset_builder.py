@@ -63,12 +63,12 @@ class DatasetBuilder(DatasetBuilder):
                 # Segment the data and build a UserData object for each epoch
                 data_segments = self.segment_data(data, epoch_size)
                 for segment in data_segments:
-                    imu_data = self._generate_imu_data_instance(segment)
+                    imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
                     dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
                                             {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
             else:
                 # Build a UserData object for the whole data
-                imu_data = self._generate_imu_data_instance(data)
+                imu_data = self._generate_imu_data_instance(data, self.sampling_frequency)
                 dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
@@ -100,15 +100,17 @@ class DatasetBuilder(DatasetBuilder):
                              f'segmented with given epoch size {str(epoch_size)}s')
         return data_segments
 
-    def _generate_imu_data_instance(self, data):
+    def _generate_imu_data_instance(self, data, sampling_freq):
         v_acc_data = np.array(data.T[0])
         ml_acc_data = np.array(data.T[1])
         ap_acc_data = np.array(data.T[2])
         yaw_gyr_data = np.array(data.T[3])
         pitch_gyr_data = np.array(data.T[4])
         roll_gyr_data = np.array(data.T[5])
+        time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
+                           len(v_acc_data))
         return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data)
+                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
     def _generate_header_and_data_file_paths(self, dataset_path):
         data_file_paths = {}

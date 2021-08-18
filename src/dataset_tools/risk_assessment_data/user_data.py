@@ -6,7 +6,7 @@ from src.dataset_tools.risk_assessment_data.imu_metadata import IMUMetadata
 from src.dataset_tools.risk_assessment_data.clinical_demographic_data import ClinicalDemographicData
 
 
-class UserData():
+class UserData:
     def __init__(self, imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
                  imu_data, imu_metadata, clinical_demo_data):
         self.imu_data_file_path = imu_data_file_path

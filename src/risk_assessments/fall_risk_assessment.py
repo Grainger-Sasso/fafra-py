@@ -91,18 +91,21 @@ class FallRiskAssessment:
         for axis in raw_data:
             lpf_data_all_axis.append(self.filter.apply_lpass_filter(axis,
                                                                     samp_freq))
-        lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis)
+        lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
+                                                        samp_freq)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
 
-    def _generate_imu_data_instance(self, data):
+    def _generate_imu_data_instance(self, data, sampling_freq):
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
         ap_acc_data = np.array(data[2])
         yaw_gyr_data = np.array(data[3])
         pitch_gyr_data = np.array(data[4])
         roll_gyr_data = np.array(data[5])
+        time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
+                           len(v_acc_data))
         return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data)
+                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
     def _unbias_vert_axis(self, user_data):
         for imu_filt_type, imu_data in user_data.get_imu_data().items():

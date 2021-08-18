@@ -1,6 +1,7 @@
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 
 class GaitAnalyzer:
@@ -18,13 +19,13 @@ class GaitAnalyzer:
         ml_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('mediolateral')
         ap_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
-        self.gse_viz.plot_gse_results(user_data, [1])
         # user_data = kwargs['user_data']
         # If the walking bout is long enough to detect step length
         if self.check_walking_duration():
             # Continue with gait estimation
             # Detect the heel strikes in the walking data
             strike_indexes = self.detect_heel_strikes(v_acc_data, ml_acc_data, ap_acc_data)
+            self.gse_viz.plot_gse_results(user_data, strike_indexes)
             # Estimate the stride length for each step
             step_lengths = self.estimate_stride_length(strike_indexes)
             # Estimate the gait speed from the stride lengths and timing between steps
@@ -39,7 +40,7 @@ class GaitAnalyzer:
         return gait_speed
 
     def detect_heel_strikes(self, v_acc_data, ml_acc_data, ap_acc_data):
-        strike_indexes = []
+        strike_indexes = PeakDetector().detect_peaks(v_acc_data)
         return strike_indexes
 
     def estimate_stride_length(self, strike_indexes):
@@ -52,7 +53,7 @@ class GaitAnalyzer:
         # it is valid, otherwise, it is invalid
         print(self.ma_step_window_size)
         print(self.min_walk_dur)
-        walk_bout_valid = False
+        walk_bout_valid = True
         return walk_bout_valid
 
     def detect_gait(self, data):

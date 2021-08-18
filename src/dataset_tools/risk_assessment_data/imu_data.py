@@ -3,7 +3,8 @@ import numpy as np
 
 class IMUData:
     def __init__(self, v_acc_data, ml_acc_data, ap_acc_data,
-                 yaw_gyr_data, pitch_gyr_data, roll_gyr_data):
+                 yaw_gyr_data, pitch_gyr_data, roll_gyr_data,
+                 time):
         # Vertical axis accelerometer data
         self.v_acc_data = np.array(v_acc_data)
         # Mediolateral axis accelerometer data
@@ -16,6 +17,8 @@ class IMUData:
         self.pitch_gyr_data = np.array(pitch_gyr_data)
         # Anteroposterior axis accelerometer data
         self.roll_gyr_data = np.array(roll_gyr_data)
+        # Arbitrary time axis
+        self.time = time
 
     def get_acc_axis_data(self, axis):
         if axis == 'vertical':
@@ -52,3 +55,6 @@ class IMUData:
     def get_all_data(self):
         return np.array([self.v_acc_data, self.ml_acc_data, self.ap_acc_data,
                          self.yaw_gyr_data, self.pitch_gyr_data, self.roll_gyr_data])
+
+    def get_time(self):
+        return self.time
