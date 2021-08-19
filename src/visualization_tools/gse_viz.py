@@ -15,18 +15,19 @@ class GSEViz:
     def plot_gse_results(self, user_data: UserData,
                          v_peak_indexes: List[int],
                          ap_peak_indexes: List[int]):
-        fig, axes = self.m_viz.plot_motion_data(user_data)
+        acc_fig, acc_axes = self.m_viz.plot_acceleration_data(user_data)
+        gyr_fig, gyr_axes = self.m_viz.plot_gyroscope_data(user_data)
         imu_data = user_data.get_imu_data()[IMUDataFilterType.LPF]
         tri_lin_acc = imu_data.get_triax_acc_data()
         time = imu_data.get_time()
-        axes['axis_vertical'].plot(time[v_peak_indexes],
+        acc_axes['axis_vertical'].plot(time[v_peak_indexes],
                                    tri_lin_acc['vertical'][v_peak_indexes],
                                    'rv')
-        axes['axis_anteroposterior'].plot(time[v_peak_indexes],
+        acc_axes['axis_anteroposterior'].plot(time[v_peak_indexes],
                                           tri_lin_acc['anteroposterior'][
                                               v_peak_indexes],
                                           'rv')
-        axes['axis_anteroposterior'].plot(time[ap_peak_indexes],
+        acc_axes['axis_anteroposterior'].plot(time[ap_peak_indexes],
                                           tri_lin_acc['anteroposterior'][
                                               ap_peak_indexes],
                                           'bo')
