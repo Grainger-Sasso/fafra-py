@@ -27,10 +27,11 @@ class GaitAnalyzer:
             v_peak_indexes = self.detect_peaks(v_acc_data)
             ap_peak_indexes = self.detect_peaks(ap_acc_data)
             self.gse_viz.plot_gse_results(user_data, v_peak_indexes, ap_peak_indexes)
-            # Estimate the stride length for each step
-            step_lengths = self.estimate_stride_length(strike_indexes)
-            # Estimate the gait speed from the stride lengths and timing between steps
-            return self.estimate_gait_speed(step_lengths, user_height)
+            # # Estimate the stride length for each step
+            # step_lengths = self.estimate_stride_length(strike_indexes)
+            # # Estimate the gait speed from the stride lengths and timing between steps
+            # return self.estimate_gait_speed(step_lengths, user_height)
+            return 1.0
         else:
             raise ValueError('Walking bout is not long enough to estimate gait speed')
 

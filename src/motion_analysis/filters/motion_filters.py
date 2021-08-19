@@ -13,11 +13,11 @@ class MotionFilters:
     def apply_moving_average(self, data: np.array, n=3):
         return np.convolve(data, np.ones(n), 'valid') / n
 
-    def apply_lpass_filter(self, data: np.array, sampling_rate: float):
+    def apply_lpass_filter(self, data: np.array, cutoff_freq):
         # Parameters for Butterworth filter found (3.1. Pre-Processing Stage):
         # https://www.mdpi.com/1424-8220/18/4/1101
         # Create a 4th order lowpass butterworth filter
-        cutoff_freq = (5/(0.5*sampling_rate))
+        # cutoff_freq = (5/(0.5*sampling_rate))
         b, a = signal.butter(4, cutoff_freq)
         # Apply filter to input data
         return np.array(signal.filtfilt(b, a, data))

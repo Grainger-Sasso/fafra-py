@@ -19,8 +19,15 @@ class GSEViz:
         imu_data = user_data.get_imu_data()[IMUDataFilterType.LPF]
         tri_lin_acc = imu_data.get_triax_acc_data()
         time = imu_data.get_time()
-        axes['axis_vertical'].plot(time[v_peak_indexes], tri_lin_acc['vertical'][v_peak_indexes],
+        axes['axis_vertical'].plot(time[v_peak_indexes],
+                                   tri_lin_acc['vertical'][v_peak_indexes],
                                    'rv')
-        axes['axis_anteroposterior'].plot(time[ap_peak_indexes], tri_lin_acc['anteroposterior'][ap_peak_indexes],
-                                   'bo')
+        axes['axis_anteroposterior'].plot(time[v_peak_indexes],
+                                          tri_lin_acc['anteroposterior'][
+                                              v_peak_indexes],
+                                          'rv')
+        axes['axis_anteroposterior'].plot(time[ap_peak_indexes],
+                                          tri_lin_acc['anteroposterior'][
+                                              ap_peak_indexes],
+                                          'bo')
         self.m_viz.show_plot()

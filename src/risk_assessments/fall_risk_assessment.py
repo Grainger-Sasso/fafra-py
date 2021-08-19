@@ -3,6 +3,7 @@ import time
 import os
 import glob
 import importlib
+import random
 from typing import Tuple, Dict, List, Any
 from definitions import ROOT_DIR
 
@@ -37,6 +38,7 @@ class FallRiskAssessment:
         # Preprocess imu data
         self._preprocess_data()
         # Derive risk metrics
+        random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         x, y = self.generate_risk_metrics(input_metric_names)
         # Classify users into fall risk categories
         # Split input data into test and train groups
@@ -50,7 +52,6 @@ class FallRiskAssessment:
 
     def _build_datasets(self, dataset_info):
         # Read in all builder modules
-        module_paths = self._generate_builder_module_paths()
         metric_modules = [importlib.import_module(module_path).DatasetBuilder()
                           for module_path in self._generate_builder_module_paths()]
         for info in dataset_info:
@@ -85,12 +86,25 @@ class FallRiskAssessment:
                 self._unbias_axes(user_data)
 
     def _apply_lp_filter(self, user_data):
-        raw_data = user_data.get_imu_data()[IMUDataFilterType.RAW].get_all_data()
+        imu_data = user_data.get_imu_data()[IMUDataFilterType.RAW]
+        v_acc_data = imu_data.get_acc_axis_data('vertical')
+        ml_acc_data = imu_data.get_acc_axis_data('mediolateral')
+        ap_acc_data = imu_data.get_acc_axis_data('anteroposterior')
+        yaw_acc_data = imu_data.get_gyr_axis_data('yaw')
+        pitch_acc_data = imu_data.get_gyr_axis_data('pitch')
+        roll_acc_data = imu_data.get_gyr_axis_data('roll')
+        gyr_data = [yaw_acc_data, pitch_acc_data, roll_acc_data]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         lpf_data_all_axis = []
-        for axis in raw_data:
-            lpf_data_all_axis.append(self.filter.apply_lpass_filter(axis,
-                                                                    samp_freq))
+        lpf_data_all_axis.append(
+            self.filter.apply_lpass_filter(v_acc_data, 0.045))
+        lpf_data_all_axis.append(
+            self.filter.apply_lpass_filter(ml_acc_data, 0.035))
+        lpf_data_all_axis.append(
+            self.filter.apply_lpass_filter(ap_acc_data, 0.07))
+        for ax in gyr_data:
+            lpf_data_all_axis.append(
+                self.filter.apply_lpass_filter(ax, 0.05))
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
                                                         samp_freq)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
