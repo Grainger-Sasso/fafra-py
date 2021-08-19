@@ -23,9 +23,10 @@ class GaitAnalyzer:
         # If the walking bout is long enough to detect step length
         if self.check_walking_duration():
             # Continue with gait estimation
-            # Detect the heel strikes in the walking data
-            strike_indexes = self.detect_heel_strikes(v_acc_data, ml_acc_data, ap_acc_data)
-            self.gse_viz.plot_gse_results(user_data, strike_indexes)
+            # Detect the peaks (heel strikes) in the walking data
+            v_peak_indexes = self.detect_peaks(v_acc_data)
+            ap_peak_indexes = self.detect_peaks(ap_acc_data)
+            self.gse_viz.plot_gse_results(user_data, v_peak_indexes, ap_peak_indexes)
             # Estimate the stride length for each step
             step_lengths = self.estimate_stride_length(strike_indexes)
             # Estimate the gait speed from the stride lengths and timing between steps
@@ -39,8 +40,8 @@ class GaitAnalyzer:
         gait_speed = None
         return gait_speed
 
-    def detect_heel_strikes(self, v_acc_data, ml_acc_data, ap_acc_data):
-        strike_indexes = PeakDetector().detect_peaks(v_acc_data)
+    def detect_peaks(self, acc_data):
+        strike_indexes = PeakDetector().detect_peaks(acc_data)
         return strike_indexes
 
     def estimate_stride_length(self, strike_indexes):

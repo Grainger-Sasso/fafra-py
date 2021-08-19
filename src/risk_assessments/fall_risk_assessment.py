@@ -82,7 +82,7 @@ class FallRiskAssessment:
                 self._apply_lp_filter(user_data)
                 # self.apply_kalman_filter()
                 # Remove effects of gravity in vertical axis
-                self._unbias_vert_axis(user_data)
+                self._unbias_axes(user_data)
 
     def _apply_lp_filter(self, user_data):
         raw_data = user_data.get_imu_data()[IMUDataFilterType.RAW].get_all_data()
@@ -107,11 +107,20 @@ class FallRiskAssessment:
         return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
-    def _unbias_vert_axis(self, user_data):
+    def _unbias_axes(self, user_data):
         for imu_filt_type, imu_data in user_data.get_imu_data().items():
             v_acc_data = imu_data.get_acc_axis_data('vertical')
             v_acc_data = np.array([x - 1.0 for x in v_acc_data])
             imu_data.v_acc_data = v_acc_data
+            ml_acc_data = imu_data.get_acc_axis_data('mediolateral')
+            ml_acc_data = np.array(
+                [x - ml_acc_data.mean() for x in ml_acc_data])
+            imu_data.ml_acc_data = ml_acc_data
+            ap_acc_data = imu_data.get_acc_axis_data('anteroposterior')
+            ap_acc_data = np.array(
+                [x - ap_acc_data.mean() for x in ap_acc_data])
+            imu_data.ap_acc_data = ap_acc_data
+
 
     def generate_risk_metrics(self, input_metric_names, scale_data=True):
         # Separate datasets into fallers and nonfallers
