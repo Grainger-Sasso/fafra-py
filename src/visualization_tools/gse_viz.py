@@ -14,7 +14,8 @@ class GSEViz:
 
     def plot_gse_results(self, user_data: UserData,
                          v_peak_indexes: List[int],
-                         ap_peak_indexes: List[int]):
+                         ap_peak_indexes: List[int],
+                         displacement):
         acc_fig, acc_axes = self.m_viz.plot_acceleration_data(user_data)
         gyr_fig, gyr_axes = self.m_viz.plot_gyroscope_data(user_data)
         imu_data = user_data.get_imu_data()[IMUDataFilterType.LPF]
@@ -31,4 +32,9 @@ class GSEViz:
                                           tri_lin_acc['anteroposterior'][
                                               ap_peak_indexes],
                                           'bo')
+        self.plot_displacement(displacement, time)
         self.m_viz.show_plot()
+
+    def plot_displacement(self, displacement, time):
+        fig, ax = plt.subplots(1, sharex=True)
+        ax.plot(time, displacement, color='red')

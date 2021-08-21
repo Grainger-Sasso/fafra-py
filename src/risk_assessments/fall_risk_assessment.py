@@ -96,15 +96,26 @@ class FallRiskAssessment:
         gyr_data = [yaw_acc_data, pitch_acc_data, roll_acc_data]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         lpf_data_all_axis = []
+        # lpf_data_all_axis.append(
+        #     self.filter.apply_lpass_filter(v_acc_data, 0.045))
+        # lpf_data_all_axis.append(
+        #     self.filter.apply_lpass_filter(v_acc_data, 0.1, samp_freq))
+        # lpf_data_all_axis.append(
+        #     self.filter.apply_lpass_filter(ml_acc_data, 0.035, samp_freq))
+        # lpf_data_all_axis.append(
+        #     self.filter.apply_lpass_filter(ap_acc_data, 0.07, samp_freq))
+        # for ax in gyr_data:
+        #     lpf_data_all_axis.append(
+        #         self.filter.apply_lpass_filter(ax, 0.05, samp_freq))
         lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(v_acc_data, 0.045))
+            self.filter.apply_lpass_filter(v_acc_data, 2, samp_freq))
         lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(ml_acc_data, 0.035))
+            self.filter.apply_lpass_filter(ml_acc_data, 2, samp_freq))
         lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(ap_acc_data, 0.07))
+            self.filter.apply_lpass_filter(ap_acc_data, 2, samp_freq))
         for ax in gyr_data:
             lpf_data_all_axis.append(
-                self.filter.apply_lpass_filter(ax, 0.05))
+                self.filter.apply_lpass_filter(ax, 2, samp_freq))
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
                                                         samp_freq)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
@@ -221,8 +232,8 @@ def main():
     st = time.time()
     # ltmm_dataset_name = 'LTMM'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
-    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
-    # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
+    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
     input_metric_names = tuple([MetricNames.GAIT_SPEED_ESTIMATOR])
