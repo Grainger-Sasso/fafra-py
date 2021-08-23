@@ -1,3 +1,5 @@
+import itertools
+
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
@@ -29,8 +31,8 @@ class GaitAnalyzer:
             # Detect the peaks (heel strikes) in the walking data
             v_peak_indexes = self.detect_peaks(v_acc_data)
             ap_peak_indexes = self.detect_peaks(ap_acc_data)
-            displacement = self.compute_v_displacement(v_acc_data,
-                                                       user_height, samp_freq)
+            displacement = self.compute_v_displacement(v_acc_data, samp_freq,
+                                                       ap_peak_indexes)
             self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
                                           ap_peak_indexes, displacement)
             # # Estimate the stride length for each step
@@ -76,16 +78,28 @@ class GaitAnalyzer:
         # Run auto-correlation to remove false-positives
         pass
 
-    def compute_v_displacement(self, v_acc, height, samp_freq):
-        displacement = []
-        p0 = height/2
-        v0 = 0.0
-        for acc in v_acc:
-            v_t = acc*samp_freq* + v0
-            p_t = (acc/2)*(samp_freq**2) + (v0*samp_freq) + p0
-            displacement.append(p_t)
-            p0 = p_t
-            v0 = v_t
-        displacement = MotionFilters().apply_lpass_filter(displacement, 0.1, samp_freq, 'high')
-        return displacement
+    def compute_v_displacement(self, v_acc, samp_freq, ap_peak_ix):
+        # Convert the vertical acceleration from g to m/s^2
+        v_acc = v_acc * 9.81
+        # Define params for double integration
+        period = 1/samp_freq
+        # Initialize variable for the whole walking bout vertical displacement
+        whole_disp = []
+        # For every step (interval between ap peak)
+        step_start_ixs = ap_peak_ix[:-1]
+        step_end_ixs = ap_peak_ix[1:]
+        for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
+            p0 = 0.0
+            v0 = 0.0
+            displacement = [0.0]
+            for acc in v_acc[start_ix:(end_ix-1)]:
+                v_t = acc*period + v0
+                p_t = (acc/2)*(period**2) + (v0*period) + p0
+                displacement.append(p_t)
+                p0 = p_t
+                v0 = v_t
+            whole_disp.extend(displacement)
+        # whole_disp = MotionFilters().apply_lpass_filter(whole_disp, 0.1,
+        #                                                   samp_freq, 'high')
+        return whole_disp
 

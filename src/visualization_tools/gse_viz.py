@@ -32,9 +32,9 @@ class GSEViz:
                                           tri_lin_acc['anteroposterior'][
                                               ap_peak_indexes],
                                           'bo')
-        self.plot_displacement(displacement, time)
+        self.plot_displacement(displacement, time, ap_peak_indexes)
         self.m_viz.show_plot()
 
-    def plot_displacement(self, displacement, time):
+    def plot_displacement(self, displacement, time, ap_peak_ixs):
         fig, ax = plt.subplots(1, sharex=True)
-        ax.plot(time, displacement, color='red')
+        ax.plot(time[ap_peak_ixs[0]:ap_peak_ixs[-1]], displacement, color='red')
