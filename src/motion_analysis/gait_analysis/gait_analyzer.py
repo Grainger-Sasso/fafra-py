@@ -80,7 +80,7 @@ class GaitAnalyzer:
 
     def compute_v_displacement(self, v_acc, samp_freq, ap_peak_ix):
         # Convert the vertical acceleration from g to m/s^2
-        v_acc = v_acc * 9.81
+        # v_acc = v_acc * 9.81
         # Define params for double integration
         period = 1/samp_freq
         # Initialize variable for the whole walking bout vertical displacement
@@ -99,7 +99,7 @@ class GaitAnalyzer:
                 p0 = p_t
                 v0 = v_t
             whole_disp.extend(displacement)
-        # whole_disp = MotionFilters().apply_lpass_filter(whole_disp, 0.1,
-        #                                                   samp_freq, 'high')
+        whole_disp = MotionFilters().apply_lpass_filter(whole_disp, 0.5,
+                                                          samp_freq, 'high')
         return whole_disp
 

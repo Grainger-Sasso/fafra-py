@@ -135,7 +135,8 @@ class FallRiskAssessment:
     def _unbias_axes(self, user_data):
         for imu_filt_type, imu_data in user_data.get_imu_data().items():
             v_acc_data = imu_data.get_acc_axis_data('vertical')
-            v_acc_data = np.array([x - 1.0 for x in v_acc_data])
+            v_acc_data = np.array(
+                [x - v_acc_data.mean() for x in v_acc_data])
             imu_data.v_acc_data = v_acc_data
             ml_acc_data = imu_data.get_acc_axis_data('mediolateral')
             ml_acc_data = np.array(

@@ -43,6 +43,8 @@ class DatasetBuilder(DatasetBuilder):
             id = wfdb_record.record_name
             data = np.array(wfdb_record.p_signal)
             data = np.float16(data)
+            # Convert acceleration data from g to m/s^2
+            data[:, 0:3] = data[:, 0:3] * 9.81
             header_data = wfdb.rdheader(header_path)
             if wfdb_record.comments[0][4:]:
                 age = float(wfdb_record.comments[0][4:])

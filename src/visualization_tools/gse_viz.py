@@ -38,3 +38,6 @@ class GSEViz:
     def plot_displacement(self, displacement, time, ap_peak_ixs):
         fig, ax = plt.subplots(1, sharex=True)
         ax.plot(time[ap_peak_ixs[0]:ap_peak_ixs[-1]], displacement, color='red')
+        for ix in ap_peak_ixs:
+            ax.axvline(x=time[ix])
+
