@@ -1,4 +1,4 @@
-import itertools
+import numpy as np
 
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
@@ -31,52 +31,28 @@ class GaitAnalyzer:
             # Detect the peaks (heel strikes) in the walking data
             v_peak_indexes = self.detect_peaks(v_acc_data)
             ap_peak_indexes = self.detect_peaks(ap_acc_data)
-            displacement = self.compute_v_displacement(v_acc_data, samp_freq,
+            v_displacement = self.compute_v_displacement(v_acc_data, samp_freq,
                                                        ap_peak_indexes)
+            step_lengths = self.estimate_step_lengths(ap_peak_indexes,
+                                                          v_displacement)
+            total_distance = step_lengths.sum()
+            total_time = len(v_displacement)/samp_freq
+            gait_speed = (total_distance/total_time)*1.25
             self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
-                                          ap_peak_indexes, displacement)
-            # # Estimate the stride length for each step
-            # step_lengths = self.estimate_stride_length(strike_indexes)
-            # # Estimate the gait speed from the stride lengths and timing between steps
-            # return self.estimate_gait_speed(step_lengths, user_height)
-            return 1.0
+                                          ap_peak_indexes, v_displacement)
+            print(gait_speed)
+            return gait_speed
         else:
             raise ValueError('Walking bout is not long enough to estimate gait speed')
 
         # For given step lengths and the moving average step window size, calculate the
         # gait speed for this walking bout
-        print(self.ma_step_window_size)
         gait_speed = None
         return gait_speed
 
     def detect_peaks(self, acc_data):
         strike_indexes = PeakDetector().detect_peaks(acc_data)
         return strike_indexes
-
-    def estimate_stride_length(self, strike_indexes):
-        # Heel strike index with the corresponding step length
-        step_lengths = []
-        return step_lengths
-
-    def check_walking_duration(self):
-        # Check how long the walking bout is, if it exceeds the minimum walking bout duration, then
-        # it is valid, otherwise, it is invalid
-        print(self.ma_step_window_size)
-        print(self.min_walk_dur)
-        walk_bout_valid = True
-        return walk_bout_valid
-
-    def detect_gait(self, data):
-        """
-        http://www.l3s.de/~anand/tir14/lectures/ws14-tir-foundations-2.pdf
-        :param data:
-        :return:
-        """
-        # Run kamlan filter on the data
-        # Take unbiased vertical acceleration
-        # Perform discrete fourier transform to detect possible periodic data
-        # Run auto-correlation to remove false-positives
-        pass
 
     def compute_v_displacement(self, v_acc, samp_freq, ap_peak_ix):
         # Convert the vertical acceleration from g to m/s^2
@@ -102,4 +78,39 @@ class GaitAnalyzer:
         whole_disp = MotionFilters().apply_lpass_filter(whole_disp, 0.5,
                                                           samp_freq, 'high')
         return whole_disp
+
+    def estimate_step_lengths(self, strike_indexes, displacement,
+                              leg_length=0.75):
+        # Todo: fix the leg length estimation
+        # Heel strike index with the corresponding step length
+        step_lengths = []
+        step_start_ixs = strike_indexes[:-1]
+        step_end_ixs = strike_indexes[1:]
+        for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
+            # parameter, h, defined as the difference between the largest and
+            # smallest vertical position of CoM
+            h = max(displacement[start_ix:end_ix]) - min(displacement[start_ix:end_ix])
+            # Formula for step length derived from inverted pendulum model
+            step_length = ((2*leg_length*h)-(h**2))**0.5
+            step_lengths.append(step_length)
+        return np.array(step_lengths)
+
+    def check_walking_duration(self):
+        # Check how long the walking bout is, if it exceeds the minimum walking bout duration, then
+        # it is valid, otherwise, it is invalid
+        walk_bout_valid = True
+        return walk_bout_valid
+
+    def detect_gait(self, data):
+        """
+        http://www.l3s.de/~anand/tir14/lectures/ws14-tir-foundations-2.pdf
+        :param data:
+        :return:
+        """
+        # Run kamlan filter on the data
+        # Take unbiased vertical acceleration
+        # Perform discrete fourier transform to detect possible periodic data
+        # Run auto-correlation to remove false-positives
+        pass
+
 
