@@ -91,7 +91,7 @@ class GaitAnalyzer:
             # smallest vertical position of CoM
             h = max(displacement[start_ix:end_ix]) - min(displacement[start_ix:end_ix])
             # Formula for step length derived from inverted pendulum model
-            step_length = ((2*leg_length*h)-(h**2))**0.5
+            step_length = 2 * (((2 * leg_length * h) - (h ** 2)) ** 0.5)
             step_lengths.append(step_length)
         return np.array(step_lengths)
 
