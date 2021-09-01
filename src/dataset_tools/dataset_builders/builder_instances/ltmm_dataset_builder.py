@@ -62,6 +62,7 @@ class DatasetBuilder(DatasetBuilder):
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
             clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
             if segment_dataset:
+                #TODO: track the segmented data with a linked list
                 # Segment the data and build a UserData object for each epoch
                 data_segments = self.segment_data(data, epoch_size)
                 for segment in data_segments:

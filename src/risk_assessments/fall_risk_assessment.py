@@ -83,7 +83,7 @@ class FallRiskAssessment:
                 self._apply_lp_filter(user_data)
                 # self.apply_kalman_filter()
                 # Remove effects of gravity in vertical axis
-                self._unbias_axes(user_data)
+                # self._unbias_axes(user_data)
 
     def _apply_lp_filter(self, user_data):
         imu_data = user_data.get_imu_data()[IMUDataFilterType.RAW]
