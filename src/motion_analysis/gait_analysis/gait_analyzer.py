@@ -30,22 +30,18 @@ class GaitAnalyzer:
         # TODO: refactor this funciton adn the user_data object to have
         #  segmented walking bouts, this funciton should assume to have
         #  walking bouts readily availble
-        # Initialize the gait speed metric
-        gait_speed = None
         # Access data required for gait speed estimation from keyword arguments
-        raw_v_data = user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data('vertical')
-        v_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+        lpf_v_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical
         # acc data
-        v_acc_data = v_acc_data - 9.81
-        ml_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('mediolateral')
+        v_acc_data = lpf_v_data - 9.81
         ap_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         # Detect the peaks (heel strikes) in the walking data
-        v_peak_indexes = self.detect_peaks(v_acc_data)
-        ap_peak_indexes = self.detect_peaks(ap_acc_data)
-        step_lengths, v_displacement = self.estimate_step_lengths(
+        v_peak_indexes = self._detect_peaks(v_acc_data)
+        ap_peak_indexes = self._detect_peaks(ap_acc_data)
+        step_lengths, v_displacement = self._estimate_step_lengths(
             v_acc_data, samp_freq, ap_peak_indexes, user_height)
         total_distance = step_lengths.sum()
         total_time = len(v_displacement)/samp_freq
@@ -55,11 +51,11 @@ class GaitAnalyzer:
                                       ap_peak_indexes, v_displacement)
         return gait_speed
 
-    def detect_peaks(self, acc_data):
+    def _detect_peaks(self, acc_data):
         strike_indexes = PeakDetector().detect_peaks(acc_data)
         return strike_indexes
 
-    def estimate_step_lengths(self, v_acc, samp_freq,
+    def _estimate_step_lengths(self, v_acc, samp_freq,
                               strike_indexes, user_height):
         # See Frisancho et al. 2007 for leg length estimation
         # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
@@ -97,15 +93,15 @@ class GaitAnalyzer:
         # velocity at each heel strike to be zero
         v0 = 0.0
         acc = v_acc[start_ix:(end_ix - 1)]
-        vel = self.compute_single_integration(acc, period, v0)
+        vel = self._compute_single_integration(acc, period, v0)
         vel = MotionFilters().apply_lpass_filter(vel, 0.5,
                                                  samp_freq, 'high')
-        pos = self.compute_single_integration(vel[:-1], period, p0)
+        pos = self._compute_single_integration(vel[:-1], period, p0)
         pos = MotionFilters().apply_lpass_filter(pos, 0.5,
                                                  samp_freq, 'high')
         return pos
 
-    def compute_single_integration(self, data, period, x0):
+    def _compute_single_integration(self, data, period, x0):
         # single integration for time series data is the sum of (the
         # product of the signal at time t and the sample period) and
         # (the current integrated value at time t)
