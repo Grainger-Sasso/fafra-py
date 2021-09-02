@@ -24,8 +24,8 @@ class DatasetBuilder(DatasetBuilder):
         self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
                       'anteroposterior-acc': 'g',
                       'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
-        # Mock height in cm
-        self.height = 175.0
+        # Mock height in meters
+        self.height = 1.75
 
     def get_header_and_data_file_paths(self):
         return self.header_and_data_file_paths
