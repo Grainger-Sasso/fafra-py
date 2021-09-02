@@ -1,41 +1,43 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
+from typing import List
 
-from src.datasets.ltmm.ltmm_dataset import LTMMData
+from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.visualization_tools.motion_visualizer import MotionVisualizer
 
 
 class GSEViz:
+    def __init__(self):
+        self.m_viz = MotionVisualizer()
 
-    def plot_motion_data(self, ltmm_data: LTMMData):
-        tri_lin_acc = [ltmm_data.get_axis_acc_data('vertical'),
-                       ltmm_data.get_axis_acc_data('mediolateral'),
-                       ltmm_data.get_axis_acc_data('anteroposterior'),]
-        sampling_freq = ltmm_data.get_sampling_frequency()
-        self.__plot_triaxial_acc(tri_lin_acc, sampling_freq)
+    def plot_gse_results(self, user_data: UserData,
+                         v_peak_indexes: List[int],
+                         ap_peak_indexes: List[int],
+                         displacement):
+        acc_fig, acc_axes = self.m_viz.plot_acceleration_data(user_data)
+        gyr_fig, gyr_axes = self.m_viz.plot_gyroscope_data(user_data)
+        imu_data = user_data.get_imu_data()[IMUDataFilterType.LPF]
+        tri_lin_acc = imu_data.get_triax_acc_data()
+        time = imu_data.get_time()
+        acc_axes['axis_vertical'].plot(time[v_peak_indexes],
+                                   tri_lin_acc['vertical'][v_peak_indexes],
+                                   'rv')
+        acc_axes['axis_anteroposterior'].plot(time[v_peak_indexes],
+                                          tri_lin_acc['anteroposterior'][
+                                              v_peak_indexes],
+                                          'rv')
+        acc_axes['axis_anteroposterior'].plot(time[ap_peak_indexes],
+                                          tri_lin_acc['anteroposterior'][
+                                              ap_peak_indexes],
+                                          'bo')
+        self.plot_displacement(displacement, time, ap_peak_indexes)
+        self.m_viz.show_plot()
 
-    def __plot_triaxial_acc(self, tri_acc, sampling_freq):
-        raw_color = 'cornflowerblue'
-        colors = {'raw': raw_color}
-        fig, (ax_x, ax_y, ax_z) = plt.subplots(3, sharex=True)
-        time = np.linspace(0, len(tri_acc[0]), sampling_freq)
-        self.__plot_single_axis(ax_x, tri_acc[0], time, 'vertical', colors)
-        self.__plot_single_axis(ax_y, tri_acc[1], time, 'mediolateral', colors)
-        self.__plot_single_axis(ax_z, tri_acc[2], time, 'anteroposterior', colors)
-        plt.show()
+    def plot_displacement(self, displacement, time, ap_peak_ixs):
+        fig, ax = plt.subplots(1, sharex=True)
+        ax.plot(time[ap_peak_ixs[0]:ap_peak_ixs[-1]], displacement, color='red')
+        for ix in ap_peak_ixs:
+            ax.axvline(x=time[ix])
 
-    def __plot_single_axis(self, ax: Axes, axis_data, time, name, colors):
-        ax.set_title('Axis: ' + name)
-        pr = ax.plot(time, axis_data.acceleration_data, color=colors['raw'], label='Raw Data')
-        handles = [pr[0]]
-        title = 'Raw Data'
-        ax.legend(handles=handles, title=title)
-
-def main():
-    print('yup')
-    viz = GSEViz()
-    viz.plot_motion_data(ltmm_data)
-    print('uh huh')
-
-if __name__ == '__main__':
-    main()

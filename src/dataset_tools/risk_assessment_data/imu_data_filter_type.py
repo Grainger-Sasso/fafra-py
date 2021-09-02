@@ -1,10 +1,10 @@
 from enum import Enum
 
 
-class MetricDataTypes(Enum):
-    EXAMPLE = 'example'
-    USER_DATA = 'user_data'
-    VERTICAL = 'vertical'
+class IMUDataFilterType(Enum):
+    RAW = 'raw'
+    LPF = 'low-pass_filtered'
+    KF = 'kalman_filtered'
 
     def get_name(self):
         # Self is the member here

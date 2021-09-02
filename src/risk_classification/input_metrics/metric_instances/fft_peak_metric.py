@@ -4,7 +4,7 @@ from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.motion_analysis.feature_extraction.frequency_analysis.fast_fourier_transform import FastFourierTransform
+from src.motion_analysis.frequency_analysis.fast_fourier_transform import FastFourierTransform
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 

@@ -1,10 +1,9 @@
 from enum import Enum
+ 
 
-
-class MetricDataTypes(Enum):
+class DatasetNames(Enum):
     EXAMPLE = 'example'
-    USER_DATA = 'user_data'
-    VERTICAL = 'vertical'
+    LTMM = 'ltmm'
 
     def get_name(self):
         # Self is the member here
