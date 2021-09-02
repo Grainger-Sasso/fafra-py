@@ -5,7 +5,7 @@ from src.risk_classification.input_metrics.metric_data_types import MetricDataTy
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 
 
-METRIC_NAME = MetricNames.STANDARD_DEVIATION
+METRIC_NAME = MetricNames.COEFFICIENT_OF_VARIANCE
 METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
 
 
@@ -14,4 +14,4 @@ class Metric(RiskClassificationInputMetric):
         super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
-        return np.std(kwargs['data'])
+        return np.std(kwargs['data']) / np.mean(kwargs['data'])

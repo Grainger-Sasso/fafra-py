@@ -1,18 +1,9 @@
 from enum import Enum
  
 
-class MetricNames(Enum):
+class DatasetNames(Enum):
     EXAMPLE = 'example'
-    AUTOCORRELATION = 'ac'
-    FAST_FOURIER_TRANSFORM = 'fft'
-    MEAN = 'mean'
-    ROOT_MEAN_SQUARE = 'rms'
-    STANDARD_DEVIATION = 'std'
-    SIGNAL_ENERGY = 'se'
-    COEFFICIENT_OF_VARIANCE = 'cov'
-    ZERO_CROSSING = 'zc'
-    SIGNAL_MAGNITUDE_AREA = 'sma'
-    GAIT_SPEED_ESTIMATOR = 'gse'
+    LTMM = 'ltmm'
 
     def get_name(self):
         # Self is the member here
