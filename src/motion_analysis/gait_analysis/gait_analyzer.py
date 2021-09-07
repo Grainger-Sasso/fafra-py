@@ -27,9 +27,9 @@ class GaitAnalyzer:
         :param user_data:
         :return:
         """
-        # TODO: refactor this funciton adn the user_data object to have
-        #  segmented walking bouts, this funciton should assume to have
-        #  walking bouts readily availble
+        # TODO: refactor this function and the user_data object to have
+        #  segmented walking bouts, this function should assume to have
+        #  walking bouts readily available
         # Access data required for gait speed estimation from keyword arguments
         lpf_v_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical

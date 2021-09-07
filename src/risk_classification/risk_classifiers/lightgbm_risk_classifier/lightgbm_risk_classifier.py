@@ -13,6 +13,7 @@ import numpy as np
 import lightgbm as lgb
 import optuna
 
+from src.risk_classification.risk_classifiers.classifier import Classifier
 
 # LightGBM documentation: https://lightgbm.readthedocs.io/
 # Optuna documentation: https://optuna.readthedocs.io/
@@ -20,11 +21,11 @@ import optuna
 # Optuna is a fast, extensive hyperparameter tuning library. Its hyperparameter tuning framework is exponentially faster than naive grid search. Optuna also supports 
 # making plots for analysis of hyperparameters and features, such as a plot of feature importances.
 
-class LightGBMRiskClassifier:
+class LightGBMRiskClassifier(Classifier):
     # Preprocessing (e.g., scaling) will be done using the metrics that Grainger and Dr. Hernandez
     # have developed.
 
-    def __init__(self, params: dict = None, x=np.genfromtxt('x_data_metrics.csv'), y=np.genfromtxt('y_data_metrics.csv')):
+    def __init__(self, params={}):
         """Constructor for LightGBMRiskClassifier.
            
            Args: 
@@ -33,31 +34,27 @@ class LightGBMRiskClassifier:
             params (dict): is a dict of parameters, including hyperparameters, for the LightGBM risk classifier
         
         """
-        if params is None:
-            params = {}
-        self.model = lgb.LGBMClassifier(params)
-        self.current_dataset = x, y
-
-    def get_model(self) -> lgb.LGBMClassifier():
-        return self.model
-
-    def set_model(self, params: dict = None):
-        if params is None:
-            params = {}
-        self.model = lgb.LGBMClassifier(params)
-
-    def get_current_dataset(self, x=np.genfromtxt('x_data_metrics.csv'), y=np.genfromtxt('y_data_metrics.csv')):
-        return x, y
-    
-    def set_current_dataset(self, x, y):
-        self.current_dataset = x, y
+        model = lgb.LGBMClassifier(params)
+        super().__init__(model)
         
+    def train_model(self, x, y):
+        self.model.fit(x, y)
+
+    def make_prediction(self, samples):
+        return self.model.predict(samples)
+
+    def score_model(self, x_test, y_test):
+        return self.model.score(x_test, y_test)
+
+    def cross_validate(self, x, y, folds):
+        return self.cross_validator.cross_val_model(self.model, x, y, folds)
+
     # LOOCV objective function for optuna
     def opt_objective(self, trial):
         # get current dataset and then perform validation split
         x, y = self.current_dataset
         train_x, valid_x, train_y, valid_y = train_test_split(x, y, test_size=0.25)
-
+        train_x, valid_x, train_y, valid_y = self.split_input_metrics(x, y, test_size, random_state)
         # create lgb dataset for lightgbm training
         lgbdata = lgb.Dataset(train_x, label=train_y)
 
@@ -166,15 +163,6 @@ class LightGBMRiskClassifier:
         # get best trial's lightgbm (hyper)parameters and print best trial score
         self.set_model(tuner.best_params)
         print("Best {}-fold CV score was {}".format(k, tuner.best_score))
-
-    def make_prediction(self, samples):
-        return self.model.predict(samples)
-
-    def score_model(self, x_test, y_test):
-        return self.model.score(x_test, y_test)
-
-    def create_classification_report(self, y_test, y_pred):
-        return classification_report(y_test, y_pred)
 
 
 if __name__ == "__main__":
