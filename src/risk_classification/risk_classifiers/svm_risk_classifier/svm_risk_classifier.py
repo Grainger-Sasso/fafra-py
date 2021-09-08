@@ -10,16 +10,16 @@ class SVMRiskClassifier(Classifier):
         model = SVC(kernel=kernel, C=c)
         super().__init__(model)
 
-    def train_model(self, x, y):
+    def train_model(self, x, y, **kwargs):
         self.model.fit(x, y)
 
-    def make_prediction(self, samples):
+    def make_prediction(self, samples, **kwargs):
         return self.model.predict(samples)
 
-    def score_model(self, x_test, y_test):
+    def score_model(self, x_test, y_test, **kwargs):
         return self.model.score(x_test, y_test)
 
-    def cross_validate(self, x, y, folds):
+    def cross_validate(self, x, y, folds=5, **kwargs):
         return self.cross_validator.cross_val_model(self.model, x, y, folds)
 
 def main():
