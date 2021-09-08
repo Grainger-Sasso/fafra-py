@@ -11,5 +11,6 @@ class DataGenerator:
 
     def plot_data(self, x, y):
         plt.scatter(x[:, 0], x[:, 1], c=y, cmap='winter')
+        plt.show()
 
 
