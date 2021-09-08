@@ -17,39 +17,15 @@ from mlxtend.plotting import plot_decision_regions
 from mlxtend.plotting import plot_learning_curves
 from sklearn.decomposition import PCA
 
+from src.risk_classification.risk_classifiers.classifier import Classifier
 
 
-class KNNRiskClassifier:
-    def __init__(self, N=10, w='distance'):
-        self.model: KNN = KNeighborsClassifier(n_neighbors=N, weights=w)
-        self.scaler: StandardScaler = preprocessing.StandardScaler()
-
-    def get_model(self)->'KNN':
-        return self.model
-
-    def get_scaler(self) -> StandardScaler:
-        return self.scaler
-
-    def set_model(self, model: 'KNN'):
-        self.model = model
-
-    def set_scaler(self, scaler: StandardScaler):
-        self.scaler = scaler
+class KNNRiskClassifier(Classifier):
+    def __init__(self, n=10, w='distance'):
+        model = KNeighborsClassifier(n_neighbors=n, weights=w)
+        super().__init__(model)
     
-    def scale_input_data(self, x):
-        self.scaler.fit(x)
-        return self.scaler.transform(x)
-
-    def scale_train_test_data(self, x_train, x_test):
-        # Fit the scaler to the training data
-        self.scaler.fit(x_train)
-        # Transform the training data
-        x_train_t = self.scaler.transform(x_train)
-        # Transform the test data
-        x_test_t = self.scaler.transform(x_test)
-        return x_train_t, x_test_t
-    
-    def fit_model(self, x: np.ndarray, y: np.ndarray):
+    def train_model(self, x: np.ndarray, y: np.ndarray, **kwargs):
         """
         Fits KNN model to input training vectors, x, and target values, y (notation is canonically used)
         :param x: Training vectors
@@ -61,18 +37,15 @@ class KNNRiskClassifier:
         """
         self.model.fit(x, y)
 
-    def split_input_metrics(self, x, y, test_size=0.33, random_state=42):
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state)
-        return x_train, x_test, y_train, y_test
-
-    def make_prediction(self, samples):
+    def make_prediction(self, samples, **kwargs):
         return self.model.predict(samples)
 
-    def score_model(self, x_test, y_test):
+    def score_model(self, x_test, y_test, **kwargs):
         return self.model.score(x_test, y_test)
 
-    def create_classification_report(self, y_test, y_pred):
-        return classification_report(y_test, y_pred)
+    def cross_validate(self, x, y, folds=5, **kwargs):
+        return self.cross_validator.cross_val_model(self.model, x, y, folds)
+
 
 def main():
     classifier = KNNRiskClassifier()

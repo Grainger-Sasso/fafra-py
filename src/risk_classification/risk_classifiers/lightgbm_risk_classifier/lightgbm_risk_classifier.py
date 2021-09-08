@@ -66,10 +66,8 @@ class LightGBMRiskClassifier(Classifier):
     # Train lightgbm risk classifier using k-fold cross-validation with 5 being the default value of k.
     # See lightgbm_tuner_cv.py from https://github.com/optuna/optuna-examples/tree/main/lightgbm to see how I implemented k-fold CV training.
     def cross_validate(self, x, y, folds=5, **kwargs):
+        # TODO: may be able to switch out the portion prior to CV with train model fxn, not sure difference
         optuna.logging.set_verbosity(optuna.logging.ERROR)
-
-        # get current dataset and create a lightgbm-compatible version of it
-        x, y = self.current_dataset()
         lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, label=y)
 
         # Set training parameters for Optuna's LightGBM k-fold CV algorithm.
@@ -82,13 +80,15 @@ class LightGBMRiskClassifier(Classifier):
             "boosting_type": "gbdt",
         }
 
-        # perform k-fold cross-validation (uses 1000 boosting rounds with 100 early stopping rounds)
+        # perform optimal parameter search using k-fold cv
+        # (uses 1000 boosting rounds with 100 early stopping rounds)
         tuner = optuna.integration.lightgbm.LightGBMTunerCV(
             params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
         tuner.run()
-
+        model = lgb.LGBMClassifier(tuner.best_params)
         # get best trial's lightgbm (hyper)parameters and print best trial score
-        self.set_model(tuner.best_params)
+        self.set_model(model)
+        return self.cross_validator.cross_val_model(model, x, y, folds)
         # print("Best {}-fold CV score was {}".format(k, tuner.best_score))
 
     # LOOCV objective function for optuna
@@ -96,9 +96,10 @@ class LightGBMRiskClassifier(Classifier):
         # get current dataset and then perform validation split
         x = self.current_dataset[0]
         y = self.current_dataset[1]
-        train_x, valid_x, train_y, valid_y = self.split_input_metrics(x, y)
+        x_train, x_test, y_train, y_test = self.split_input_metrics(x, y)
+        x_train_t, x_test_t = self.scale_train_test_data(x_train, x_test)
         # create lgb dataset for lightgbm training
-        lgbdata = lgb.Dataset(train_x, label=train_y)
+        lgbdata = lgb.Dataset(x_train_t, label=y_train)
 
         # https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
         # Set parameter search spaces for optuna to conduct hyperparameter optimization for max validation accuracy.
@@ -164,9 +165,9 @@ class LightGBMRiskClassifier(Classifier):
         }
 
         my_lgbm = lgb.train(params, lgbdata)
-        raw_predictions = my_lgbm.predict(valid_x)
+        raw_predictions = my_lgbm.predict(x_test_t)
         predictions = np.rint(raw_predictions)
-        accuracy = accuracy_score(valid_y, predictions)
+        accuracy = accuracy_score(y_test, predictions)
         return accuracy
 
 

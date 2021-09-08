@@ -44,6 +44,15 @@ class Classifier(ABC):
         x_test_t = self.scaler.transform(x_test)
         return x_train_t, x_test_t
 
+    def scale_train_test_data(self, x_train, x_test):
+        # Fit the scaler to the training data
+        self.scaler.fit(x_train)
+        # Transform the training data
+        x_train_t = self.scaler.transform(x_train)
+        # Transform the test data
+        x_test_t = self.scaler.transform(x_test)
+        return x_train_t, x_test_t
+
     def create_classification_report(self, y_test, y_pred):
         return classification_report(y_test, y_pred)
 

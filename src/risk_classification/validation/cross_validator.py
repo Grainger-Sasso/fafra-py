@@ -11,4 +11,3 @@ class CrossValidator:
 
         cv_results = cross_validate(model, x, y, cv=cv, return_estimator=False)
         return cv_results
-
