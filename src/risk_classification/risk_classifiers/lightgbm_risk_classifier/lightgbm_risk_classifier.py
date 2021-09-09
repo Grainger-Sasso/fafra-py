@@ -7,6 +7,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import mean_squared_error
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
@@ -45,12 +46,14 @@ class LightGBMRiskClassifier(Classifier):
         optuna.logging.set_verbosity(optuna.logging.ERROR)
 
         # train lightgbm
-        study = optuna.create_study(direction="maximize")
-        study.optimize(self.opt_objective, n_trials=1000)
+        study = optuna.create_study(direction="minimize")
+        study.optimize(self.opt_objective, n_trials=500)
+        optuna.visualization.plot_optimization_history(study)
 
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
-        model = lgb.LGBMClassifier(trial.params)
+        lgbdata = lgb.Dataset(x, label=y)
+        model = lgb.train(trial.params, lgbdata)
         self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
 
@@ -83,9 +86,17 @@ class LightGBMRiskClassifier(Classifier):
         # perform optimal parameter search using k-fold cv
         # (uses 1000 boosting rounds with 100 early stopping rounds)
         tuner = optuna.integration.lightgbm.LightGBMTunerCV(
-            params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=k))
+            params, lgb_dataset_for_kfold_cv, early_stopping_rounds=100, folds=KFold(n_splits=folds))
         tuner.run()
-        model = lgb.LGBMClassifier(tuner.best_params)
+        lgbdata = lgb.Dataset(x, label=y)
+        model = lgb.LGBMClassifier(objective=tuner.best_params['objective'],
+                    eval_metric=tuner.best_params['metric'],
+                    reg_alpha=tuner.best_params['lambda_l1'],
+                    reg_lambda=tuner.best_params['lambda_l2'],
+                    feature_fraction=tuner.best_params['feature_fraction'],
+                    bagging_fraction=tuner.best_params['bagging_fraction'],
+                    bagging_freq=tuner.best_params['bagging_freq'],
+                    min_child_samples=tuner.best_params['min_child_samples'])
         # get best trial's lightgbm (hyper)parameters and print best trial score
         self.set_model(model)
         return self.cross_validator.cross_val_model(model, x, y, folds)
@@ -93,13 +104,14 @@ class LightGBMRiskClassifier(Classifier):
 
     # LOOCV objective function for optuna
     def opt_objective(self, trial):
+        # TODO: implement RMS as the objective function, set to minimize in study above
         # get current dataset and then perform validation split
         x = self.current_dataset[0]
         y = self.current_dataset[1]
         x_train, x_test, y_train, y_test = self.split_input_metrics(x, y)
-        x_train_t, x_test_t = self.scale_train_test_data(x_train, x_test)
+        # x_train_t, x_test_t = self.scale_train_test_data(x_train, x_test)
         # create lgb dataset for lightgbm training
-        lgbdata = lgb.Dataset(x_train_t, label=y_train)
+        lgbdata = lgb.Dataset(x_train, label=y_train)
 
         # https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
         # Set parameter search spaces for optuna to conduct hyperparameter optimization for max validation accuracy.
@@ -163,13 +175,23 @@ class LightGBMRiskClassifier(Classifier):
             "min_child_samples": trial.suggest_int("min_child_samples", 3,
                                                    100),
         }
-
         my_lgbm = lgb.train(params, lgbdata)
-        raw_predictions = my_lgbm.predict(x_test_t)
+        raw_predictions = my_lgbm.predict(x_test)
         predictions = np.rint(raw_predictions)
-        accuracy = accuracy_score(y_test, predictions)
-        return accuracy
+        rmse = mean_squared_error(y_test, predictions) ** 0.5
+        return rmse
 
+
+class Objective:
+    def __init__(self, x, y):
+        # Hold this implementation specific arguments as the fields of the class.
+        self.min_x = min_x
+        self.max_x = max_x
+
+    def __call__(self, trial):
+        # Calculate an objective value by using the extra arguments.
+        x = trial.suggest_float("x", self.min_x, self.max_x)
+        return (x - 2) ** 2
 
 if __name__ == "__main__":
     lgbm_risk_classifier = LightGBMRiskClassifier()

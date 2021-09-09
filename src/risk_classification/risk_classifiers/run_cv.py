@@ -17,17 +17,21 @@ def main():
     dg = DataGenerator()
     cv = ClassificationVisualizer()
     x, y = dg.generate_data()
-    x_train, x_test, y_train, y_test = classifier.split_input_metrics(x, y)
     # cv.plot_data(x, y)
-    # Run the classifier with 5-fold cross validation
-    # classifier_results = classifier.cross_validate(x, y)
-    # print(classifier_results)
-    # print(f'CV runtime: {time.time() - start}')
-    # Fit the model for plotting
-    classifier.train_model(x_train, y_train)
-    print(classifier.score_model(x_test, y_test))
-    cv.plot_classification(classifier.get_model(), x, y)
+    x_t = classifier.scale_input_data(x)
+    print(train_score(classifier, x_t, y))
+    print(cross_validate(classifier, x_t, y))
 
+    # cv.plot_classification(classifier.get_model(), x_t, y)
+    print(f'Runtime: {time.time() - start}')
+
+def train_score(model, x, y):
+    x_train, x_test, y_train, y_test = model.split_input_metrics(x, y)
+    model.train_model(x_train, y_train)
+    return model.score_model(x_test, y_test)
+
+def cross_validate(model, x, y):
+    return model.cross_validate(x, y)
 
 if __name__ == '__main__':
     main()

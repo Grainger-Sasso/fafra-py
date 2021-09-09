@@ -11,8 +11,8 @@ class SVMRiskClassifier(Classifier):
         super().__init__(model)
 
     def train_model(self, x, y, **kwargs):
-        x_scaled = self.scale_input_data(x)
-        self.model.fit(x_scaled, y)
+        # x_scaled = self.scale_input_data(x)
+        self.model.fit(x, y)
 
     def make_prediction(self, samples, **kwargs):
         return self.model.predict(samples)
