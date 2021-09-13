@@ -50,6 +50,8 @@ class FallRiskAssessment:
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)
+        print(self.rc.cross_validate(x, y))
+        print('****####****####****####****####****####****####****####****####****')
         # Fit model to training data
         self.rc.train_model(x_train, y_train)
         # Make predictions on the test data
@@ -257,7 +259,7 @@ def main():
                      'dataset_path': ltmm_dataset_path,
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
-                     'epoch_size': 10.0}]
+                     'epoch_size': 8.0}]
     fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     print(fra.perform_risk_assessment(dataset_info, input_metric_names))
 
