@@ -21,6 +21,14 @@ class MetricGenerator:
         self.peak_detector = PeakDetector()
         self.motion_filters = MotionFilters()
 
+    def write_metrics_csv(self, metrics, faller_status_labels, path, filename):
+        x_filename = filename + '_x_metrics.csv'
+        y_filename = filename + '_y_labels.csv'
+        x_full_path = os.path.join(path, x_filename)
+        y_full_path = os.path.join(path, y_filename)
+        np.savetxt(x_full_path, metrics, delimiter=",")
+        np.savetxt(y_full_path, faller_status_labels, delimiter=",")
+
     def generate_metrics(self, dataset: List[UserData], input_metric_names: Tuple[MetricNames]):
         # Check metric names input by user are all members of metric names enum
         self._check_metric_names_valid(input_metric_names)

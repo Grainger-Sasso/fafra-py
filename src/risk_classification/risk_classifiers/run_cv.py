@@ -13,6 +13,7 @@ def main():
     # classifier = KNNRiskClassifier()
     # classifier = LightGBMRiskClassifier({})
 
+
     # Read in data/generate data with random seed set
     dg = DataGenerator()
     cv = ClassificationVisualizer()
@@ -20,7 +21,9 @@ def main():
     # cv.plot_data(x, y)
     x_t = classifier.scale_input_data(x)
     print(train_score(classifier, x_t, y))
-    print(cross_validate(classifier, x_t, y))
+    # print(cross_validate(classifier, x_t, y))
+
+    cv.plot_classification(classifier.get_model(), x_t, y)
 
     # cv.plot_classification(classifier.get_model(), x_t, y)
     print(f'Runtime: {time.time() - start}')
