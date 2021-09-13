@@ -13,7 +13,7 @@ class Metric(RiskClassificationInputMetric):
         super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
-        return self._find_zero_crossing(kwargs['data'], kwargs['enable_mean_crossing'])
+        return self._find_zero_crossing(kwargs['data'])
     
     def _find_zero_crossing(self, data, enable_mean_crossing=True):
         """
@@ -27,10 +27,7 @@ class Metric(RiskClassificationInputMetric):
         if real_len < 1:
             raise ValueError('Too few data for zero-crossing metric')
         sampling_frequency=1/len(data_array)
-
-        # switch to mean crossing calculation
-        if enable_mean_crossing:
-            data_array = data_array-np.mean(data_array)
+        data_array = data_array-np.mean(data_array)
         # calculte if there is zero crossing by multiply nearby elements
         result = data_array[1:len(data_array)]*data_array[0:real_len]
         # count zero crossing frequency

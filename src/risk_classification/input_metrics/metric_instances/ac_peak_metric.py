@@ -31,11 +31,11 @@ class Metric(RiskClassificationInputMetric):
         x_ac, y_ac = ac.autocorrelate(data)
         # Get the ac data for the physiologically relevant freqs
         # x_ac, y_ac = self._get_data_range(x_ac, y_ac)
-        # Apply smoothing to fft data
-        x_ac = motion_filters.apply_lpass_filter(x_ac, sampling_frequency)
-        y_ac = motion_filters.apply_lpass_filter(y_ac, sampling_frequency)
+        # Apply smoothing to ac data
+        y_ac_f = motion_filters.apply_lpass_filter(y_ac, 2, sampling_frequency,
+                                                   'high')
         # Find largest x and y fft peaks
-        largest_ac_peak = self._find_largest_peak(x_ac, y_ac)
+        largest_ac_peak = self._find_largest_peak(x_ac, y_ac_f)
         return largest_ac_peak
 
     def _find_largest_peak(self, x, y):
@@ -46,7 +46,7 @@ class Metric(RiskClassificationInputMetric):
             max_peak_ix = peak_detector.get_largest_peak_ix(y, peak_ixs)
         else:
             max_peak_ix = np.argmax(y, axis=0)
-        max_peak_x_value = x[max_peak_ix]
+        max_peak_x_value = int(x[max_peak_ix])
         max_peak_y_value = y[max_peak_ix]
         return [max_peak_x_value, max_peak_y_value]
         # return [random.uniform(0.0, 1.0), random.uniform(0.0, 1.0)]

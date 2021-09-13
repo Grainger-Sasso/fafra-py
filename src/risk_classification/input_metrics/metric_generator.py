@@ -20,6 +20,7 @@ class MetricGenerator:
         self.fft = FastFourierTransform()
         self.peak_detector = PeakDetector()
         self.motion_filters = MotionFilters()
+        self.metric_modules = []
 
     def write_metrics_csv(self, metrics, faller_status_labels, path, filename):
         x_filename = filename + '_x_metrics.csv'
@@ -35,10 +36,12 @@ class MetricGenerator:
         # Initialize intermediate variable for dataset risk classification metrics
         faller_status = []
         dataset_metrics = []
+        # Import metric modules
+        self._import_metric_modules(input_metric_names)
         # Derive metrics for all dataset
         for user_data in dataset:
             faller_status.append(int(user_data.get_clinical_demo_data().get_faller_status()))
-            dataset_metrics.append(self._derive_metrics(user_data, input_metric_names))
+            dataset_metrics.append(self._derive_metrics(user_data))
         return list(dataset_metrics), list(faller_status)
 
     def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
@@ -46,16 +49,19 @@ class MetricGenerator:
         if invalid_metrics:
             raise ValueError(f'The following metrics are not valid metrics: {[met.get_name() for met in invalid_metrics]}')
 
-    def _derive_metrics(self, user_data: UserData, metric_names: Tuple[MetricNames]):
-        # Initialize the output
-        risk_metrics = []
-        sampling_frequency = user_data.get_imu_metadata().get_sampling_frequency()
+    def _import_metric_modules(self, metric_names):
         # Instantiate metric modules for all metric module paths
         metric_modules = [importlib.import_module(module_path).Metric() for
                           module_path in self._generate_metric_module_paths()]
         # Retain only the metric modules selected by metric names
-        select_metric_modules = [mod for mod in metric_modules if mod.get_metric_name() in metric_names]
-        for mod in select_metric_modules:
+        self.metric_modules = [mod for mod in metric_modules if
+                               mod.get_metric_name() in metric_names]
+
+    def _derive_metrics(self, user_data: UserData):
+        # Initialize the output
+        risk_metrics = []
+        sampling_frequency = user_data.get_imu_metadata().get_sampling_frequency()
+        for mod in self.metric_modules:
             # Todo: add a better way to add in kwargs to this method
             data_type = mod.get_data_type()
             self._check_metric_data_type(data_type)

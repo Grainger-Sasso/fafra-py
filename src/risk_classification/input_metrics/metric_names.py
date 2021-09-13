@@ -23,6 +23,10 @@ class MetricNames(Enum):
         return self.value
 
     @classmethod
+    def get_all_enum_entries(cls):
+        return [metric_name for metric_name in cls]
+
+    @classmethod
     def get_all_names(cls):
         return [metric_name.name for metric_name in cls]
 

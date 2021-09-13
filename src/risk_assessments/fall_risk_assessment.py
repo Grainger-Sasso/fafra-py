@@ -6,6 +6,7 @@ import importlib
 import random
 from typing import Tuple, Dict, List, Any
 from definitions import ROOT_DIR
+from sklearn.preprocessing import StandardScaler
 
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
@@ -17,6 +18,9 @@ from src.visualization_tools.classification_visualizer import ClassificationVisu
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
+from src.risk_classification.risk_classifiers.classifier import Classifier
+from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+
 
 
 class FallRiskAssessment:
@@ -24,11 +28,12 @@ class FallRiskAssessment:
         # Required input parameters
         self.dataset_builders: Dict[str: DatasetBuilder] = {}
         self.datasets: Dict[DatasetNames: Dataset] = {}
-        self.rc = risk_classifier
+        self.rc: Classifier = risk_classifier
         self.filter = MotionFilters()
         self.rc_viz = ClassificationVisualizer()
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
+        self.scaler: StandardScaler = StandardScaler()
 
     def perform_risk_assessment(self, dataset_info: List[Dict[str, Any]],
                                 input_metric_names: Tuple[MetricNames]):
@@ -40,11 +45,13 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         x, y = self.generate_risk_metrics(input_metric_names)
+        path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\test_data\2021_09_13'
+        self.mg.write_metrics_csv(x, y, path, '2021_09_13')
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)
         # Fit model to training data
-        self.rc.fit_model(x_train, y_train)
+        self.rc.train_model(x_train, y_train)
         # Make predictions on the test data
         y_predictions = self.rc.make_prediction(x_test)
         # Compare predictions to test
@@ -147,8 +154,7 @@ class FallRiskAssessment:
                 [x - ap_acc_data.mean() for x in ap_acc_data])
             imu_data.ap_acc_data = ap_acc_data
 
-
-    def generate_risk_metrics(self, input_metric_names, scale_data=True):
+    def generate_risk_metrics(self, input_metric_names, scale_metrics=True):
         # Separate datasets into fallers and nonfallers
         faller_dataset = []
         non_fallers_dataset = []
@@ -168,7 +174,7 @@ class FallRiskAssessment:
         # Transform the train and test input metrics
         x = faller_metrics + non_faller_metrics
         y = faller_status + non_faller_status
-        if scale_data:
+        if scale_metrics:
             x = self.rc.scale_input_data(x)
         return x, y
 
@@ -237,13 +243,22 @@ def main():
     ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
-    input_metric_names = tuple([MetricNames.GAIT_SPEED_ESTIMATOR])
+    input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+                                MetricNames.FAST_FOURIER_TRANSFORM,
+                                MetricNames.MEAN,
+                                MetricNames.ROOT_MEAN_SQUARE,
+                                MetricNames.STANDARD_DEVIATION,
+                                MetricNames.SIGNAL_ENERGY,
+                                MetricNames.COEFFICIENT_OF_VARIANCE,
+                                MetricNames.ZERO_CROSSING,
+                                MetricNames.SIGNAL_MAGNITUDE_AREA,
+                                MetricNames.GAIT_SPEED_ESTIMATOR])
     dataset_info = [{'dataset_name': DatasetNames.LTMM,
                      'dataset_path': ltmm_dataset_path,
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
                      'epoch_size': 10.0}]
-    fra = FallRiskAssessment('')
+    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     print(fra.perform_risk_assessment(dataset_info, input_metric_names))
 
 

@@ -46,9 +46,8 @@ class GaitAnalyzer:
         total_distance = step_lengths.sum()
         total_time = len(v_displacement)/samp_freq
         gait_speed = (total_distance/total_time)
-        print(gait_speed)
-        self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
-                                      ap_peak_indexes, v_displacement)
+        # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
+        #                               ap_peak_indexes, v_displacement)
         return gait_speed
 
     def _detect_peaks(self, acc_data):

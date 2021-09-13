@@ -26,10 +26,11 @@ class Metric(RiskClassificationInputMetric):
         # Get the fft data for the physiologically relevant freqs
         # x_fft, y_fft = self._get_data_range(x_fft, y_fft)
         # Apply smoothing to fft data
-        x_fft = motion_filters.apply_lpass_filter(x_fft, sampling_frequency)
-        y_fft = motion_filters.apply_lpass_filter(y_fft, sampling_frequency)
+        # x_fft = motion_filters.apply_lpass_filter(x_fft, sampling_frequency)
+        y_fft_f = motion_filters.apply_lpass_filter(y_fft, 15,
+                                                    sampling_frequency)
         # Find largest x and y fft peaks
-        largest_fft_peak = self._find_largest_peak(x_fft, y_fft)
+        largest_fft_peak = self._find_largest_peak(x_fft, y_fft_f)
         return largest_fft_peak
 
     def _find_largest_peak(self, x, y):
