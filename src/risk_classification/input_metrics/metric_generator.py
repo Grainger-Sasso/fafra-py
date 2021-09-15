@@ -22,6 +22,9 @@ class MetricGenerator:
         self.motion_filters = MotionFilters()
         self.metric_modules = []
 
+    def get_metric_modules(self):
+        return self.metric_modules
+
     def write_metrics_csv(self, metrics, faller_status_labels, path, filename):
         x_filename = filename + '_x_metrics.csv'
         y_filename = filename + '_y_labels.csv'

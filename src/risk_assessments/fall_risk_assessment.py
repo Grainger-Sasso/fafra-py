@@ -18,6 +18,7 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.validation.cross_validator import CrossValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
+from src.visualization_tools.metric_viz import MetricViz
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
@@ -33,6 +34,7 @@ class FallRiskAssessment:
         self.rc: Classifier = risk_classifier
         self.filter = MotionFilters()
         self.rc_viz = ClassificationVisualizer()
+        self.m_viz = MetricViz()
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
         self.scaler: StandardScaler = StandardScaler()
@@ -48,8 +50,9 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         x, y = self.generate_risk_metrics(input_metric_names)
-        # path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\test_data\2021_09_13'
-        # self.mg.write_metrics_csv(x, y, path, '2021_09_13')
+        metric_name = [mod.get_metric_name() for
+                       mod in self.mg.get_metric_modules()]
+        self.m_viz.boxplot_metrics(x, y, metric_names)
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
