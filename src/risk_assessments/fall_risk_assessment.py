@@ -50,7 +50,7 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         x, y = self.generate_risk_metrics(input_metric_names)
-        metric_name = [mod.get_metric_name() for
+        metric_names = [mod.get_metric_name() for
                        mod in self.mg.get_metric_modules()]
         self.m_viz.boxplot_metrics(x, y, metric_names)
         # Classify users into fall risk categories
@@ -66,8 +66,7 @@ class FallRiskAssessment:
         if output_path:
             self._write_results(output_path, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
-        # Compare predictions to test
-        return
+        print(cv_results)
 
     def _build_datasets(self, dataset_info):
         # Read in all builder modules
@@ -168,24 +167,11 @@ class FallRiskAssessment:
 
     def generate_risk_metrics(self, input_metric_names, scale_metrics=True):
         # Separate datasets into fallers and nonfallers
-        faller_dataset = []
-        non_fallers_dataset = []
+        user_data = []
         for name, dataset in self.datasets.items():
-            faller_dataset.append(dataset.get_data_by_faller_status(True))
-            non_fallers_dataset.append(dataset.get_data_by_faller_status(False))
-        # Flatten the list of datasets
-        faller_dataset = [user_data for data in faller_dataset for user_data in
-                          data]
-        non_fallers_dataset = [user_data for data in non_fallers_dataset for user_data in
-                          data]
+            user_data.extend(dataset.get_dataset())
         # Generate metrics
-        faller_metrics, faller_status = self.mg.generate_metrics(faller_dataset,
-                                                                 input_metric_names)
-        non_faller_metrics, non_faller_status = self.mg.generate_metrics(non_fallers_dataset,
-                                                                         input_metric_names)
-        # Transform the train and test input metrics
-        x = faller_metrics + non_faller_metrics
-        y = faller_status + non_faller_status
+        x, y = self.mg.generate_metrics(user_data, input_metric_names)
         if scale_metrics:
             x = self.rc.scale_input_data(x)
         return x, y
