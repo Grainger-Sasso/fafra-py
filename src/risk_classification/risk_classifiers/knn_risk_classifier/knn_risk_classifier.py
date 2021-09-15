@@ -23,7 +23,8 @@ from src.risk_classification.risk_classifiers.classifier import Classifier
 class KNNRiskClassifier(Classifier):
     def __init__(self, n=10, w='distance'):
         model = KNeighborsClassifier(n_neighbors=n, weights=w)
-        super().__init__(model)
+        super().__init__('KNN', model)
+        self.params = {'n_neighbors': 10, 'weights': 'distance'}
     
     def train_model(self, x: np.ndarray, y: np.ndarray, **kwargs):
         """

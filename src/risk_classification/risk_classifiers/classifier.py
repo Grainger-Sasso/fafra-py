@@ -7,10 +7,18 @@ from src.risk_classification.validation.cross_validator import CrossValidator
 
 
 class Classifier(ABC):
-    def __init__(self, model):
+    def __init__(self, name, model):
+        self.name = name
         self.model = model
         self.scaler: StandardScaler = StandardScaler()
         self.cross_validator = CrossValidator()
+        self.params = {}
+
+    def get_params(self):
+        return self.params
+
+    def get_name(self):
+        return self.name
 
     def get_model(self):
         return self.model
@@ -54,7 +62,7 @@ class Classifier(ABC):
         return x_train_t, x_test_t
 
     def create_classification_report(self, y_test, y_pred):
-        return classification_report(y_test, y_pred)
+        return classification_report(y_test, y_pred, output_dict=True)
 
     @abstractmethod
     def train_model(self, x, y, **kwargs):

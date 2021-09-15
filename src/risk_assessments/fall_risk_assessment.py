@@ -4,6 +4,7 @@ import os
 import glob
 import importlib
 import random
+import json
 from typing import Tuple, Dict, List, Any
 from definitions import ROOT_DIR
 from sklearn.preprocessing import StandardScaler
@@ -37,7 +38,8 @@ class FallRiskAssessment:
         self.scaler: StandardScaler = StandardScaler()
 
     def perform_risk_assessment(self, dataset_info: List[Dict[str, Any]],
-                                input_metric_names: Tuple[MetricNames]):
+                                input_metric_names: Tuple[MetricNames],
+                                output_path=None):
         # input_metrics
         # Build datasets from given names
         self._build_datasets(dataset_info)
@@ -50,15 +52,19 @@ class FallRiskAssessment:
         # self.mg.write_metrics_csv(x, y, path, '2021_09_13')
         # Classify users into fall risk categories
         # Split input data into test and train groups
-        x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)
-        print(self.rc.cross_validate(x, y))
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
+        cv_results = self.rc.cross_validate(x, y)
         print('****####****####****####****####****####****####****####****####****')
         # Fit model to training data
         self.rc.train_model(x_train, y_train)
         # Make predictions on the test data
         y_predictions = self.rc.make_prediction(x_test)
-        # Compare predictions to test
-        return self.rc.create_classification_report(y_test, y_predictions)
+        y_predictions = [int(i) for i in y_predictions]
+        class_report = self.rc.create_classification_report(y_test, y_predictions)
+        if output_path:
+            self._write_results(output_path, x_train, x_test, y_train, y_test,
+                       y_predictions, cv_results, class_report)
+        return
 
     def _build_datasets(self, dataset_info):
         # Read in all builder modules
@@ -187,7 +193,7 @@ class FallRiskAssessment:
         # Generate risk metrics
         x, y = self.generate_risk_metrics()
         # Split input data into test and train groups
-        x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
         # Fit model to training data
         self.rc.fit_model(x_train, y_train)
         # Make predictions on the test data
@@ -232,10 +238,6 @@ class FallRiskAssessment:
                               dtype=int)
         return sum(comparison)/len(comparison)
 
-    def _generate_test_train_groups(self, x, y):
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
-        return x_train, x_test, y_train, y_test
-
 
 def main():
     # dataset_info: [{dataset_name: DatasetName, dataset_path: path, clin: clin_path, segment_data: bool, epoch: float, mod: MOD}]
@@ -246,6 +248,7 @@ def main():
     ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
+    output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\output_dir'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -262,7 +265,7 @@ def main():
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
     fra = FallRiskAssessment(LightGBMRiskClassifier({}))
-    print(fra.perform_risk_assessment(dataset_info, input_metric_names))
+    print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
 
 
     # cv_results = ltmm_ra.cross_validate_model()

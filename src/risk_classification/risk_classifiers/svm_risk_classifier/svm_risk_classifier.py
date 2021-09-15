@@ -8,7 +8,8 @@ from src.risk_classification.risk_classifiers.classifier import Classifier
 class SVMRiskClassifier(Classifier):
     def __init__(self, kernel='linear', c=1E10):
         model = SVC(kernel=kernel, C=c)
-        super().__init__(model)
+        super().__init__('SVM', model)
+        self.params = {'kernel': 'linear', 'C': 1E10}
 
     def train_model(self, x, y, **kwargs):
         # x_scaled = self.scale_input_data(x)

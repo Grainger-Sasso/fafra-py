@@ -37,7 +37,7 @@ class LightGBMRiskClassifier(Classifier):
         
         """
         model = lgb.LGBMClassifier(params)
-        super().__init__(model)
+        super().__init__('LightGBM', model)
         self.current_dataset = None
 
     # train lightgbm risk classifier using 33% holdout cross-validation
@@ -53,6 +53,7 @@ class LightGBMRiskClassifier(Classifier):
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
         lgbdata = lgb.Dataset(x, label=y)
+        self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
         self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
