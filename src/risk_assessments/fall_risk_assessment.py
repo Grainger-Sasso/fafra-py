@@ -46,14 +46,8 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         x, y = self.generate_risk_metrics(input_metric_names)
-        path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\test_data\2021_09_13'
-        means = []
-        stds = []
-        data = [i for i in x.T]
-        fig7, ax7 = plt.subplots()
-        ax7.boxplot(data)
-        plt.show()
-        self.mg.write_metrics_csv(x, y, path, '2021_09_13')
+        # path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\test_data\2021_09_13'
+        # self.mg.write_metrics_csv(x, y, path, '2021_09_13')
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self._generate_test_train_groups(x, y)

@@ -1,5 +1,6 @@
 import numpy as np
 
+
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
@@ -79,7 +80,8 @@ class GaitAnalyzer:
             # Formula for step length derived from inverted pendulum model
             step_length = 1.25 * 2 * (((2 * leg_length - h) * h) ** 0.5)
             # Apply correction for mediolateral component of step length
-            step_length = ((step_length ** 2) - ((0.094*leg_length) ** 2)) ** 0.5
+            if ((step_length ** 2) > ((0.094*leg_length) ** 2)):
+                step_length = ((step_length ** 2) - ((0.094*leg_length) ** 2)) ** 0.5
             step_lengths.append(step_length)
         return np.array(step_lengths), v_displacement
 
