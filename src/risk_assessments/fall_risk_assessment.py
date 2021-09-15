@@ -49,10 +49,9 @@ class FallRiskAssessment:
         self._preprocess_data()
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
-        x, y = self.generate_risk_metrics(input_metric_names)
-        metric_names = [mod.get_metric_name() for
-                       mod in self.mg.get_metric_modules()]
-        self.m_viz.boxplot_metrics(x, y, metric_names)
+        x, y, metric_names = self.generate_risk_metrics(input_metric_names)
+
+        self.m_viz.violin_plot_metrics(x, y, metric_names)
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
@@ -171,10 +170,10 @@ class FallRiskAssessment:
         for name, dataset in self.datasets.items():
             user_data.extend(dataset.get_dataset())
         # Generate metrics
-        x, y = self.mg.generate_metrics(user_data, input_metric_names)
+        x, y, metric_names = self.mg.generate_metrics(user_data, input_metric_names)
         if scale_metrics:
             x = self.rc.scale_input_data(x)
-        return x, y
+        return x, y, metric_names
 
     def assess_model_accuracy(self):
         # Preprocess the data
@@ -315,7 +314,7 @@ def main():
 
     ft = time.time() - st
     print('##############################################################')
-    print(ft)
+    print('Runtime: ' + str(ft))
     print('##############################################################')
 
 

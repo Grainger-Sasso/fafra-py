@@ -45,7 +45,9 @@ class MetricGenerator:
         for user_data in dataset:
             faller_status.append(int(user_data.get_clinical_demo_data().get_faller_status()))
             dataset_metrics.append(self._derive_metrics(user_data))
-        return list(dataset_metrics), list(faller_status)
+        metric_names = [mod.get_metric_name() for
+                        mod in self.get_metric_modules()]
+        return list(dataset_metrics), list(faller_status), metric_names
 
     def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
         invalid_metrics = [met for met in metric_names if met not in MetricNames]
