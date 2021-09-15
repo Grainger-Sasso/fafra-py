@@ -54,7 +54,6 @@ class FallRiskAssessment:
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
         cv_results = self.rc.cross_validate(x, y)
-        print('****####****####****####****####****####****####****####****####****')
         # Fit model to training data
         self.rc.train_model(x_train, y_train)
         # Make predictions on the test data
@@ -64,6 +63,7 @@ class FallRiskAssessment:
         if output_path:
             self._write_results(output_path, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
+        # Compare predictions to test
         return
 
     def _build_datasets(self, dataset_info):
@@ -237,6 +237,59 @@ class FallRiskAssessment:
         comparison = np.array(np.array(y_predition) == np.array(y_predition),
                               dtype=int)
         return sum(comparison)/len(comparison)
+
+    def _write_results(self, output_path, x_train, x_test, y_train, y_test,
+                       y_predictions, cv_results, class_report):
+        # Create results_dir folder with date, time, uuid
+        timestr = time.strftime("%Y%m%d-%H%M%S")
+        model_name = self.rc.get_name()
+        results_dir = 'results_' + model_name + '_' + timestr
+        results_path = os.path.join(output_path, results_dir)
+        if not os.path.exists(results_path):
+            os.makedirs(results_path)
+        # Format inputs to write to file
+        input_metrics_labels = {
+            'metrics':
+                [
+                    {'metric': 'x_train',
+                     'value': x_train.tolist()
+                     },
+                    {'metric': 'x_test',
+                     'value': x_test.tolist()
+                     }
+                ],
+            'labels':
+                [
+                    {'label': 'y_train',
+                     'value': y_train
+                     },
+                    {'label': 'y_test',
+                     'value': y_test
+                     }
+                ]
+        }
+        ml_filename = os.path.join(results_path, 'input_metrics_labels.json')
+        # Format model params to write to file
+        params = self.rc.get_params()
+        params['model_name'] = model_name
+        params_filename = os.path.join(results_path, 'model_params.json')
+        # Format results to write to file
+        cv_results['fit_time'] = cv_results['fit_time'].tolist()
+        cv_results['score_time'] = cv_results['score_time'].tolist()
+        cv_results['test_score'] = cv_results['test_score'].tolist()
+        results = {
+            'predictions': y_predictions,
+            'cv_results': cv_results,
+            'classification_report': class_report
+        }
+        results_filename = os.path.join(results_path, 'results.json')
+        # Write outputs to JSON file
+        with open(ml_filename, 'w') as mlf:
+            json.dump(input_metrics_labels, mlf)
+        with open(params_filename, 'w') as pf:
+            json.dump(params, pf)
+        with open(results_filename, 'w') as rf:
+            json.dump(results, rf)
 
 
 def main():
