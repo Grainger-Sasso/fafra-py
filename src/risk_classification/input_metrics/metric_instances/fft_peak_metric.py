@@ -43,7 +43,7 @@ class Metric(RiskClassificationInputMetric):
             max_peak_ix = np.argmax(y, axis=0)
         max_peak_x_value = x[max_peak_ix]
         max_peak_y_value = y[max_peak_ix]
-        return [max_peak_x_value, max_peak_y_value]
+        return max_peak_x_value
 
     def _get_data_range(self, x, y, lower_bd=1.0, upper_bd=3.0):
         """

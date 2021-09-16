@@ -5,6 +5,7 @@ class MetricDataTypes(Enum):
     EXAMPLE = 'example'
     USER_DATA = 'user_data'
     VERTICAL = 'vertical'
+    RESULTANT = 'resultant'
 
     def get_name(self):
         # Self is the member here

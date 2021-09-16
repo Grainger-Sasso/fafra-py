@@ -11,6 +11,7 @@ from src.motion_analysis.frequency_analysis.fast_fourier_transform import FastFo
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
+from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
@@ -37,17 +38,22 @@ class MetricGenerator:
         # Check metric names input by user are all members of metric names enum
         self._check_metric_names_valid(input_metric_names)
         # Initialize intermediate variable for dataset risk classification metrics
-        faller_status = []
-        dataset_metrics = []
+        all_faller_status = []
+        all_dataset_metrics = {}
         # Import metric modules
         self._import_metric_modules(input_metric_names)
         # Derive metrics for all dataset
-        for user_data in dataset:
-            faller_status.append(int(user_data.get_clinical_demo_data().get_faller_status()))
-            dataset_metrics.append(self._derive_metrics(user_data))
-        metric_names = [mod.get_metric_name() for
-                        mod in self.get_metric_modules()]
-        return list(dataset_metrics), list(faller_status), metric_names
+        for mod in self.metric_modules:
+            metric_name = mod.get_metric_name()
+            dataset_metrics, faller_status = self._derive_metrics(mod, dataset)
+            all_dataset_metrics[metric_name] = dataset_metrics
+            all_faller_status.append(faller_status)
+        # CHECK ALL ELEMENTS OF FALLER STATUS ARE SAME, TAKE FIRST VALUE
+        faller_status = all_faller_status[0]
+        for status in all_faller_status[1:]:
+            if faller_status != status:
+                raise ValueError('Faller status not equal')
+        return all_dataset_metrics, faller_status
 
     def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
         invalid_metrics = [met for met in metric_names if met not in MetricNames]
@@ -62,29 +68,46 @@ class MetricGenerator:
         self.metric_modules = [mod for mod in metric_modules if
                                mod.get_metric_name() in metric_names]
 
-    def _derive_metrics(self, user_data: UserData):
+    def _get_faller_status(self, dataset):
+        faller_status = []
+        for user_data in dataset:
+            faller_status.append(
+                int(user_data.get_clinical_demo_data().get_faller_status()))
+        return faller_status
+
+    def _derive_metrics(self, mod: RiskClassificationInputMetric,
+                        dataset: List[UserData]):
         # Initialize the output
-        risk_metrics = []
-        sampling_frequency = user_data.get_imu_metadata().get_sampling_frequency()
-        for mod in self.metric_modules:
-            # Todo: add a better way to add in kwargs to this method
+        risk_metric = []
+        faller_status = []
+        for user_data in dataset:
+            sampling_frequency = user_data.get_imu_metadata().get_sampling_frequency()
             data_type = mod.get_data_type()
             self._check_metric_data_type(data_type)
             data = self._get_metric_data_type(data_type, user_data)
             metric = mod.generate_metric(data=data, sampling_frequency=sampling_frequency)
             if isinstance(metric, list) and all(isinstance(m, float) or isinstance(m, int) for m in metric):
-                risk_metrics.extend(metric)
+                risk_metric.extend(metric)
             elif isinstance(metric, int) or isinstance(metric, float):
-                risk_metrics.append(metric)
-        return risk_metrics
+                risk_metric.append(metric)
+            faller_status.append(
+                int(user_data.get_clinical_demo_data().get_faller_status()))
+        return risk_metric, faller_status
 
     def _get_metric_data_type(self, data_type, user_data: UserData):
         if data_type == MetricDataTypes.USER_DATA:
             data = user_data
         elif data_type == MetricDataTypes.VERTICAL:
             data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+        elif data_type == MetricDataTypes.RESULTANT:
+            tri_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_triax_acc_data()
+            data = self.motion_filters.calculate_resultant_vector(
+                tri_data['vertical'],
+                tri_data['mediolateral'],
+                tri_data['anteroposterior'])
         else:
-            raise ValueError(f'Data type provided is not recognized {data_type}')
+            raise ValueError(
+                f'Data type provided is not recognized {data_type}')
         return data
 
     def _check_metric_data_type(self, data_type):

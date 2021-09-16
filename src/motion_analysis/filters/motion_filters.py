@@ -119,6 +119,10 @@ class MotionFilters:
         rms_matrix = np.array((x, y, z))
         return np.sqrt(np.mean(np.power(rms_matrix, 2), axis=0))
 
+    def calculate_resultant_vector(self, x: np.array, y: np.array, z: np.array):
+        rms_matrix = np.array((x, y, z))
+        return np.sqrt(np.sum(np.power(rms_matrix, 2), axis=0))
+
     def calculate_rms(self, x):
         return np.sqrt(np.mean(np.power(x, 2), axis=0))
 

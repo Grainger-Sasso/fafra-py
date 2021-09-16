@@ -5,7 +5,7 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 
 
 METRIC_NAME = MetricNames.ROOT_MEAN_SQUARE
-METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
+METRIC_DATA_TYPE = MetricDataTypes.RESULTANT
 
 
 class Metric(RiskClassificationInputMetric):

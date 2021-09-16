@@ -6,7 +6,7 @@ from src.risk_classification.input_metrics.risk_classification_input_metric impo
 
 
 METRIC_NAME = MetricNames.STANDARD_DEVIATION
-METRIC_DATA_TYPE = MetricDataTypes.VERTICAL
+METRIC_DATA_TYPE = MetricDataTypes.RESULTANT
 
 
 class Metric(RiskClassificationInputMetric):

@@ -49,13 +49,18 @@ class FallRiskAssessment:
         self._preprocess_data()
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
-        x, y, metric_names = self.generate_risk_metrics(input_metric_names)
-
-        self.m_viz.violin_plot_metrics(x, y, metric_names)
+        x, y = self.generate_risk_metrics(input_metric_names)
+        # Put metrics into single ndarray, scale them
+        metrics = np.array([value for value in x.values()])
+        metrics = self.rc.scale_input_data(metrics)
+        for key, val in zip(x.keys(), metrics):
+            x[key] = val
+        metrics = metrics.T
+        self.m_viz.violin_plot_metrics(x, y)
         # Classify users into fall risk categories
         # Split input data into test and train groups
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(x, y)
-        cv_results = self.rc.cross_validate(x, y)
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(metrics,                                                                y)
+        cv_results = self.rc.cross_validate(metrics, y)
         # Fit model to training data
         self.rc.train_model(x_train, y_train)
         # Make predictions on the test data
@@ -63,7 +68,7 @@ class FallRiskAssessment:
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
         if output_path:
-            self._write_results(output_path, x_train, x_test, y_train, y_test,
+            self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
         print(cv_results)
 
@@ -164,16 +169,12 @@ class FallRiskAssessment:
                 [x - ap_acc_data.mean() for x in ap_acc_data])
             imu_data.ap_acc_data = ap_acc_data
 
-    def generate_risk_metrics(self, input_metric_names, scale_metrics=True):
+    def generate_risk_metrics(self, input_metric_names):
         # Separate datasets into fallers and nonfallers
         user_data = []
         for name, dataset in self.datasets.items():
             user_data.extend(dataset.get_dataset())
-        # Generate metrics
-        x, y, metric_names = self.mg.generate_metrics(user_data, input_metric_names)
-        if scale_metrics:
-            x = self.rc.scale_input_data(x)
-        return x, y, metric_names
+        return self.mg.generate_metrics(user_data, input_metric_names)
 
     def assess_model_accuracy(self):
         # Preprocess the data
@@ -226,7 +227,7 @@ class FallRiskAssessment:
                               dtype=int)
         return sum(comparison)/len(comparison)
 
-    def _write_results(self, output_path, x_train, x_test, y_train, y_test,
+    def _write_results(self, output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report):
         # Create results_dir folder with date, time, uuid
         timestr = time.strftime("%Y%m%d-%H%M%S")
@@ -256,6 +257,8 @@ class FallRiskAssessment:
                      }
                 ]
         }
+        for name, value in x.items():
+            input_metrics_labels[name]: value
         ml_filename = os.path.join(results_path, 'input_metrics_labels.json')
         # Format model params to write to file
         params = self.rc.get_params()
