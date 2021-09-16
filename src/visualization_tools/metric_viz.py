@@ -31,7 +31,7 @@ class MetricViz:
         data = pd.DataFrame(data=pd_data,
                             columns=['labels', 'metrics', 'fallers'])
         ax = sns.violinplot(x="labels", y="metrics", hue="fallers",
-                            data=data, palette='muted')
+                            data=data)
         plt.show()
 
     def _generate_metric_plot_labels(self, metric_names):
