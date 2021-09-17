@@ -50,13 +50,14 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         x, y = self.generate_risk_metrics(input_metric_names)
+        self.m_viz.violin_plot_metrics2(x, y)
         # Put metrics into single ndarray, scale them
         metrics = np.array([value for value in x.values()])
         metrics = self.rc.scale_input_data(metrics)
         for key, val in zip(x.keys(), metrics):
             x[key] = val
         metrics = metrics.T
-        self.m_viz.violin_plot_metrics(x, y)
+        self.m_viz.violin_plot_metrics2(x, y)
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(metrics,                                                                y)

@@ -1,7 +1,9 @@
 import seaborn as sns
 import pandas as pd
 import numpy as np
+import math
 from matplotlib import pyplot as plt
+from matplotlib import gridspec
 
 from src.risk_classification.input_metrics.metric_names import MetricNames
 
@@ -16,6 +18,44 @@ class MetricViz:
         fig, ax = plt.subplots()
         ax.boxplot(data)
         plt.show()
+
+    def violin_plot_metrics2(self, x, y):
+        # fig, axes = plt.subplots(1, len(x))
+        fig = plt.figure()
+        ix = 0
+        cols = 3
+        rows = int(math.ceil(len(x) / cols))
+        gs = gridspec.GridSpec(rows, cols)
+        for name, metric in x.items():
+            labels = []
+            faller = np.array([val for ix, val in enumerate(metric) if y[ix] == 1])
+            non_faller = np.array([val for ix, val in enumerate(metric) if y[ix] == 0])
+            pd_data = []
+            for i in faller:
+                pd_data.append({'fall_status': 'faller',
+                                'metric': i, 'name': name.get_value()+'_faller'})
+            for i in non_faller:
+                pd_data.append({'fall_status': 'non_faller',
+                                'metric': i, 'name': name.get_value()+'_nonfaller'})
+            df = pd.DataFrame(pd_data)
+            ax = fig.add_subplot(gs[ix])
+            sns.violinplot(x='name', y='metric', hue='fall_status',
+                           data=df, ax=ax)
+            labels.extend([name.get_value()+'_faller', name.get_value()+'_nonfaller'])
+            ix += 1
+        fig.tight_layout()
+        plt.show()
+
+    def set_axis_style(self, ax, labels):
+        ax.set_title('Faller and Nonfaller Metric Distribution', fontsize=10)
+        ax.set_ylabel('Observed values', fontsize=10)
+        ax.xaxis.set_tick_params(direction='out')
+        ax.xaxis.set_ticks_position('bottom')
+        ax.set_xticks(np.arange(1, len(labels) + 1))
+        ax.set_xticklabels(labels)
+        ax.set_xlim(0.25, len(labels) + 0.75)
+        ax.set_xlabel('Metric')
+        ax.xaxis.label.set_size(10)
 
     def violin_plot_metrics(self, x, y):
         data, labels, fs = self._separate_faller_nonfaller_data(x, y)
