@@ -4,6 +4,7 @@ from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 
 
+
 class RiskClassificationInputMetric(ABC):
     def __init__(self, metric_name: MetricNames, data_type: MetricDataTypes):
         self.metric_name = metric_name
