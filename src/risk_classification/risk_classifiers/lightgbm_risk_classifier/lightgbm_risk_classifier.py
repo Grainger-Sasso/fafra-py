@@ -14,6 +14,7 @@ from sklearn.metrics import classification_report
 import numpy as np
 import lightgbm as lgb
 import optuna
+from sklearn.model_selection import train_test_split
 
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
@@ -43,12 +44,10 @@ class LightGBMRiskClassifier(Classifier):
         model = lgb.LGBMClassifier(params)
         super().__init__('LightGBM', model)
         self.current_dataset = None
-        self.metric_names = None
 
     # train lightgbm risk classifier using 33% holdout cross-validation
     def train_model(self,  x, y, **kwargs):
         self.current_dataset = [x, y]
-        self.metric_names = kwargs['metric_names']
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         # train lightgbm
         study = optuna.create_study(direction="minimize")
@@ -109,21 +108,7 @@ class LightGBMRiskClassifier(Classifier):
 
     # LOOCV objective function for optuna
     def opt_objective(self, trial):
-        # TODO: implement RMS as the objective function, set to minimize in study above
-        # get current dataset and then perform validation split
-        x = self.current_dataset[0]
-        y = self.current_dataset[1]
-        input_metrics = InputMetrics()
-        for i, name in zip(x.T, self.metric_names):
-            input_metric = InputMetric(name, i)
-            input_metrics.set_metric(name, input_metric)
-        input_metrics.set_labels(y)
-        x_train, x_test, y_train, y_test = self.split_input_metrics(
-            input_metrics)
-        # x_train_t, x_test_t = self.scale_train_test_data(x_train, x_test)
-        # create lgb dataset for lightgbm training
-        lgbdata = lgb.Dataset(x_train, label=y_train)
-
+        """
         # https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
         # Set parameter search spaces for optuna to conduct hyperparameter optimization for max validation accuracy.
         # See lightgbm_simple.py from https://github.com/optuna/optuna-examples/tree/main/lightgbm (a folder of LightGBM implementations using Optuna coded up by the Optuna
@@ -167,7 +152,16 @@ class LightGBMRiskClassifier(Classifier):
         # then overfitting will happen).
 
         # This finishes the entire discussion on LightGBM hyperparameters.
-
+        :param trial:
+        :return:
+        """
+        # get current dataset and then perform validation split
+        x = self.current_dataset[0]
+        y = self.current_dataset[1]
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33)
+        # x_train_t, x_test_t = self.scale_train_test_data(x_train, x_test)
+        # create lgb dataset for lightgbm training
+        lgbdata = lgb.Dataset(x_train, label=y_train)
         params = {
             "objective": "binary",
             "metric": "binary_logloss",
