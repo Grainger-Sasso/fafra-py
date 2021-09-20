@@ -13,9 +13,8 @@ def main():
     start = time.time()
     # Instantiate the classifier
     # classifier = SVMRiskClassifier()
-    classifier = KNNRiskClassifier()
-    # classifier = LightGBMRiskClassifier({})
-
+    # classifier = KNNRiskClassifier()
+    classifier = LightGBMRiskClassifier({})
 
     # Read in data/generate data with random seed set
     dg = DataGenerator()
@@ -33,10 +32,6 @@ def main():
     scaled_input_metrics = classifier.scale_input_data(input_metrics)
     print(cross_validate(classifier, scaled_input_metrics))
     print(train_score(classifier, scaled_input_metrics))
-
-
-
-
     # cv.plot_classification(classifier.get_model(), x_t, y)
     print(f'Runtime: {time.time() - start}')
 
