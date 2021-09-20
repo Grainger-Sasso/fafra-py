@@ -23,6 +23,7 @@ from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
 
 
 
@@ -49,21 +50,24 @@ class FallRiskAssessment:
         self._preprocess_data()
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
-        x, y = self.generate_risk_metrics(input_metric_names)
-        self.m_viz.violin_plot_metrics2(x, y)
-        # Put metrics into single ndarray, scale them
-        metrics = np.array([value for value in x.values()])
-        metrics = self.rc.scale_input_data(metrics)
-        for key, val in zip(x.keys(), metrics):
-            x[key] = val
-        metrics = metrics.T
-        self.m_viz.violin_plot_metrics2(x, y)
+        input_metrics: InputMetrics = self.generate_risk_metrics(input_metric_names)
+        # Using canonical notation for input vectors, x and y
+        # x = input_metrics.get_metrics()
+        # y = input_metrics.get_labels()
+        # self.m_viz.violin_plot_metrics(x, y)
+        # Scale input metrics
+        input_metrics = self.rc.scale_input_data(input_metrics)
+        x = input_metrics.get_metrics()
+        y = input_metrics.get_labels()
+        self.m_viz.violin_plot_metrics(x, y)
         # Classify users into fall risk categories
         # Split input data into test and train groups
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(metrics,                                                                y)
-        cv_results = self.rc.cross_validate(metrics, y)
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(
+            input_metrics)
+        cv_x, names = input_metrics.get_metric_matrix()
+        cv_results = self.rc.cross_validate(cv_x, y)
         # Fit model to training data
-        self.rc.train_model(x_train, y_train)
+        self.rc.train_model(x_train, y_train, metric_names=input_metric_names)
         # Make predictions on the test data
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]

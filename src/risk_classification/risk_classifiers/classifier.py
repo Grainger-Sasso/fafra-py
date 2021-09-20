@@ -3,6 +3,8 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.risk_classification.validation.cross_validator import CrossValidator
 
 
@@ -35,13 +37,30 @@ class Classifier(ABC):
     def set_scaler(self, scaler):
         self.scaler = scaler
 
-    def split_input_metrics(self, x, y, test_size=0.33, random_state=42):
-        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=test_size, random_state=random_state)
+    def split_input_metrics(self, input_metrics: InputMetrics,
+                            test_size=0.33, random_state=42):
+        # Input to test_train_split shape is (n_samples, n_features)
+        x, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
+        x_train, x_test, y_train, y_test = train_test_split(
+            x, y, test_size=test_size, random_state=random_state)
         return x_train, x_test, y_train, y_test
 
-    def scale_input_data(self, x):
-        self.scaler.fit(x)
-        return self.scaler.transform(x)
+    def scale_input_data(self, input_metrics: InputMetrics) -> InputMetrics:
+        scaled_input_metrics = InputMetrics()
+        metrics, names = input_metrics.get_metric_matrix()
+        # Shape of fit input is (n_samples, n_features)
+        self.scaler.fit(metrics)
+        # Shape of transform input is (n_samples, n_features)
+        scaled_metrics = self.scaler.transform(metrics)
+        # Convert output shape of transform from (n_samples, n_features) to
+        # (n_features, n_samples)
+        scaled_metrics = scaled_metrics.T
+        for name, metric in zip(names, scaled_metrics):
+            input_metric = InputMetric(name, metric)
+            scaled_input_metrics.set_metric(name, input_metric)
+        scaled_input_metrics.set_labels(input_metrics.get_labels())
+        return scaled_input_metrics
 
     def scale_train_test_data(self, x_train, x_test):
         # Fit the scaler to the training data

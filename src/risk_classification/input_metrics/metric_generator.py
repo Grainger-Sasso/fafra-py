@@ -13,9 +13,10 @@ from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_data_types import MetricDataTypes
 from src.risk_classification.input_metrics.risk_classification_input_metric import RiskClassificationInputMetric
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
-# Todo: Create parent class of metric generator, break unique parts of LTMM metric generator out into child class
 class MetricGenerator:
     def __init__(self):
         self.fft = FastFourierTransform()
@@ -34,26 +35,32 @@ class MetricGenerator:
         np.savetxt(x_full_path, metrics, delimiter=",")
         np.savetxt(y_full_path, faller_status_labels, delimiter=",")
 
-    def generate_metrics(self, dataset: List[UserData], input_metric_names: Tuple[MetricNames]):
+    def generate_metrics(self, dataset: List[UserData],
+                         input_metric_names: Tuple[MetricNames]) -> InputMetrics:
+        # Initialize output
+        input_metrics = InputMetrics()
         # Check metric names input by user are all members of metric names enum
         self._check_metric_names_valid(input_metric_names)
-        # Initialize intermediate variable for dataset risk classification metrics
-        all_faller_status = []
-        all_dataset_metrics = {}
+        # Initialize intermediate variable for dataset risk classification labels
+        labels = []
         # Import metric modules
         self._import_metric_modules(input_metric_names)
         # Derive metrics for all dataset
         for mod in self.metric_modules:
-            metric_name = mod.get_metric_name()
-            dataset_metrics, faller_status = self._derive_metrics(mod, dataset)
-            all_dataset_metrics[metric_name] = dataset_metrics
-            all_faller_status.append(faller_status)
+            input_metric, label = self._derive_metrics(mod, dataset)
+            input_metrics.set_metric(input_metric.get_name(), input_metric)
+            labels.append(label)
         # CHECK ALL ELEMENTS OF FALLER STATUS ARE SAME, TAKE FIRST VALUE
-        faller_status = all_faller_status[0]
-        for status in all_faller_status[1:]:
-            if faller_status != status:
+        label = self._check_metric_labels(labels)
+        input_metrics.set_labels(label)
+        return input_metrics
+
+    def _check_metric_labels(self, labels):
+        label = labels[0]
+        for other_label in labels[1:]:
+            if label != other_label:
                 raise ValueError('Faller status not equal')
-        return all_dataset_metrics, faller_status
+        return label
 
     def _check_metric_names_valid(self, metric_names: Tuple[MetricNames]):
         invalid_metrics = [met for met in metric_names if met not in MetricNames]
@@ -79,7 +86,8 @@ class MetricGenerator:
                         dataset: List[UserData]):
         # Initialize the output
         risk_metric = []
-        faller_status = []
+        labels = []
+        # Derive metric for all user data in dataset
         for user_data in dataset:
             sampling_frequency = user_data.get_imu_metadata().get_sampling_frequency()
             data_type = mod.get_data_type()
@@ -90,9 +98,11 @@ class MetricGenerator:
                 risk_metric.extend(metric)
             elif isinstance(metric, int) or isinstance(metric, float):
                 risk_metric.append(metric)
-            faller_status.append(
+            labels.append(
                 int(user_data.get_clinical_demo_data().get_faller_status()))
-        return risk_metric, faller_status
+            if len(risk_metric) != len(labels):
+                raise ValueError('Metrics and labels not of same length')
+        return InputMetric(mod.get_metric_name(), np.array(risk_metric)), labels
 
     def _get_metric_data_type(self, data_type, user_data: UserData):
         if data_type == MetricDataTypes.USER_DATA:

@@ -19,7 +19,7 @@ class MetricViz:
         ax.boxplot(data)
         plt.show()
 
-    def violin_plot_metrics2(self, x, y):
+    def violin_plot_metrics(self, x, y):
         # fig, axes = plt.subplots(1, len(x))
         fig = plt.figure()
         ix = 0
@@ -28,8 +28,9 @@ class MetricViz:
         gs = gridspec.GridSpec(rows, cols)
         for name, metric in x.items():
             labels = []
-            faller = np.array([val for ix, val in enumerate(metric) if y[ix] == 1])
-            non_faller = np.array([val for ix, val in enumerate(metric) if y[ix] == 0])
+            metric_value = metric.get_value()
+            faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 1])
+            non_faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 0])
             pd_data = []
             for i in faller:
                 pd_data.append({'fall_status': 'faller',
@@ -56,45 +57,6 @@ class MetricViz:
         ax.set_xlim(0.25, len(labels) + 0.75)
         ax.set_xlabel('Metric')
         ax.xaxis.label.set_size(10)
-
-    def violin_plot_metrics(self, x, y):
-        data, labels, fs = self._separate_faller_nonfaller_data(x, y)
-        pd_data = []
-        for val, label, fall_s in zip(data, labels, fs):
-            for i in val:
-                pd_data.append({'fall_status': fall_s,
-                                'metric': i, 'name': label})
-
-        df = pd.DataFrame(pd_data)
-        faller_df = df.loc[df['fall_status'] == 'faller']
-        nonfaller_df = df.loc[df['fall_status'] == 'non_faller']
-        grid = sns.FacetGrid(df, col="name")
-        for ix, label in enumerate(sorted(set(labels))):
-            sns.violinplot(x=df.loc[df['name'] == label]['name'], y='metric', hue="fall_status",
-                           data=df.loc[df['name'] == label], ax=grid.axes[0, ix])
-        plt.show()
-        grid.map(sns.violinplot, x="name", y="metric", hue="fall_status",
-                            data=faller_df)
-        grid.map(sns.violinplot, x="name", y="metric", hue="fall_status",
-                 data=nonfaller_df)
-
-        for label, metric in zip(labels, data):
-            if 'nonfaller' in label:
-                fs = 'nonfaller'
-            else:
-                fs = 'faller'
-            for i in metric:
-                pd_data.append([label, i, fs])
-        data = pd.DataFrame(data=pd_data,
-                            columns=['labels', 'metrics', 'fallers'])
-        for label in labels:
-            label = label.split('_')[0]
-            plot_data_f = data.loc[data["labels"] == label + '_faller']
-            plot_data_nf = data.loc[data["labels"] == label + '_nonfaller']
-            plot_data = pd.concat([plot_data_f,plot_data_nf])
-            ax = sns.violinplot(x="labels", y="metrics", hue="fallers",
-                            data=plot_data)
-        plt.show()
 
     def _generate_metric_plot_labels(self, metric_names):
         labels = []
