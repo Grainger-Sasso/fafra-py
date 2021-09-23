@@ -13,9 +13,9 @@ def main():
     start = time.time()
     # Instantiate the classifier
     # classifier = SVMRiskClassifier()
-    # classifier = KNNRiskClassifier()
-    classifier = LightGBMRiskClassifier({})
-
+    classifier = KNNRiskClassifier()
+    #classifier = LightGBMRiskClassifier({})
+    # created task25
     # Read in data/generate data with random seed set
     dg = DataGenerator()
     cv = ClassificationVisualizer()
