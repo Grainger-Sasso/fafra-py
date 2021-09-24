@@ -33,11 +33,11 @@ def main():
     y = (pd.read_csv(train_y_path, delimiter=',', header=None)[0]).to_numpy()
 
     input_metrics = InputMetrics()
-    name1 = MetricNames.AUTOCORRELATION
-
+    name1 = MetricNames.AUTOCORRELATION_FREQUENCY
+    name2 = MetricNames.AUTOCORRELATION_MAGNITUDE
     name3 = MetricNames.COEFFICIENT_OF_VARIANCE
-    name4 = MetricNames.FAST_FOURIER_TRANSFORM
-  
+    name4 = MetricNames.FAST_FOURIER_TRANSFORM_FREQUENCY
+    name5 = MetricNames.FAST_FOURIER_TRANSFORM_MAGNITUDE
     name6 = MetricNames.GAIT_SPEED_ESTIMATOR
     name7 = MetricNames.MEAN
     name8 = MetricNames.ROOT_MEAN_SQUARE
@@ -46,10 +46,10 @@ def main():
     name11 = MetricNames.STANDARD_DEVIATION
     name12 = MetricNames.ZERO_CROSSING
     metric1 = InputMetric(name1, x[0])
-    
+    metric2 = InputMetric(name2, x[1])
     metric3 = InputMetric(name3, x[2])
-    metric4 = InputMetric(name3, x[3])
-   
+    metric4 = InputMetric(name4, x[3])
+    metric5 = InputMetric(name5, x[4])
     metric6 = InputMetric(name6, x[5])
     metric7 = InputMetric(name7, x[6])
     metric8 = InputMetric(name8, x[7])
@@ -58,8 +58,10 @@ def main():
     metric11 = InputMetric(name11, x[10])
     metric12 = InputMetric(name12, x[11])
     input_metrics.set_metric(name1, metric1)
+    input_metrics.set_metric(name2, metric2)
     input_metrics.set_metric(name3, metric3)
     input_metrics.set_metric(name4, metric4)
+    input_metrics.set_metric(name5, metric5)
     input_metrics.set_metric(name6, metric6)
     input_metrics.set_metric(name7, metric7)
     input_metrics.set_metric(name8, metric8)
