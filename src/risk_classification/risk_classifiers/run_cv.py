@@ -13,11 +13,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import spearmanr
 from scipy.cluster import hierarchy
+import eli5
+from eli5.sklearn import PermutationImportance
 
 def main():
     start = time.time()
     # Instantiate the classifier
-    # classifier = SVMRiskClassifier()
+    classifier = SVMRiskClassifier()
     classifier = KNNRiskClassifier()
     #classifier = LightGBMRiskClassifier({})
 
@@ -70,13 +72,15 @@ def main():
     input_metrics.set_metric(name11, metric11)
     input_metrics.set_metric(name12, metric12)
     input_metrics.set_labels(y)
-    # cv.plot_data(x, y)
+    
+    #cv.plot_data(x, y)
     scaled_input_metrics = classifier.scale_input_data(input_metrics)
     print(cross_validate(classifier, scaled_input_metrics))
     print(train_score(classifier, scaled_input_metrics))
-    # cv.plot_classification(classifier.get_model(), x_t, y)
+    #cv.plot_classification(classifier.get_model(), x_t, y)
     print(f'Runtime: {time.time() - start}')
-    correlated_features(x, scaled_input_metrics)
+    #correlated_features(x, scaled_input_metrics)
+    permutation_importance(classifier, scaled_input_metrics)
 
 def train_score(model, input_metrics):
     x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
@@ -105,6 +109,14 @@ def correlated_features(X, input_metrics):
     ax2.set_yticklabels(dendro['ivl'])
     fig.tight_layout()
     plt.show()
+
+def permutation_importance(model, input_metrics):
+    x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+    m = model.train_model(x_train, y_train)
+    perm = PermutationImportance(m).fit(x_test, y_test)
+    #eli5.explain_prediction_df(perm)
+    print(eli5.format_as_text(eli5.explain_weights(perm)))
+
 
 if __name__ == '__main__':
     main()
