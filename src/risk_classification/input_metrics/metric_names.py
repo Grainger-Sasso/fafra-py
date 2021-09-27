@@ -3,8 +3,10 @@ from enum import Enum
 
 class MetricNames(Enum):
     EXAMPLE = 'example'
-    AUTOCORRELATION = 'ac'
-    FAST_FOURIER_TRANSFORM = 'fft'
+    AUTOCORRELATION_FREQUENCY = 'ac1'
+    AUTOCORRELATION_MAGNITUDE = 'ac2'
+    FAST_FOURIER_TRANSFORM_FREQUENCY = 'fft1'
+    FAST_FOURIER_TRANSFORM_MAGNITUDE = 'fft2'
     MEAN = 'mean'
     ROOT_MEAN_SQUARE = 'rms'
     STANDARD_DEVIATION = 'std'

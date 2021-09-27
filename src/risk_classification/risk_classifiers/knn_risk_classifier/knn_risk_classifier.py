@@ -36,7 +36,7 @@ class KNNRiskClassifier(Classifier):
         :return: Trained model
         :rtype: KNN
         """
-        self.model.fit(x, y)
+        return self.model.fit(x, y)
 
     def make_prediction(self, samples, **kwargs):
         return self.model.predict(samples)
@@ -76,8 +76,9 @@ def main():
         #print(len(x_train),len(y_train))
         
         x_train = (pd.DataFrame(x_train,columns=['0', '1', '2', '3','4','5','6'])).to_numpy()
-        classifier.fit_model(x_train, y_train)
-
+        #classifier.fit_model(x_train, y_train)
+        classifier.train_model(x_train, y_train)
+    
         '''plot'''
         value=1.5
         width=0.75
