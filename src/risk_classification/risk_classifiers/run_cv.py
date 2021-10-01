@@ -1,4 +1,5 @@
 import time
+import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
@@ -57,7 +58,7 @@ def main():
     scaled_input_metrics = classifier.scale_input_data(input_metrics)
     print(cross_validate(classifier, scaled_input_metrics))
     print(train_score(classifier, scaled_input_metrics))
-    validate=InputMetricValidator()                             #permutation importance calculation 
+    validate=InputMetricValidator()                             #permutation importance calculation
     validate.perform_permutation_feature_importance(classifier.get_model(),input_metrics,y)
     # cv.plot_classification(classifier.get_model(), x_t, y)
     print(f'Runtime: {time.time() - start}')
