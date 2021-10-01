@@ -7,6 +7,11 @@ import pandas as pd
 from pandas.plotting import parallel_coordinates
 from matplotlib.colors import ListedColormap
 from mlxtend.plotting import plot_decision_regions
+from scipy.stats import spearmanr
+from scipy.cluster import hierarchy
+from collections import defaultdict
+
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
 
 
 class ClassificationVisualizer:
@@ -87,6 +92,34 @@ class ClassificationVisualizer:
         plt.scatter(x[:,0],x[:,2],c=y,cmap=cmap_bold, edgecolor='k', s=20)
         plt.title('Knn with K='+ str(10))
         plt.show()
+
+    "return distance matrix between clustered features"
+    def corr_linkage(self,input_metric:InputMetrics): 
+        X, names = input_metric.get_metric_matrix()
+        #feature_names=['ac1','ac2','cov','ff1','ff2','gse','mean','rms','sig','sma','std','zero_c']
+        corr = spearmanr(X).correlation
+        corr_linkage = hierarchy.ward(corr)#calculated distance btw clusters based on incremental algorithm
+
+        dendro = hierarchy.dendrogram(corr_linkage, labels=names, leaf_rotation=90)
+        dendro_idx = np.arange(0, len(dendro['ivl']))
+
+        fig,  (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 8))
+
+        ax2.imshow(corr[dendro['leaves'], :][:, dendro['leaves']])
+        ax2.set_xticks(dendro_idx)
+        ax2.set_yticks(dendro_idx)
+        ax2.set_xticklabels(dendro['ivl'], rotation='vertical')
+        ax2.set_yticklabels(dendro['ivl'])
+        fig.tight_layout()
+        plt.show()
+
+        cluster_ids = hierarchy.fcluster(corr_linkage, 1, criterion='distance')
+        cluster_id_to_feature_ids = defaultdict(list)
+        for idx, cluster_id in enumerate(cluster_ids):
+            cluster_id_to_feature_ids[cluster_id].append(idx)
+        selected_features = [v[0] for v in cluster_id_to_feature_ids.values()]
+        print(selected_features)
+        return corr_linkage
 
 def main():
     rootPath = r'D:\carapace\metric_test_data'
