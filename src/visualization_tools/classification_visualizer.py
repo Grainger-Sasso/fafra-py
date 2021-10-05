@@ -3,15 +3,17 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pandas as pd
-
+import math
 from pandas.plotting import parallel_coordinates
 from matplotlib.colors import ListedColormap
 from mlxtend.plotting import plot_decision_regions
 from scipy.stats import spearmanr
 from scipy.cluster import hierarchy
 from collections import defaultdict
+from matplotlib import gridspec
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.metric_names import MetricNames
 
 
 class ClassificationVisualizer:
@@ -59,6 +61,7 @@ class ClassificationVisualizer:
         plt.ylabel('Features values', fontsize=15)
         plt.legend(loc=1, prop={'size': 15}, frameon=True,shadow=True, facecolor="white", edgecolor="black")
         plt.show()
+
     def all_feature_scatterplot_double(self, x, y):
         '''
         This function plots dataplot from all combinations of feature and label all classification result in graph, but accept x and y data seperately 
@@ -79,6 +82,7 @@ class ClassificationVisualizer:
         plt.figure()
         sns.pairplot(all, hue = "y", size=2, markers=["s", "D"])
         plt.show()
+
     def plot_decision_boundry(model, x, y):
         value=1.5
         width=0.75
@@ -120,6 +124,81 @@ class ClassificationVisualizer:
         selected_features = [v[0] for v in cluster_id_to_feature_ids.values()]
         print(selected_features)
         return corr_linkage
+
+    def violin_plot_metrics(self, x, y):
+        # fig, axes = plt.subplots(1, len(x))
+        fig = plt.figure()
+        ix = 0
+        cols = 3
+        rows = int(math.ceil(len(x) / cols))
+        gs = gridspec.GridSpec(rows, cols)
+        for name, metric in x.items():
+            labels = []
+            metric_value = metric.get_value()
+            faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 1])
+            non_faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 0])
+            pd_data = []
+            for i in faller:
+                pd_data.append({'fall_status': 'faller',
+                                'metric': i, 'name': name.get_value()+'_faller'})
+            for i in non_faller:
+                pd_data.append({'fall_status': 'non_faller',
+                                'metric': i, 'name': name.get_value()+'_nonfaller'})
+            df = pd.DataFrame(pd_data)
+            ax = fig.add_subplot(gs[ix])
+            sns.violinplot(x='name', y='metric', hue='fall_status',
+                           data=df, ax=ax)
+            labels.extend([name.get_value()+'_faller', name.get_value()+'_nonfaller'])
+            ix += 1
+        fig.tight_layout()
+        plt.show()
+
+    def boxplot_metrics(self, x, y, metric_names):
+        data = self._separate_faller_nonfaller_data(x, y)
+        fig, ax = plt.subplots()
+        ax.boxplot(data)
+        plt.show()
+
+    def set_axis_style(self, ax, labels):
+        ax.set_title('Faller and Nonfaller Metric Distribution', fontsize=10)
+        ax.set_ylabel('Observed values', fontsize=10)
+        ax.xaxis.set_tick_params(direction='out')
+        ax.xaxis.set_ticks_position('bottom')
+        ax.set_xticks(np.arange(1, len(labels) + 1))
+        ax.set_xticklabels(labels)
+        ax.set_xlim(0.25, len(labels) + 0.75)
+        ax.set_xlabel('Metric')
+        ax.xaxis.label.set_size(10)
+
+    def _generate_metric_plot_labels(self, metric_names):
+        labels = []
+        for name in metric_names:
+            if name == MetricNames.AUTOCORRELATION:
+                labels.append('ac_x_faller')
+                labels.append('ac_x_nonfaller')
+                labels.append('ac_y_faller')
+                labels.append('ac_y_nonfaller')
+            elif name == MetricNames.FAST_FOURIER_TRANSFORM:
+                labels.append('fft_x_faller')
+                labels.append('fft_x_nonfaller')
+                labels.append('fft_y_faller')
+                labels.append('fft_y_nonfaller')
+            else:
+                labels.append(name.get_value() + '_faller')
+                labels.append(name.get_value() + '_nonfaller')
+        return labels
+
+    def _separate_faller_nonfaller_data(self, x, y):
+        data = []
+        labels = []
+        fs = []
+        for name, metric in x.items():
+            faller = [val for ix, val in enumerate(metric) if y[ix] == 1]
+            non_faller = [val for ix, val in enumerate(metric) if y[ix] == 0]
+            data.extend([faller, non_faller])
+            labels.extend([name.get_value(), name.get_value()])
+            fs.extend(['faller', 'nonfaller'])
+        return data, labels, fs
 
 def main():
     rootPath = r'D:\carapace\metric_test_data'

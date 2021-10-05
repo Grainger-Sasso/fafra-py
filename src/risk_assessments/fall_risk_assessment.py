@@ -18,7 +18,6 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.validation.cross_validator import CrossValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
-from src.visualization_tools.metric_viz import MetricViz
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
@@ -59,7 +58,8 @@ class FallRiskAssessment:
         input_metrics = self.rc.scale_input_data(input_metrics)
         x = input_metrics.get_metrics()
         y = input_metrics.get_labels()
-        self.m_viz.violin_plot_metrics(x, y)
+        self.rc_viz.violin_plot_metrics(x, y)
+        self.rc_viz.corr_linkage(input_metrics)
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(
