@@ -53,13 +53,14 @@ def main():
     input_metrics.set_metric(MetricNames.STANDARD_DEVIATION, metric6)
     input_metrics.set_metric(MetricNames.ZERO_CROSSING, metric7)
     input_metrics.set_labels(y)
-    cv.corr_linkage(input_metrics)
+    #cv.corr_linkage(input_metrics)                 #plot cluster for input metrics features
     # cv.plot_data(x, y)
     scaled_input_metrics = classifier.scale_input_data(input_metrics)
     print(cross_validate(classifier, scaled_input_metrics))
     print(train_score(classifier, scaled_input_metrics))
     validate=InputMetricValidator()                             #permutation importance calculation
     validate.perform_permutation_feature_importance(classifier.get_model(),input_metrics,y)
+    #validate.perform_permutation_feature_importance(classifier,input_metrics,y)
     # cv.plot_classification(classifier.get_model(), x_t, y)
     print(f'Runtime: {time.time() - start}')
 
