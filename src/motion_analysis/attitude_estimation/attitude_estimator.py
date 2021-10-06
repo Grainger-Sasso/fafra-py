@@ -1627,6 +1627,9 @@ class AttitudeEstimator:
         - The three vectors of the global reference frame, [x, y, z] map to
           body/sensor frame as such:
             [x, y, z] -> [ml, ap, v]
+        - Initial orientation of sensor is upright (sensor z-axis is parallel
+          with global z-axis).
+        - Only force acting on sensor at time t=0 is gravity
         ### Ref ###
         - http://www1.udel.edu/biolohttp://www1.udel.edu/biology/rosewc/kaap686/reserve/kalman_filtering/madgwick_etal_ieee_icrr_2011.pdfgy/rosewc/kaap686/reserve/kalman_filtering/madgwick_etal_ieee_icrr_2011.pdf
         - https://prgaero.github.io/Reports/p1b/semenovilya.pdf
@@ -1640,9 +1643,15 @@ class AttitudeEstimator:
         q_0 = np.array([0.0, 0.0, 0.0, 0.1])
         # Initialize list of all sensor attitude quaternion states
         q_all_t = [q_0]
+        # Initialize Madgwick parameters
+        # Accelerometer error param
+        beta = 0.1
+        # Accelerometer weight param
+        gamma = 0.1
         # Compute change in global attitude relative to sensor attitude
         # for all imu data samples (all time, t)
         for acc_t, gyr_t in zip(self.acc_data, self.gyr_data):
+            acc_t = np.array(acc_t)
             # Get previous sensor attitude quaternion state
             q_0 = q_all_t[-1]
             # Normalize the previous sensor attitude quaternion state
@@ -1651,12 +1660,32 @@ class AttitudeEstimator:
             # sensor frame
             s_omega = [0.0]
             s_omega = np.array(s_omega.extend(gyr_t))
-            q_0_n = 0.5 * q_0_n
-            q_dot_SE = self.q_mult(q_0_n, s_omega)
+            q_dot_omega = self.q_mult(0.5 * q_0_n, s_omega)
+            # Compute min error between previous sensor attitude quaternion and
+            # gravitational component in accelerometer data
+            min_grav_err = self.compute_min_grav_error(q_0_n, acc_t)
+            mag_min_grav_err = np.linalg.norm(min_grav_err)
+            q_a = -1.0 * beta * (min_grav_err/mag_min_grav_err)
+            gyr_term = (1 - gamma) * (1 / self.sampling_rate) * q_dot_omega
+            acc_term = gamma * q_a
+            q_t = q_0 + gyr_term + acc_term
+            q_all_t.append(q_t)
 
+
+    def compute_min_grav_error(self, q, a):
+        q1, q2, q3, q4 = q
+        ax, ay, az = a
+        m1 = np.array([[-2.0*q3, 2.0*q2, 0.0],
+                       [2.0*q4, 2.0*q1, -4.0*q2],
+                       [-2.0*q1, 2.0*q4, -4.0*q3],
+                       [2.0*q2, 2.0*q3, 0.0]])
+        m2 = np.array([[2*(q2*q4-q1*q3) - ax],
+                       [2*(q1*q2-q3*q4) - ay],
+                       [2*(0.5 - q2**2 - q3**2) - az]])
+        return np.matmul(m1, m2)
 
     def norm(self, q):
-        mag = sqrt(sum(i ** 2 for i in q))
+        mag = np.linalg.norm(q)
         return np.array([i / mag for i in q])
 
     def q_mult(self, q1, q2):
