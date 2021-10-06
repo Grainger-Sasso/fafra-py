@@ -1610,8 +1610,16 @@ class AttitudeEstimator:
         return self.data
 
     def estimate_attitude(self):
+        """
+        Reference for current implementation
+        https://stackoverflow.com/questions/4870393/rotating-coordinate-system-via-a-quaternion
+        https://stackoverflow.com/questions/4870393/rotating-coordinate-system-via-a-quaternion/42180896#42180896
+        :return:
+        """
+        # TODO: convert the inputs to user_data or imu_data
         # Convert the gyr data from deg/s to rads/s
         # Compute the quaternion for all time data according to Madgwick alg
+
         # Represent the orientation in 3D space
         pass
 
