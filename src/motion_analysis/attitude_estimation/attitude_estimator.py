@@ -1,5 +1,9 @@
 import numpy as np
 
+from math import sqrt
+
+from src.motion_analysis.attitude_estimation.quaternion import Quaternion
+
 
 class AttitudeEstimator:
     def __init__(self):
@@ -1611,16 +1615,61 @@ class AttitudeEstimator:
 
     def estimate_attitude(self):
         """
-        Reference for current implementation
-        https://stackoverflow.com/questions/4870393/rotating-coordinate-system-via-a-quaternion
-        https://stackoverflow.com/questions/4870393/rotating-coordinate-system-via-a-quaternion/42180896#42180896
+        This method uses imu data and assumptions on the initial orientation of
+        the sensor to calculate orientation (attitude) of the global frame
+        relative to the sensor frame, represented as a quaternion, with the
+        Madgwick algorithm. This representation of orientation in quaternions
+        can be converted into vectors describing the axis of the sensor in 3-D
+        Euclidian space.
+        ### Assumptions, declarations ###:
+        - Orientation of the trunk assumed to be that same as the orientation
+          of the sensor
+        - The three vectors of the global reference frame, [x, y, z] map to
+          body/sensor frame as such:
+            [x, y, z] -> [ml, ap, v]
+        ### Ref ###
+        - http://www1.udel.edu/biolohttp://www1.udel.edu/biology/rosewc/kaap686/reserve/kalman_filtering/madgwick_etal_ieee_icrr_2011.pdfgy/rosewc/kaap686/reserve/kalman_filtering/madgwick_etal_ieee_icrr_2011.pdf
+        - https://prgaero.github.io/Reports/p1b/semenovilya.pdf
         :return:
         """
         # TODO: convert the inputs to user_data or imu_data
-        # Convert the gyr data from deg/s to rads/s
-        # Compute the quaternion for all time data according to Madgwick alg
+        # TODO: Convert the gyr data from deg/s to rads/s
+        # Initialize the global reference frame
+        ref_g = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+        # Initialize sensor attitude quaternion state with global ref z-axis
+        q_0 = np.array([0.0, 0.0, 0.0, 0.1])
+        # Initialize list of all sensor attitude quaternion states
+        q_all_t = [q_0]
+        # Compute change in global attitude relative to sensor attitude
+        # for all imu data samples (all time, t)
+        for acc_t, gyr_t in zip(self.acc_data, self.gyr_data):
+            # Get previous sensor attitude quaternion state
+            q_0 = q_all_t[-1]
+            # Normalize the previous sensor attitude quaternion state
+            q_0_n = self.norm(q_0)
+            # Estimate the rate of change of the global frame relative to
+            # sensor frame
+            s_omega = [0.0]
+            s_omega = np.array(s_omega.extend(gyr_t))
+            q_0_n = 0.5 * q_0_n
+            q_dot_SE = self.q_mult(q_0_n, s_omega)
 
-        # Represent the orientation in 3D space
+
+    def norm(self, q):
+        mag = sqrt(sum(i ** 2 for i in q))
+        return np.array([i / mag for i in q])
+
+    def q_mult(self, q1, q2):
+        w1, x1, y1, z1 = q1
+        w2, x2, y2, z2 = q2
+        w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
+        x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
+        y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
+        z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
+        return w, x, y, z
+
+
+
         pass
 
 
