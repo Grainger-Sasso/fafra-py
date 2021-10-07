@@ -1640,9 +1640,9 @@ class AttitudeEstimator:
         # Initialize the global reference frame
         ref_g = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
         # Initialize sensor attitude quaternion state with global ref z-axis
-        q_0 = np.array([0.0, 0.0, 0.0, 0.1])
+        quat_0 = np.array([0.0, 0.0, 0.0, 0.1])
         # Initialize list of all sensor attitude quaternion states
-        q_all_t = [q_0]
+        quat_all_t = [quat_0]
         # Initialize Madgwick parameters
         # Accelerometer error param
         beta = 0.1
@@ -1653,44 +1653,63 @@ class AttitudeEstimator:
         for acc_t, gyr_t in zip(self.acc_data, self.gyr_data):
             acc_t = np.array(acc_t)
             # Get previous sensor attitude quaternion state
-            q_0 = q_all_t[-1]
-            # Normalize the previous sensor attitude quaternion state
-            q_0_n = self.norm(q_0)
+            quat_0 = quat_all_t[-1]
             # Estimate the rate of change of the global frame relative to
             # sensor frame
             s_omega = [0.0]
             s_omega = np.array(s_omega.extend(gyr_t))
-            q_dot_omega = self.q_mult(0.5 * q_0_n, s_omega)
+            quat_dot_omega = self.quat_mult(0.5 * quat_0, s_omega)
             # Compute min error between previous sensor attitude quaternion and
             # gravitational component in accelerometer data
-            min_grav_err = self.compute_min_grav_error(q_0_n, acc_t)
+            min_grav_err = self.compute_min_grav_error(quat_0, acc_t)
             mag_min_grav_err = np.linalg.norm(min_grav_err)
-            q_a = -1.0 * beta * (min_grav_err/mag_min_grav_err)
-            gyr_term = (1 - gamma) * (1 / self.sampling_rate) * q_dot_omega
-            acc_term = gamma * q_a
-            q_t = q_0 + gyr_term + acc_term
-            q_all_t.append(q_t)
+            quat_a = -1.0 * beta * (min_grav_err/mag_min_grav_err)
+            gyr_term = (1 - gamma) * (1 / self.sampling_rate) * quat_dot_omega
+            acc_term = gamma * quat_a
+            quat_t = quat_0 + gyr_term + acc_term
+            # Normalize sensor attitude quaternion state
+            quat_t = self.norm(quat_t)
+            quat_all_t.append(quat_t)
+        return quat_all_t
 
+    def convert_quat_to_3d(self, quat_all_t):
+        init_orient = [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+        orient_all_t = [init_orient]
+        for quat in quat_all_t:
+            orient_prev = orient_all_t[-1]
+            orient_t = []
+            for v in orient_prev:
+                quat_v = [0.0]
+                quat_v.extend(orient_prev)
+                quat_c = self.get_quat_conjugate(quat)
+                v_t = self.quat_mult(self.quat_mult(quat, quat_v), quat_c)
+                orient_t.append(v_t)
+            orient_all_t.append(orient_t)
+        return orient_all_t
 
-    def compute_min_grav_error(self, q, a):
-        q1, q2, q3, q4 = q
+    def get_quat_conjugate(self, quat):
+        w, x, y, z = quat
+        return [w, -x, -y, -z]
+
+    def compute_min_grav_error(self, quat, a):
+        quat1, quat2, quat3, quat4 = quat
         ax, ay, az = a
-        m1 = np.array([[-2.0*q3, 2.0*q2, 0.0],
-                       [2.0*q4, 2.0*q1, -4.0*q2],
-                       [-2.0*q1, 2.0*q4, -4.0*q3],
-                       [2.0*q2, 2.0*q3, 0.0]])
-        m2 = np.array([[2*(q2*q4-q1*q3) - ax],
-                       [2*(q1*q2-q3*q4) - ay],
-                       [2*(0.5 - q2**2 - q3**2) - az]])
+        m1 = np.array([[-2.0*quat3, 2.0*quat2, 0.0],
+                       [2.0*quat4, 2.0*quat1, -4.0*quat2],
+                       [-2.0*quat1, 2.0*quat4, -4.0*quat3],
+                       [2.0*quat2, 2.0*quat3, 0.0]])
+        m2 = np.array([[2*(quat2*quat4-quat1*quat3) - ax],
+                       [2*(quat1*quat2-quat3*quat4) - ay],
+                       [2*(0.5 - quat2**2 - quat3**2) - az]])
         return np.matmul(m1, m2)
 
-    def norm(self, q):
-        mag = np.linalg.norm(q)
-        return np.array([i / mag for i in q])
+    def norm(self, quat):
+        mag = np.linalg.norm(quat)
+        return np.array([i / mag for i in quat])
 
-    def q_mult(self, q1, q2):
-        w1, x1, y1, z1 = q1
-        w2, x2, y2, z2 = q2
+    def quat_mult(self, quat1, quat2):
+        w1, x1, y1, z1 = quat1
+        w2, x2, y2, z2 = quat2
         w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
         x = w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2
         y = w1 * y2 + y1 * w2 + z1 * x2 - x1 * z2
@@ -1704,7 +1723,9 @@ class AttitudeEstimator:
 
 def main():
     att_est = AttitudeEstimator()
-    print(att_est.get_data())
+    quat = att_est.estimate_attitude()
+    orientation = att_est.convert_quat_to_3d(quat)
+    print(orientation)
 
 if __name__ == "__main__":
     main()
