@@ -33,7 +33,12 @@ def main():
     print(cross_validate(classifier, scaled_input_metrics))
     print(train_score(classifier, scaled_input_metrics))
     # cv.plot_classification(classifier.get_model(), x_t, y)
+
+    validate = InputMetricValidator() # validator instances
+    validate.perform_shap_values(classifier, scaled_input_metrics) # shap metric implementation
+
     print(f'Runtime: {time.time() - start}')
+    
 
 def train_score(model, input_metrics):
     x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
