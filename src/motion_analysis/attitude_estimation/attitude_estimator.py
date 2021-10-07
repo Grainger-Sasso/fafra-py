@@ -1,6 +1,7 @@
 import numpy as np
-
-from math import sqrt
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.animation import FuncAnimation
 
 from src.motion_analysis.attitude_estimation.quaternion import Quaternion
 
@@ -1608,6 +1609,9 @@ class AttitudeEstimator:
         self.acc_data = self.data[0:3].T
         self.gyr_data = self.data[3:].T
         self.sampling_rate = 100.0
+        self.quiver = None
+        self.fig = None
+        self.ax = None
 
     def get_data(self):
         print(self.data.shape)
@@ -1718,16 +1722,37 @@ class AttitudeEstimator:
         z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
         return [w, x, y, z]
 
+    def display_vectors(self):
+        self.fig, self.ax = plt.subplots(subplot_kw=dict(projection="3d"))
+        self.quiver = self.ax.quiver(*self.get_arrow(0))
+        self.ax.set_xlim(-2, 2)
+        self.ax.set_ylim(-2, 2)
+        self.ax.set_zlim(-2, 2)
+        ani = FuncAnimation(self.fig, self.update, frames=np.linspace(0, 2 * np.pi, 200),
+                            interval=50)
+        plt.show()
 
+    def get_arrow(self, theta):
+        x = np.cos(theta)
+        y = np.sin(theta)
+        z = 0
+        u = np.sin(2*theta)
+        v = np.sin(3*theta)
+        w = np.cos(3*theta)
+        return x,y,z,u,v,w
 
-        pass
+    def update(self, theta):
+        self.quiver.remove()
+        self.quiver = self.ax.quiver(*self.get_arrow(theta))
 
 
 def main():
     att_est = AttitudeEstimator()
-    quat = att_est.estimate_attitude()
-    orientation = att_est.convert_quat_to_3d(quat)
-    print(orientation[0])
+    # quat = att_est.estimate_attitude()
+    # orientation = att_est.convert_quat_to_3d(quat)
+    att_est.display_vectors()
+    # print(orientation[0])
+
 
 if __name__ == "__main__":
     main()
