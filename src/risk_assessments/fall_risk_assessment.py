@@ -26,7 +26,6 @@ from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 
 
-
 class FallRiskAssessment:
     def __init__(self, risk_classifier):
         # Required input parameters
