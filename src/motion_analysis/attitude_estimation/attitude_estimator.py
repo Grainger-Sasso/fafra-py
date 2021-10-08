@@ -1609,7 +1609,12 @@ class AttitudeEstimator:
         self.acc_data = self.data[0:3].T
         self.gyr_data = self.data[3:].T
         self.sampling_rate = 100.0
-        self.quiver = None
+        self.quiver_x = None
+        self.quiver_y = None
+        self.quiver_z = None
+        self.quiver_ref_x = None
+        self.quiver_ref_y = None
+        self.quiver_ref_z = None
         self.fig = None
         self.ax = None
 
@@ -1722,35 +1727,45 @@ class AttitudeEstimator:
         z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
         return [w, x, y, z]
 
-    def display_vectors(self):
+    def display_vectors(self, orientation):
         self.fig, self.ax = plt.subplots(subplot_kw=dict(projection="3d"))
-        self.quiver = self.ax.quiver(*self.get_arrow(0))
+        self.quiver_ref_x = self.ax.quiver(*(0,0,0,1,0,0), color='lightcoral')
+        self.quiver_ref_y = self.ax.quiver(*(0,0,0,0,1,0), color='limegreen')
+        self.quiver_ref_z = self.ax.quiver(*(0,0,0,0,0,1), color='cornflowerblue')
+        # Initialize the quiver with the first orientation vector
+        ortn_0 = orientation.pop(0)
+        ortn_0_x = ortn_0[0]
+        ortn_0_y = ortn_0[1]
+        ortn_0_z = ortn_0[2]
+        self.quiver_x = self.ax.quiver(*self.get_arrow(ortn_0_x), color='r')
+        self.quiver_y = self.ax.quiver(*self.get_arrow(ortn_0_y), color='g')
+        self.quiver_z = self.ax.quiver(*self.get_arrow(ortn_0_z), color='b')
         self.ax.set_xlim(-2, 2)
         self.ax.set_ylim(-2, 2)
         self.ax.set_zlim(-2, 2)
-        ani = FuncAnimation(self.fig, self.update, frames=np.linspace(0, 2 * np.pi, 200),
+        ani = FuncAnimation(self.fig, self.update, frames=orientation,
                             interval=50)
         plt.show()
 
-    def get_arrow(self, theta):
-        x = np.cos(theta)
-        y = np.sin(theta)
-        z = 0
-        u = np.sin(2*theta)
-        v = np.sin(3*theta)
-        w = np.cos(3*theta)
-        return x,y,z,u,v,w
+    def get_arrow(self, ortn):
+        return 0, 0, 0, ortn[0], ortn[1], ortn[2]
 
-    def update(self, theta):
-        self.quiver.remove()
-        self.quiver = self.ax.quiver(*self.get_arrow(theta))
-
+    def update(self, ortn):
+        self.quiver_x.remove()
+        self.quiver_y.remove()
+        self.quiver_z.remove()
+        ortn_0_x = ortn[0]
+        ortn_0_y = ortn[1]
+        ortn_0_z = ortn[2]
+        self.quiver_x = self.ax.quiver(*self.get_arrow(ortn_0_x), color='r')
+        self.quiver_y = self.ax.quiver(*self.get_arrow(ortn_0_y), color='g')
+        self.quiver_z = self.ax.quiver(*self.get_arrow(ortn_0_z), color='b')
 
 def main():
     att_est = AttitudeEstimator()
-    # quat = att_est.estimate_attitude()
-    # orientation = att_est.convert_quat_to_3d(quat)
-    att_est.display_vectors()
+    quat = att_est.estimate_attitude()
+    orientation = att_est.convert_quat_to_3d(quat)
+    att_est.display_vectors(orientation)
     # print(orientation[0])
 
 
