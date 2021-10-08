@@ -11,15 +11,15 @@ class InputMetricValidator:
     def perform_permutation_feature_importance(self):
         pass
 
-    def perform_shap_values(model: Classifier, input_metrics: InputMetrics):
+    def perform_shap_values(self, model, input_metrics: InputMetrics):
         x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
         # train model
-        trained_model = model.fit(x_train, y_train)
-
+        model.train_model(x_train, y_train)
+        m = model.get_model()
         # explain the model's predictions using SHAP
-        explainer = shap.Explainer(trained_model)
-        shap_values = explainer(x_train)
+        explainer = shap.KernelExplainer(m.predict, x_test)
+        shap_values = explainer.shap_values(x_test)
 
         # visualize the first prediction's explaination
-        shap.plots.waterfall(shap_values[0])
+        shap.summary_plot(shap_values, x_test)
 

@@ -7,13 +7,13 @@ from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
-
+from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 
 def main():
     start = time.time()
     # Instantiate the classifier
-    # classifier = SVMRiskClassifier()
-    # classifier = KNNRiskClassifier()
+    #classifier = SVMRiskClassifier()
+    #classifier = KNNRiskClassifier()
     classifier = LightGBMRiskClassifier({})
 
     # Read in data/generate data with random seed set
