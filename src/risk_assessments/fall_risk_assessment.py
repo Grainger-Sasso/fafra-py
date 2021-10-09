@@ -22,6 +22,7 @@ from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 
 
@@ -34,7 +35,7 @@ class FallRiskAssessment:
         self.rc: Classifier = risk_classifier
         self.filter = MotionFilters()
         self.rc_viz = ClassificationVisualizer()
-        self.m_viz = MetricViz()
+        #self.m_viz = MetricViz()
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
         self.scaler: StandardScaler = StandardScaler()
@@ -65,9 +66,13 @@ class FallRiskAssessment:
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(
             input_metrics)
         cv_x, names = input_metrics.get_metric_matrix()
+        print(x_train)
+        print("y",y_train,type(y_train))
         cv_results = self.rc.cross_validate(cv_x, y)
+        print('arrivee')
         # Fit model to training data
         self.rc.train_model(x_train, y_train, metric_names=input_metric_names)
+        print('k')
         # Make predictions on the test data
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]
@@ -294,10 +299,11 @@ def main():
     # ltmm_dataset_name = 'LTMM'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
-    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
-    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    
+    ltmm_dataset_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    clinical_demo_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
-    output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\output_dir'
+    output_dir = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -313,7 +319,8 @@ def main():
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
-    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
+    fra = FallRiskAssessment(KNNRiskClassifier({}))
+    #fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
 
 

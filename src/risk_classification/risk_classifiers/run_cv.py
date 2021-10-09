@@ -34,9 +34,9 @@ def main():
     name1 = MetricNames.AUTOCORRELATION
     name2 = MetricNames.COEFFICIENT_OF_VARIANCE
     name3 = MetricNames.FAST_FOURIER_TRANSFORM
-    metric1 = InputMetric(name1, x.T[0])
+    #metric1 = InputMetric(name1, x.T[0])
     # print(metric1.get_value(),metric1.get_name())
-    metric2 = InputMetric(name2, x.T[1])
+    #metric2 = InputMetric(name2, x.T[1])
     #ac1	ac2	cov	ff1	ff2	gse	mean	rms	signal_energy	sma	std	zero_cross	y
     metric1 = InputMetric(name1, x[0])
     metric2 = InputMetric(name2, x[2])
@@ -66,6 +66,8 @@ def main():
 
 def train_score(model, input_metrics):
     x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+    print(x_train)
+    print("y",y_train,len(y_train),type(y_train))
     model.train_model(x_train, y_train)
     #permutation(model.get_model(),x_test,y_test)
     return model.score_model(x_test, y_test)
