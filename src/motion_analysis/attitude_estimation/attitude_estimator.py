@@ -1726,6 +1726,9 @@ class AttitudeEstimator:
         mag = np.linalg.norm(quat)
         return np.array([i / mag for i in quat])
 
+    def norm_all_quat(self, all_quat_t):
+        return np.array([self.norm(i) for i in all_quat_t])
+
     def quat_mult(self, quat1, quat2):
         w1, x1, y1, z1 = quat1
         w2, x2, y2, z2 = quat2
@@ -1769,10 +1772,11 @@ class AttitudeEstimator:
         self.quiver_y = self.ax.quiver(*self.get_arrow(ortn_0_y), color='g')
         self.quiver_z = self.ax.quiver(*self.get_arrow(ortn_0_z), color='b')
 
+
 def main():
     att_est = AttitudeEstimator()
-    # quat = att_est.estimate_attitude()
-    # orientation = att_est.convert_quat_to_3d(quat)
+    quat = att_est.estimate_attitude()
+    orientation = att_est.convert_quat_to_3d(quat)
     # basic_rotation_orientation = [[[1,0,0], [0,1,0], [0,0,1]],
     #                               [[1,0,0], [0,1,0], [0,0,0.8]],
     #                               [[1,0,0], [0,1,0], [0,0,0.6]],
@@ -1784,18 +1788,19 @@ def main():
     #                               [[1,0,0], [0,1,0], [0,0,0.6]],
     #                               [[1,0,0], [0,1,0], [0,0,0.8]],
     #                               [[1,0,0], [0,1,0], [0,0,1]]]
-    basic_rot_quat_w = np.linspace(1.0, 0.71, 50).tolist()
-    basic_rot_quat_w.extend(np.linspace(0.71, 1.0, 50).tolist())
-    basic_rot_quat_x = np.zeros(100, np.float).tolist()
-    basic_rot_quat_y = np.linspace(0.0, 0.71, 50).tolist()
-    basic_rot_quat_y.extend(np.linspace(0.71, 0.0, 50).tolist())
-    basic_rot_quat_z = np.zeros(100, np.float).tolist()
-    basic_rot_quat = np.array([basic_rot_quat_w,
-                              basic_rot_quat_x,
-                              basic_rot_quat_y,
-                              basic_rot_quat_z]).T
-    basic_rot_quat = np.array([att_est.norm(i) for i in basic_rot_quat])
-    orientation = att_est.convert_quat_to_3d(basic_rot_quat)
+    # basic_rot_quat_w = np.linspace(1.0, 0.71, 50).tolist()
+    # basic_rot_quat_w.extend(np.linspace(0.71, 1.0, 50).tolist())
+    # basic_rot_quat_x = np.zeros(100, np.float).tolist()
+    # basic_rot_quat_y = np.linspace(0.0, 0.71, 50).tolist()
+    # basic_rot_quat_y.extend(np.linspace(0.71, 0.0, 50).tolist())
+    # basic_rot_quat_z = np.zeros(100, np.float).tolist()
+    # basic_rot_quat = np.array([basic_rot_quat_w,
+    #                           basic_rot_quat_x,
+    #                           basic_rot_quat_y,
+    #                           basic_rot_quat_z]).T
+    # basic_rot_quat = np.array([att_est.norm(i) for i in basic_rot_quat])
+    # basic_rot_quat = att_est.norm_all_quat(basic_rot_quat)
+    # orientation = att_est.convert_quat_to_3d(basic_rot_quat)
     # ortn = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     # quat_rot = [0.71, 0.0, 0.71, 0.0]
     # ortn_rot = att_est.rotate_3d(ortn, quat_rot)
