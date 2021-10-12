@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 import math
 from mpl_toolkits.mplot3d import Axes3D
@@ -1610,6 +1611,7 @@ class AttitudeEstimator:
         self.acc_data = self.data[0:3].T
         self.gyr_data = self.data[3:].T
         self.convert_deg_rad()
+        self.order_data()
         self.sampling_rate = 100.0
         self.quiver_x = None
         self.quiver_y = None
@@ -1619,6 +1621,19 @@ class AttitudeEstimator:
         self.quiver_ref_z = None
         self.fig = None
         self.ax = None
+
+    def order_data(self):
+        # Convert the data from the format of ((v, ml, ap),(yaw, pitch, roll))
+        # to ((ml, ap, v), (pitch, roll, yaw))
+        acc_v = self.acc_data.T[0]
+        acc_ml = self.acc_data.T[1]
+        acc_ap = self.acc_data.T[2]
+        self.acc_data = np.array([acc_ml, acc_ap, acc_v]).T
+        gyr_v = self.gyr_data.T[0]
+        gyr_ml = self.gyr_data.T[1]
+        gyr_ap = self.gyr_data.T[2]
+        self.gyr_data = np.array([gyr_ml, gyr_ap, gyr_v]).T
+
 
     def get_data(self):
         print(self.data.shape)
@@ -1653,7 +1668,7 @@ class AttitudeEstimator:
         # TODO: Convert the gyr data from deg/s to rads/s
         # Initialize the global reference frame
         # Initialize sensor attitude quaternion state with global ref z-axis
-        quat_0 = np.array([0.0, 0.0, 0.0, 1.0])
+        quat_0 = np.array([1.0, 0.0, 0.0, 0.0])
         # Initialize list of all sensor attitude quaternion states
         quat_all_t = [quat_0]
         # Initialize Madgwick parameters
@@ -1760,10 +1775,8 @@ class AttitudeEstimator:
         self.ax.set_zlim(-2, 2)
         ani = animation.FuncAnimation(self.fig, self.update, frames=orientation,
                             interval=1)
-        f = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\animations\test.mp4'
-        Writer = animation.writers['ffmpeg']
-        writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
-        ani.save(f, writer=writer)
+        # f = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\animations\test.gif'
+        # ani.save(f)
         plt.show()
 
     def get_arrow(self, ortn):
@@ -1785,17 +1798,6 @@ def main():
     att_est = AttitudeEstimator()
     quat = att_est.estimate_attitude()
     orientation = att_est.convert_quat_to_3d(quat)
-    # basic_rotation_orientation = [[[1,0,0], [0,1,0], [0,0,1]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.8]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.6]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.4]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.2]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.0]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.2]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.4]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.6]],
-    #                               [[1,0,0], [0,1,0], [0,0,0.8]],
-    #                               [[1,0,0], [0,1,0], [0,0,1]]]
     # basic_rot_quat_w = np.linspace(1.0, 0.71, 50).tolist()
     # basic_rot_quat_w.extend(np.linspace(0.71, 1.0, 50).tolist())
     # basic_rot_quat_x = np.zeros(100, np.float).tolist()
