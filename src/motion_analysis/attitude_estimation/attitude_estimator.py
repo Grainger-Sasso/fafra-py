@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
 from mpl_toolkits.mplot3d import Axes3D
-from matplotlib.animation import FuncAnimation
+from matplotlib import animation
 
 from src.motion_analysis.attitude_estimation.quaternion import Quaternion
 
@@ -1608,6 +1609,7 @@ class AttitudeEstimator:
         -1.09980547e+01, -1.10518796e+01]])
         self.acc_data = self.data[0:3].T
         self.gyr_data = self.data[3:].T
+        self.convert_deg_rad()
         self.sampling_rate = 100.0
         self.quiver_x = None
         self.quiver_y = None
@@ -1621,6 +1623,9 @@ class AttitudeEstimator:
     def get_data(self):
         print(self.data.shape)
         return self.data
+
+    def convert_deg_rad(self):
+        self.gyr_data = np.array([i * (math.pi/180) for i in self.gyr_data])
 
     def estimate_attitude(self):
         """
@@ -1647,7 +1652,6 @@ class AttitudeEstimator:
         # TODO: convert the inputs to user_data or imu_data
         # TODO: Convert the gyr data from deg/s to rads/s
         # Initialize the global reference frame
-        ref_g = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
         # Initialize sensor attitude quaternion state with global ref z-axis
         quat_0 = np.array([0.0, 0.0, 0.0, 1.0])
         # Initialize list of all sensor attitude quaternion states
@@ -1754,8 +1758,12 @@ class AttitudeEstimator:
         self.ax.set_xlim(-2, 2)
         self.ax.set_ylim(-2, 2)
         self.ax.set_zlim(-2, 2)
-        ani = FuncAnimation(self.fig, self.update, frames=orientation,
-                            interval=50)
+        ani = animation.FuncAnimation(self.fig, self.update, frames=orientation,
+                            interval=1)
+        f = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\animations\test.mp4'
+        Writer = animation.writers['ffmpeg']
+        writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+        ani.save(f, writer=writer)
         plt.show()
 
     def get_arrow(self, ortn):
