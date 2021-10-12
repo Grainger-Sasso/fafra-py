@@ -1691,9 +1691,8 @@ class AttitudeEstimator:
                 quat_v = [0.0]
                 quat_v.extend(v)
                 quat_c = self.get_quat_conjugate(quat)
-                mult1 = self.quat_mult(quat, quat_v)
-                v_t = self.quat_mult(mult1, quat_c)
-                orient_t.append(v_t[1:])
+                v_t = self.quat_mult(self.quat_mult(quat, quat_v), quat_c)[1:]
+                orient_t.append(v_t)
             orient_all_t.append(orient_t)
         return orient_all_t
 
@@ -1795,6 +1794,7 @@ def main():
                               basic_rot_quat_x,
                               basic_rot_quat_y,
                               basic_rot_quat_z]).T
+    basic_rot_quat = np.array([att_est.norm(i) for i in basic_rot_quat])
     orientation = att_est.convert_quat_to_3d(basic_rot_quat)
     # ortn = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
     # quat_rot = [0.71, 0.0, 0.71, 0.0]
