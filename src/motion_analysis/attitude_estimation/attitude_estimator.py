@@ -87,6 +87,8 @@ class AttitudeEstimator:
             quat_t = self.norm(quat_t)
             quat_all_t.append(quat_t)
         orientation = self.convert_quat_to_3d(quat_all_t)
+        # Derive the angle between the z (vertical) axis and the xy (ml-ap) plane
+        theta = self.calc_vert_angle(orientation)
         self.display_vectors(orientation)
 
     def convert_deg_rad(self, gyr_data):
@@ -161,6 +163,12 @@ class AttitudeEstimator:
         z = w1 * z2 + z1 * w2 + x1 * y2 - y1 * x2
         return [w, x, y, z]
 
+    def calc_vert_angle(self, orientation):
+        # Returns angle between z axis of sensor and xy plane
+        z_axis_mag = np.array([np.linalg.norm(ortn[2]) for ortn in orientation])
+        z_component = np.array([ortn[2][2] for ortn in orientation] )
+        return np.arcsin(z_component/z_axis_mag)
+
     def display_vectors(self, orientation):
         self.fig, self.ax = plt.subplots(subplot_kw=dict(projection="3d"))
         self.quiver_ref_x = self.ax.quiver(*(0,0,0,1,0,0), color='lightcoral')
@@ -196,32 +204,3 @@ class AttitudeEstimator:
         self.quiver_x = self.ax.quiver(*self.get_arrow(ortn_0_x), color='r')
         self.quiver_y = self.ax.quiver(*self.get_arrow(ortn_0_y), color='g')
         self.quiver_z = self.ax.quiver(*self.get_arrow(ortn_0_z), color='b')
-
-
-def main():
-    att_est = AttitudeEstimator()
-    quat = att_est.estimate_attitude()
-
-    # basic_rot_quat_w = np.linspace(1.0, 0.71, 50).tolist()
-    # basic_rot_quat_w.extend(np.linspace(0.71, 1.0, 50).tolist())
-    # basic_rot_quat_x = np.zeros(100, np.float).tolist()
-    # basic_rot_quat_y = np.linspace(0.0, 0.71, 50).tolist()
-    # basic_rot_quat_y.extend(np.linspace(0.71, 0.0, 50).tolist())
-    # basic_rot_quat_z = np.zeros(100, np.float).tolist()
-    # basic_rot_quat = np.array([basic_rot_quat_w,
-    #                           basic_rot_quat_x,
-    #                           basic_rot_quat_y,
-    #                           basic_rot_quat_z]).T
-    # basic_rot_quat = np.array([att_est.norm(i) for i in basic_rot_quat])
-    # basic_rot_quat = att_est.norm_all_quat(basic_rot_quat)
-    # orientation = att_est.convert_quat_to_3d(basic_rot_quat)
-    # ortn = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-    # quat_rot = [0.71, 0.0, 0.71, 0.0]
-    # ortn_rot = att_est.rotate_3d(ortn, quat_rot)
-
-    att_est.display_vectors(orientation)
-    # print(orientation[0])
-
-
-if __name__ == "__main__":
-    main()
