@@ -1634,7 +1634,6 @@ class AttitudeEstimator:
         gyr_ap = self.gyr_data.T[2]
         self.gyr_data = np.array([gyr_ml, gyr_ap, gyr_v]).T
 
-
     def get_data(self):
         print(self.data.shape)
         return self.data
