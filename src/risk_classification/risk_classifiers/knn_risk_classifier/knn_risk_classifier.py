@@ -37,7 +37,6 @@ class KNNRiskClassifier(Classifier):
         :rtype: KNN
         """
         p=np.asarray(y)
-        print("p",type(p))
         self.model.fit(x, p)
 
     def make_prediction(self, samples, **kwargs):

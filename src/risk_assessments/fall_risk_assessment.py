@@ -16,6 +16,7 @@ from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.validation.cross_validator import CrossValidator
+from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.metric_names import MetricNames
@@ -66,17 +67,16 @@ class FallRiskAssessment:
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(
             input_metrics)
         cv_x, names = input_metrics.get_metric_matrix()
-        print(x_train)
-        print("y",y_train,type(y_train))
         cv_results = self.rc.cross_validate(cv_x, y)
-        print('arrivee')
         # Fit model to training data
         self.rc.train_model(x_train, y_train, metric_names=input_metric_names)
-        print('k')
         # Make predictions on the test data
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
+        input_validator= InputMetricValidator()
+        #input_validator.perform_shap_values(self.rc,input_metrics)
+        #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
@@ -319,7 +319,7 @@ def main():
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
-    fra = FallRiskAssessment(KNNRiskClassifier({}))
+    fra = FallRiskAssessment(KNNRiskClassifier())
     #fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
 
