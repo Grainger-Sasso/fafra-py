@@ -7,6 +7,7 @@ from matplotlib import animation
 
 from src.motion_analysis.attitude_estimation.quaternion import Quaternion
 from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
 class AttitudeEstimator:
@@ -58,7 +59,7 @@ class AttitudeEstimator:
         # Compute change in global attitude relative to sensor attitude
         # for all imu data samples (all time, t)
         # Retrieve and reformat the imu data
-        imu_data = user_data.get_imu_data().get_all_data()
+        imu_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_all_data()
         acc_data = imu_data[0:3].T
         gyr_data = imu_data[3:].T
         gyr_data = self.convert_deg_rad(gyr_data)
@@ -85,7 +86,8 @@ class AttitudeEstimator:
             # Normalize sensor attitude quaternion state
             quat_t = self.norm(quat_t)
             quat_all_t.append(quat_t)
-        return quat_all_t
+        orientation = self.convert_quat_to_3d(quat_all_t)
+        self.display_vectors(orientation)
 
     def convert_deg_rad(self, gyr_data):
         return np.array([i * (math.pi/180) for i in gyr_data])
@@ -199,7 +201,7 @@ class AttitudeEstimator:
 def main():
     att_est = AttitudeEstimator()
     quat = att_est.estimate_attitude()
-    orientation = att_est.convert_quat_to_3d(quat)
+
     # basic_rot_quat_w = np.linspace(1.0, 0.71, 50).tolist()
     # basic_rot_quat_w.extend(np.linspace(0.71, 1.0, 50).tolist())
     # basic_rot_quat_x = np.zeros(100, np.float).tolist()
