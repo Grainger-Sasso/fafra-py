@@ -7,7 +7,7 @@ from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
-from src.risk_classification.validation.input_metric_validator import InputMetricValidator
+# from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 
 def main():
     start = time.time()
@@ -23,6 +23,7 @@ def main():
     input_metrics = InputMetrics()
     name1 = MetricNames.AUTOCORRELATION
     name2 = MetricNames.FAST_FOURIER_TRANSFORM
+    print(name1)
     metric1 = InputMetric(name1, x.T[0])
     metric2 = InputMetric(name2, x.T[1])
     input_metrics.set_metric(name1, metric1)
@@ -34,8 +35,8 @@ def main():
     print(train_score(classifier, scaled_input_metrics))
     # cv.plot_classification(classifier.get_model(), x_t, y)
 
-    validate = InputMetricValidator() # validator instances
-    validate.perform_shap_values(classifier, scaled_input_metrics) # shap metric implementation
+    # validate = InputMetricValidator() # validator instances
+    # validate.perform_shap_values(classifier, scaled_input_metrics) # shap metric implementation
 
     print(f'Runtime: {time.time() - start}')
     

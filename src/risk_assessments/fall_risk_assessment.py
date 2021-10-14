@@ -51,6 +51,7 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         input_metrics: InputMetrics = self.generate_risk_metrics(input_metric_names)
+        print(input_metrics)
         # Using canonical notation for input vectors, x and y
         # x = input_metrics.get_metrics()
         # y = input_metrics.get_labels()
