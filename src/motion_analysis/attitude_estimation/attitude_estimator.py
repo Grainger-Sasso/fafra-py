@@ -1,11 +1,8 @@
 import numpy as np
-import matplotlib
 import matplotlib.pyplot as plt
 import math
-from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import animation
 
-from src.motion_analysis.attitude_estimation.quaternion import Quaternion
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
@@ -155,6 +152,14 @@ class AttitudeEstimator:
         return np.array([self.norm(i) for i in all_quat_t])
 
     def quat_mult(self, quat1, quat2):
+        """
+        Reference for current implementation
+        https://stackoverflow.com/questions/4870393/rotating-coordinate-system-via-a-quaternion
+        https://stackoverflow.com/questions/4870393/rotating-coordinate-system-via-a-quaternion/42180896#42180896
+        :param quat1:
+        :param quat2:
+        :return:
+        """
         w1, x1, y1, z1 = quat1
         w2, x2, y2, z2 = quat2
         w = w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2
