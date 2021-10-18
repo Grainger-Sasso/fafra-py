@@ -24,7 +24,7 @@ from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
-
+from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
 
 
 class FallRiskAssessment:
@@ -39,6 +39,7 @@ class FallRiskAssessment:
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
         self.scaler: StandardScaler = StandardScaler()
+        self.att_est: AttitudeEstimator = AttitudeEstimator()
 
     def perform_risk_assessment(self, dataset_info: List[Dict[str, Any]],
                                 input_metric_names: Tuple[MetricNames],
@@ -108,6 +109,7 @@ class FallRiskAssessment:
             for user_data in dataset.get_dataset():
                 # Filter the data
                 self._apply_lp_filter(user_data)
+                self.att_est.estimate_attitude(user_data)
                 # self.apply_kalman_filter()
                 # Remove effects of gravity in vertical axis
                 # self._unbias_axes(user_data)
