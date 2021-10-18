@@ -16,13 +16,14 @@ from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.validation.cross_validator import CrossValidator
+from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
-from src.visualization_tools.metric_viz import MetricViz
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
 
@@ -35,7 +36,7 @@ class FallRiskAssessment:
         self.rc: Classifier = risk_classifier
         self.filter = MotionFilters()
         self.rc_viz = ClassificationVisualizer()
-        self.m_viz = MetricViz()
+        #self.m_viz = MetricViz()
         self.mg = MetricGenerator()
         self.cv = CrossValidator()
         self.scaler: StandardScaler = StandardScaler()
@@ -60,7 +61,8 @@ class FallRiskAssessment:
         input_metrics = self.rc.scale_input_data(input_metrics)
         x = input_metrics.get_metrics()
         y = input_metrics.get_labels()
-        self.m_viz.violin_plot_metrics(x, y)
+        self.rc_viz.violin_plot_metrics(x, y)
+        self.rc_viz.corr_linkage(input_metrics)
         # Classify users into fall risk categories
         # Split input data into test and train groups
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(
@@ -73,6 +75,9 @@ class FallRiskAssessment:
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
+        input_validator= InputMetricValidator()
+        #input_validator.perform_shap_values(self.rc,input_metrics)
+        #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
@@ -296,10 +301,11 @@ def main():
     # ltmm_dataset_name = 'LTMM'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
-    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
-    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    
+    ltmm_dataset_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    clinical_demo_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
-    output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\output_dir'
+    output_dir = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -315,7 +321,8 @@ def main():
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
-    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
+    fra = FallRiskAssessment(KNNRiskClassifier())
+    #fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
 
 
