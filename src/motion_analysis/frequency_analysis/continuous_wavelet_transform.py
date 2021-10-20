@@ -1615,6 +1615,7 @@ def main():
                            -1.08381007e+01, -1.08893211e+01, -1.09432613e+01,
                            -1.09980547e+01, -1.10518796e+01]])
     v_acc_data = data[0:1][0]
+    # TODO: Gotta figure out how scale values are related to frequency
     scales = []
     cwt = CWT()
     cwt.apply_cwt(v_acc_data, scales)
