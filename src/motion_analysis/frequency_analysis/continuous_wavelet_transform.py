@@ -5,11 +5,40 @@ import matplotlib.pyplot as plt
 
 class CWT:
     def __init__(self):
-        pass
+        """
+        Initilization function for the continuous wavelet transformer (CWT)
+        :param wavelet_name: Name of the wavelet used in cwt;
+            wavelet options for pywt found here:
+                https://pywavelets.readthedocs.io/en/latest/ref/cwt.html#continuous-wavelet-families;
+            investigation into impacts wavelet choices have on ADL detection found here:
+                https://www.ncbi.nlm.nih.gov/pmc/articles/PMC5038932/
+        :type: str
+        :return: None
+        :rtype: None
+        """
+        # Note: the Atrsaei paper chose the bior1.5 wavelet, not an option for
+        # the pywt cwt
+        self.wavelet_name = 'mexh'
+
+    def convert_scales_to_freq(self, scales, samp_freq):
+        """
+        More info on how to appropriately choose scales can be found:
+        https://pywavelets.readthedocs.io/en/latest/ref/cwt.html#choosing-the-scales-for-cwt
+        :param scales:
+        :param samp_freq:
+        :return:
+        """
+        return pywt.scale2frequency(self.wavelet_name, scales) / (1/samp_freq)
+
 
     def apply_cwt(self, x, scales):
-        coeffs, freqs = pywt.cwt(x, scales, wavelet='bior1.5')
+        # Scales correspond
+        coeffs, freqs = pywt.cwt(x, scales, wavelet=self.wavelet_name)
         return coeffs, freqs
+
+    def show_scalogram(self, cwt_data):
+        pass
+
 
 def main():
     data = np.array([[9.11306090e+00, 9.14143711e+00, 9.16757417e+00,
@@ -1616,9 +1645,19 @@ def main():
                            -1.09980547e+01, -1.10518796e+01]])
     v_acc_data = data[0:1][0]
     # TODO: Gotta figure out how scale values are related to frequency
-    scales = []
+    # Scales to freq for mexh wavelet correspond as follows:
+    # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
+    min_max_scales = [125.0, 12.5]
+    # Sampling frequency in Hz
+    samp_freq = 100.0
+    num_scales = 10
+    scales = np.linspace(min_max_scales[0], min_max_scales[1], num_scales).tolist()
     cwt = CWT()
-    cwt.apply_cwt(v_acc_data, scales)
+    print(cwt.convert_scales_to_freq(scales, samp_freq))
+
+    # results = cwt.apply_cwt(v_acc_data, scales)
+    # print(results[0].shape)
+    # cwt.apply_cwt(v_acc_data, scales)
 
 
 if __name__ == '__main__':
