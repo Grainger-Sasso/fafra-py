@@ -34,8 +34,8 @@ def main():
     print(train_score(classifier, scaled_input_metrics))
     # cv.plot_classification(classifier.get_model(), x_t, y)
 
-    # validate = InputMetricValidator() # validator instances
-    # validate.perform_shap_values(classifier, scaled_input_metrics) # shap metric implementation
+    validate = InputMetricValidator() # validator instances
+    validate.perform_shap_values(classifier, scaled_input_metrics) # shap metric implementation
 
     print(f'Runtime: {time.time() - start}')
     
