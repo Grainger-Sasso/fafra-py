@@ -1,5 +1,6 @@
 import pywt
 import numpy as np
+import matplotlib
 import matplotlib.pyplot as plt
 
 
@@ -30,14 +31,30 @@ class CWT:
         """
         return pywt.scale2frequency(self.wavelet_name, scales) / (1/samp_freq)
 
-
-    def apply_cwt(self, x, scales):
+    def apply_cwt(self, x, scales, samp_period):
         # Scales correspond
-        coeffs, freqs = pywt.cwt(x, scales, wavelet=self.wavelet_name)
+        coeffs, freqs = pywt.cwt(x, scales, wavelet=self.wavelet_name,
+                                 sampling_period=samp_period)
         return coeffs, freqs
 
-    def show_scalogram(self, cwt_data):
-        pass
+    def mat_norm(self):
+        return matplotlib.colors.Normalize(vmin=0.0, vmax=10.0, clip=False)
+
+    def plot_scalogram(self, x_coords, y_coords, coeffs, freqs, samp_per):
+        fig, ax = plt.subplots()
+        # im = ax.contourf(x_coords, y_coords, coeffs, freqs)
+        # L, R, bottom, top
+        coeffs = abs(coeffs[::-1])
+        plot_extent = [0.0, len(coeffs[0])*samp_per, freqs[0], freqs[-1]]
+        im = ax.imshow(coeffs, norm=self.mat_norm(),
+                       cmap='coolwarm', aspect='auto',
+                       extent=plot_extent)
+        # im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto')
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        cbar_ax = fig.add_axes([0.95, 0.5, 0.03, 0.25])
+        fig.colorbar(im, cax=cbar_ax, orientation="vertical")
+        plt.show()
 
 
 def main():
@@ -1648,12 +1665,21 @@ def main():
     # Scales to freq for mexh wavelet correspond as follows:
     # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
     min_max_scales = [125.0, 12.5]
+    # min_max_scales = [20.0, 0.25]
     # Sampling frequency in Hz
     samp_freq = 100.0
-    num_scales = 10
+    samp_period = 1/samp_freq
+    num_scales = 100
     scales = np.linspace(min_max_scales[0], min_max_scales[1], num_scales).tolist()
     cwt = CWT()
-    print(cwt.convert_scales_to_freq(scales, samp_freq))
+    coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
+    plot_x_coords = np.linspace(0.0, len(v_acc_data)*samp_period,
+                                len(v_acc_data))
+    plot_y_coords = freqs
+    cwt.plot_scalogram(plot_x_coords, plot_y_coords, coeffs, freqs, samp_period)
+    print(coeffs.shape, freqs.shape)
+    print(freqs)
+    # print(cwt.convert_scales_to_freq(scales, samp_freq))
 
     # results = cwt.apply_cwt(v_acc_data, scales)
     # print(results[0].shape)
