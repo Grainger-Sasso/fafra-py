@@ -2,7 +2,9 @@ import pywt
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from scipy import signal
 
+from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 
 class CWT:
     def __init__(self):
@@ -37,24 +39,51 @@ class CWT:
                                  sampling_period=samp_period)
         return coeffs, freqs
 
+    def sum_coeffs(self, coeffs):
+        return np.sum(abs(coeffs), axis=0)
+
     def mat_norm(self):
         return matplotlib.colors.Normalize(vmin=0.0, vmax=10.0, clip=False)
 
-    def plot_scalogram(self, x_coords, y_coords, coeffs, freqs, samp_per):
-        fig, ax = plt.subplots()
+    def detect_cwt_peaks(self, coeff_sums, samp_per):
+        """Returns peak indices of cwt summed coefficients"""
+        # Minimum peak height must be 1/4 of the max value in the cwt summed coefficients
+        min_height = 0.25 * max(coeff_sums)
+        # Sets the minimum time difference between peaks to be 2s in samples
+        min_peak_distance = 2.0/samp_per
+        peak_ixs = signal.find_peaks(coeff_sums, height=min_height,
+                          distance=min_peak_distance)
+        peak_values = coeff_sums[peak_ixs]
+        return peak_ixs, peak_values
+
+    def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums):
+        fig, axs = plt.subplots(2, sharex=True)
+        self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
+        self.plot_cwt_sums(fig, axs[1], coeff_sums, samp_per)
+        plt.xlabel('Time (s)')
+        plt.show()
+
+    def plot_cwt_sums(self, fig, ax, coeff_sums, samp_per):
+        # ax.hist(coeff_sums, bins=len(coeff_sums))
+        # ax.hist(coeff_sums, bins=100)
+        # ax.scatter(np.linspace(0.0, len(coeff_sums)*samp_per, len(coeff_sums)), coeff_sums)
+        ax.bar(np.linspace(0.0, len(coeff_sums) * samp_per, len(coeff_sums)),
+               coeff_sums, width=0.015)
+
+    def plot_scalogram(self, fig, ax, coeffs, freqs, samp_per):
         # im = ax.contourf(x_coords, y_coords, coeffs, freqs)
-        # L, R, bottom, top
         coeffs = abs(coeffs[::-1])
+        # coeffs = abs(coeffs)
+        # L, R, bottom, top
         plot_extent = [0.0, len(coeffs[0])*samp_per, freqs[0], freqs[-1]]
-        im = ax.imshow(coeffs, norm=self.mat_norm(),
-                       cmap='coolwarm', aspect='auto',
-                       extent=plot_extent)
-        # im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto')
+        # im = ax.imshow(coeffs, norm=self.mat_norm(),
+        #                cmap='coolwarm', aspect='auto',
+        #                extent=plot_extent)
+        im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         cbar_ax = fig.add_axes([0.95, 0.5, 0.03, 0.25])
         fig.colorbar(im, cax=cbar_ax, orientation="vertical")
-        plt.show()
 
 
 def main():
@@ -1664,8 +1693,9 @@ def main():
     # TODO: Gotta figure out how scale values are related to frequency
     # Scales to freq for mexh wavelet correspond as follows:
     # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
-    min_max_scales = [125.0, 12.5]
-    # min_max_scales = [20.0, 0.25]
+    # min_max_scales = [125.0, 12.5]
+    min_max_scales = [30.0, 12.5]
+    min_max_scales = [30.0, 0.9]
     # Sampling frequency in Hz
     samp_freq = 100.0
     samp_period = 1/samp_freq
@@ -1673,10 +1703,11 @@ def main():
     scales = np.linspace(min_max_scales[0], min_max_scales[1], num_scales).tolist()
     cwt = CWT()
     coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
-    plot_x_coords = np.linspace(0.0, len(v_acc_data)*samp_period,
-                                len(v_acc_data))
-    plot_y_coords = freqs
-    cwt.plot_scalogram(plot_x_coords, plot_y_coords, coeffs, freqs, samp_period)
+    # plot_x_coords = np.linspace(0.0, len(v_acc_data)*samp_period,
+    #                             len(v_acc_data))
+    # plot_y_coords = freqs
+    coeff_sums = cwt.sum_coeffs(coeffs)
+    cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums)
     print(coeffs.shape, freqs.shape)
     print(freqs)
     # print(cwt.convert_scales_to_freq(scales, samp_freq))
