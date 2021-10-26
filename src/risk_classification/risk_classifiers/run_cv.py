@@ -13,8 +13,8 @@ def main():
     start = time.time()
     # Instantiate the classifier
     #classifier = SVMRiskClassifier()
-    #classifier = KNNRiskClassifier()
-    classifier = LightGBMRiskClassifier({})
+    classifier = KNNRiskClassifier()
+    #classifier = LightGBMRiskClassifier({})
 
     # Read in data/generate data with random seed set
     dg = DataGenerator()
