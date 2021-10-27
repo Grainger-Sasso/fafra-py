@@ -76,10 +76,10 @@ class CWT:
         # coeffs = abs(coeffs)
         # L, R, bottom, top
         plot_extent = [0.0, len(coeffs[0])*samp_per, freqs[0], freqs[-1]]
-        # im = ax.imshow(coeffs, norm=self.mat_norm(),
-        #                cmap='coolwarm', aspect='auto',
-        #                extent=plot_extent)
-        im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
+        im = ax.imshow(coeffs, norm=self.mat_norm(),
+                       cmap='coolwarm', aspect='auto',
+                       extent=plot_extent)
+        # im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         cbar_ax = fig.add_axes([0.95, 0.5, 0.03, 0.25])
@@ -1695,7 +1695,7 @@ def main():
     # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
     # min_max_scales = [125.0, 12.5]
     min_max_scales = [30.0, 12.5]
-    min_max_scales = [30.0, 0.9]
+    # min_max_scales = [30.0, 0.9]
     # Sampling frequency in Hz
     samp_freq = 100.0
     samp_period = 1/samp_freq
