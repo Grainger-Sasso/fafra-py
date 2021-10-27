@@ -6,6 +6,12 @@ from typing import List
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
+from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+from src.dataset_tools.risk_assessment_data.imu_metadata import IMUMetadata
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.dataset_tools.risk_assessment_data.clinical_demographic_data import ClinicalDemographicData
 
 
 DATASET_NAME = DatasetNames.SISFALL
@@ -22,56 +28,62 @@ class DatasetBuilder(DatasetBuilder):
     def get_header_and_data_file_paths(self):
         return self.header_and_data_file_paths
 
-    # def build_dataset(self, dataset_path, clinical_demo_path,
-    #                   segment_dataset, epoch_size):
-    #     self._generate_data_file_paths(dataset_path)
-    #     dataset = []
-    #     for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
-    #         data_file_path = header_and_data_file_path['data_file_path']
-    #         header_file_path = header_and_data_file_path['header_file_path']
-    #         data_path = os.path.splitext(data_file_path)[0]
-    #         header_path = os.path.splitext(header_file_path)[0]
-    #         wfdb_record = wfdb.rdrecord(data_path)
-    #         id = wfdb_record.record_name
-    #         data = np.array(wfdb_record.p_signal)
-    #         data = np.float16(data)
-    #         # Convert acceleration data from g to m/s^2
-    #         data[:, 0:3] = data[:, 0:3] * 9.81
-    #         header_data = wfdb.rdheader(header_path)
-    #         if wfdb_record.comments[0][4:]:
-    #             age = float(wfdb_record.comments[0][4:])
-    #         sex = wfdb_record.comments[1][4:]
-    #         if id.casefold()[0] == 'f':
-    #             faller_status = True
-    #         elif id.casefold()[0] == 'c':
-    #             faller_status = False
-    #         else:
-    #             raise ValueError('LTMM Data faller status unclear from id')
-    #
-    #         imu_data_file_path: str = data_file_path
-    #         imu_metadata_file_path: str = header_file_path
-    #         clinical_demo_file_path: str = 'N/A'
-    #         imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
-    #         clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
-    #         if segment_dataset:
-    #             #TODO: track the segmented data with a linked list
-    #             # Segment the data and build a UserData object for each epoch
-    #             data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
-    #             for segment in data_segments:
-    #                 imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
-    #                 dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
-    #                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-    #         else:
-    #             # Build a UserData object for the whole data
-    #             imu_data = self._generate_imu_data_instance(data, self.sampling_frequency)
-    #             dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
-    #                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-    #     return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
+    def build_dataset(self, dataset_path, clinical_demo_path,
+                      segment_dataset, epoch_size):
+        self._generate_data_file_paths(dataset_path)
+        dataset = []
+        # for name, header_and_data_file_path in self.get_header_and_data_file_paths().items():
+        #     data_file_path = header_and_data_file_path['data_file_path']
+        #     header_file_path = header_and_data_file_path['header_file_path']
+        #     data_path = os.path.splitext(data_file_path)[0]
+        #     header_path = os.path.splitext(header_file_path)[0]
+        #     wfdb_record = wfdb.rdrecord(data_path)
+        #     id = wfdb_record.record_name
+        #     data = np.array(wfdb_record.p_signal)
+        #     data = np.float16(data)
+        #     # Convert acceleration data from g to m/s^2
+        #     data[:, 0:3] = data[:, 0:3] * 9.81
+        #     header_data = wfdb.rdheader(header_path)
+        #     if wfdb_record.comments[0][4:]:
+        #         age = float(wfdb_record.comments[0][4:])
+        #     sex = wfdb_record.comments[1][4:]
+        #     if id.casefold()[0] == 'f':
+        #         faller_status = True
+        #     elif id.casefold()[0] == 'c':
+        #         faller_status = False
+        #     else:
+        #         raise ValueError('LTMM Data faller status unclear from id')
+        #
+        #     imu_data_file_path: str = data_file_path
+        #     imu_metadata_file_path: str = header_file_path
+        #     clinical_demo_file_path: str = 'N/A'
+        #     imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
+        #     clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
+        #     if segment_dataset:
+        #         #TODO: track the segmented data with a linked list
+        #         # Segment the data and build a UserData object for each epoch
+        #         data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
+        #         for segment in data_segments:
+        #             imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
+        #             dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+        #                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        #     else:
+        #         # Build a UserData object for the whole data
+        #         imu_data = self._generate_imu_data_instance(data, self.sampling_frequency)
+        #         dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+        #                                 {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        # return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
 
     def generate_data_file_paths(self, dataset_path):
         data_file_paths = {}
         # Iterate through all of the files in the CSV directory, get all filenames
-        glob.glob(os.path.join(dataset_path, '*.csv'))
+        for folder_name in next(os.walk(dataset_path))[1]:
+            folder_path = os.path.join(dataset_path, folder_name)
+            for data_file_path in glob.glob(
+                os.path.join(folder_path, '*.csv')):
+                print(data_file_path)
+        # paths = glob.glob(os.path.join(dataset_path, '/*'))
+        # paths = glob.glob(dataset_path)
         # Match the file paths to participant metadata
         # Get all data file paths
         for data_file_path in glob.glob(os.path.join(dataset_path, '*.csv')):
