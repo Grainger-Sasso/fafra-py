@@ -64,7 +64,7 @@ class DatasetBuilder(DatasetBuilder):
             if segment_dataset:
                 #TODO: track the segmented data with a linked list
                 # Segment the data and build a UserData object for each epoch
-                data_segments = self.segment_data(data, epoch_size)
+                data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
                 for segment in data_segments:
                     imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
                     dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
@@ -75,33 +75,6 @@ class DatasetBuilder(DatasetBuilder):
                 dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
-
-    def segment_data(self, data, epoch_size):
-        """
-        Segments data into epochs of a given duration starting from the beginning of the data
-        :param: data: data to be segmented
-        :param epoch_size: duration of epoch to segment data (in seconds)
-        :return: data segments of given epoch duration
-        """
-        total_time = len(data.T[0])/self.sampling_frequency
-        # Calculate number of segments from given epoch size
-        num_of_segs = int(total_time / epoch_size)
-        # Check to see if data can be segmented at least one segment of given epoch size
-        if num_of_segs > 0:
-            data_segments = []
-            # Counter for the number of segments to be created
-            segment_count = range(0, num_of_segs+1)
-            # Create segmentation indices
-            seg_ixs = [int(seg * self.sampling_frequency * epoch_size) for seg in segment_count]
-            for seg_num in segment_count:
-                if seg_num != segment_count[-1]:
-                    data_segments.append(data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
-                else:
-                    continue
-        else:
-            raise ValueError(f'Data of total time {str(total_time)}s can not be '
-                             f'segmented with given epoch size {str(epoch_size)}s')
-        return data_segments
 
     def _generate_imu_data_instance(self, data, sampling_freq):
         v_acc_data = np.array(data.T[0])
