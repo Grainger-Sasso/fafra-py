@@ -58,7 +58,7 @@ class DatasetBuilder(DatasetBuilder):
 
             imu_data_file_path: str = data_file_path
             imu_metadata_file_path: str = header_file_path
-            clinical_demo_file_path: str = 'N/A'
+            clinical_demo_path: str = 'N/A'
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
             clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
             if segment_dataset:
@@ -67,16 +67,17 @@ class DatasetBuilder(DatasetBuilder):
                 data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
                 for segment in data_segments:
                     imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
-                    dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+                    dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_path,
                                             {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
             else:
                 # Build a UserData object for the whole data
                 imu_data = self._generate_imu_data_instance(data, self.sampling_frequency)
-                dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+                dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_path,
                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
+        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, {})
 
     def _generate_imu_data_instance(self, data, sampling_freq):
+        activity_code = ''
         v_acc_data = np.array(data.T[0])
         ml_acc_data = np.array(data.T[1])
         ap_acc_data = np.array(data.T[2])
@@ -85,7 +86,7 @@ class DatasetBuilder(DatasetBuilder):
         roll_gyr_data = np.array(data.T[5])
         time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
                            len(v_acc_data))
-        return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
+        return IMUData(activity_code, v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
     def _generate_header_and_data_file_paths(self, dataset_path):
@@ -117,4 +118,15 @@ class DatasetBuilder(DatasetBuilder):
         return data
 
 
+def main():
+    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    segment = True
+    epoch_size = 8.0
+    db = DatasetBuilder()
+    dataset = db.build_dataset(ltmm_dataset_path, clinical_demo_path,
+                     segment, epoch_size)
+    print(dataset)
 
+if __name__ == '__main__':
+    main()

@@ -302,8 +302,8 @@ def main():
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
     
-    ltmm_dataset_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\LabWalks'
-    clinical_demo_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
     output_dir = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
