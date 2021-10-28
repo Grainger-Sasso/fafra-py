@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shap
 from sklearn.inspection import permutation_importance
+from sklearn.inspection import PartialDependenceDisplay #new library added
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.risk_classifiers.classifier import Classifier
@@ -43,3 +44,17 @@ class InputMetricValidator:
         # plt.savefig('tmp.svg')
         # plt.close()
         #shap.plots.force(shap_values)
+
+    def perform_partial_dependence_plot(self, model: Classifier,
+                                               input_metrics: InputMetrics, y):
+        x, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
+
+        # x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+        # train model
+        clf = model.get_model()
+
+
+
+        PartialDependenceDisplay.from_estimator(clf, x, names, kind='both')
+        
