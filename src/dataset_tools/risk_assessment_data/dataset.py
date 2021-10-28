@@ -26,9 +26,6 @@ class Dataset(ABC):
     def get_dataset(self) -> List['UserData']:
         return self.dataset
 
-    def get_dataset(self) -> List['UserData']:
-        return self.dataset
-
     def get_activity_codes(self) -> Dict:
         return self.activity_codes
 
