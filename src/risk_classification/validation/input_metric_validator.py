@@ -32,13 +32,18 @@ class InputMetricValidator:
         model.train_model(x_train, y_train)
         m = model.get_model()
         # explain the model's predictions using SHAP
-        explainer = shap.KernelExplainer(m.predict, x_test)
+        explainer = shap.TreeExplainer(m)
         shap_values = explainer.shap_values(x_test)
+        #kernel explainer
+        #explainer = shap.KernelExplainer(m.predict, x_test)
+        #shap_values = explainer.shap_values(x_test)
 
         # visualize the first prediction's explaination
         cv,name=input_metrics.get_metric_matrix()
         shap.summary_plot(shap_values, x_test,feature_names=name)
-        #p=shap.force_plot(explainer.expected_value, shap_values[0:5,:],x_test[0:5,:])
+        temp=np.array([np.array(xi) for xi in x_test])
+        shap.force_plot(explainer.expected_value[1], shap_values[1][0,:],temp[0,:])
+        shap.force_plot(explainer.expected_value[1], shap_values[1],np.array([np.array(xi) for xi in x_test]))
         # p = shap.force_plot(explainer.expected_value, shap_values,x_test, matplotlib = True, show = False)
         # plt.savefig('tmp.svg')
         # plt.close()

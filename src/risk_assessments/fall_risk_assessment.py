@@ -69,6 +69,7 @@ class FallRiskAssessment:
             input_metrics)
         cv_x, names = input_metrics.get_metric_matrix()
         cv_results = self.rc.cross_validate(cv_x, y)
+        print("cross val done",cv_results)
         # Fit model to training data
         self.rc.train_model(x_train, y_train, metric_names=input_metric_names)
         # Make predictions on the test data
@@ -76,8 +77,9 @@ class FallRiskAssessment:
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
         input_validator= InputMetricValidator()
-        #input_validator.perform_shap_values(self.rc,input_metrics)
-        #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
+        print(self.rc.get_model().params)
+        input_validator.perform_shap_values(self.rc, input_metrics)
+        #input_validator.perform_permutation_feature_importance(self.rc, input_metrics,y)
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
@@ -114,7 +116,7 @@ class FallRiskAssessment:
             for user_data in dataset.get_dataset():
                 # Filter the data
                 self._apply_lp_filter(user_data)
-                self.att_est.estimate_attitude(user_data)
+                #self.att_est.estimate_attitude(user_data)
                 # self.apply_kalman_filter()
                 # Remove effects of gravity in vertical axis
                 # self._unbias_axes(user_data)
@@ -321,8 +323,8 @@ def main():
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
-    fra = FallRiskAssessment(KNNRiskClassifier())
-    #fra = FallRiskAssessment(LightGBMRiskClassifier({}))
+    #fra = FallRiskAssessment(KNNRiskClassifier())
+    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
 
 
