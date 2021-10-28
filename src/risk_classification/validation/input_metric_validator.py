@@ -43,7 +43,7 @@ class InputMetricValidator:
         shap.summary_plot(shap_values, x_test,feature_names=name)
         temp=np.array([np.array(xi) for xi in x_test])
         shap.force_plot(explainer.expected_value[1], shap_values[1][0,:],temp[0,:])
-        shap.force_plot(explainer.expected_value[1], shap_values[1],np.array([np.array(xi) for xi in x_test]))
+        shap.force_plot(explainer.expected_value, shap_values,np.array([np.array(xi) for xi in x_test]))
         # p = shap.force_plot(explainer.expected_value, shap_values,x_test, matplotlib = True, show = False)
         # plt.savefig('tmp.svg')
         # plt.close()
