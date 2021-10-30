@@ -109,6 +109,7 @@ class DatasetBuilder(DatasetBuilder):
         data_file_paths = self._generate_data_file_paths(dataset_path)
         dataset = []
         for subj_id, data_file_paths in data_file_paths.items():
+            print(subj_id)
             for file_path in data_file_paths:
                 data = self._read_data_file(file_path)
                 imu_data_file_path: str = file_path
@@ -187,8 +188,7 @@ class DatasetBuilder(DatasetBuilder):
         with open(data_file_path) as mfp:
             data = pd.read_csv(mfp, sep=',', index_col='time')
             data = data.to_numpy().T
-            # return data[1:7].T
-            return data
+            return data[1:7].T
 
     def _get_subj_clin_data(self, subj_id):
         subj_data = self.subject_data[subj_id]
@@ -292,10 +292,8 @@ class DatasetBuilder(DatasetBuilder):
 
 def main():
     path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\SisFall_csv\SisFall_dataset_csv'
-    out_dir = 'rC:\Users\gsass\Desktop\Fall Project Master\datasets\Sisfall_json'
     t0 = time.time()
     db = DatasetBuilder()
-    db.write_csv_dataset_to_json(path, 200.0, )
     dataset = db.build_dataset(path, '', True, 8.0)
     print(str(time.time() - t0))
     print(dataset)
