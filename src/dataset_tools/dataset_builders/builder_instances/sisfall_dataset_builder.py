@@ -1,4 +1,5 @@
 import os
+import json
 import pandas as pd
 import numpy as np
 import glob
@@ -66,7 +67,7 @@ class DatasetBuilder(DatasetBuilder):
             'SE14': {'id': 'SE14', 'age': 67, 'height': 163, 'weight': 58, 'sex': 'M'},
             'SE15': {'id': 'SE15', 'age': 64, 'height': 150, 'weight': 50, 'sex': 'F'}
         }
-        self.activity_codes = activity_ids = {
+        self.activity_codes = {
             'D01': {'code': 'D01', 'fall': False, 'description': 'Walking slowly', 'trials': 1, 'duration': 100},
             'D02': {'code': 'D02', 'fall': False, 'description': 'Walking quickly', 'trials': 1, 'duration': 100},
             'D03': {'code': 'D03', 'fall': False, 'description': 'Jogging slowly', 'trials': 1, 'duration': 100},
@@ -110,7 +111,6 @@ class DatasetBuilder(DatasetBuilder):
         for subj_id, data_file_paths in data_file_paths.items():
             for file_path in data_file_paths:
                 data = self._read_data_file(file_path)
-                print(file_path)
                 imu_data_file_path: str = file_path
                 imu_metadata_file_path: str = 'N/A'
                 clinical_demo_path: str = 'N/A'
@@ -144,6 +144,32 @@ class DatasetBuilder(DatasetBuilder):
                                  imu_metadata, subj_clin_data))
         return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
 
+    def write_csv_dataset_to_json(self, dataset_path, samp_freq, output_dir):
+        # Read in the data from CSV files
+        data_file_paths = self._generate_data_file_paths(dataset_path)
+        dataset = []
+        for subj_id, data_file_paths in data_file_paths.items():
+            out_subj_dir = os.path.join(output_dir, subj_id)
+            if not os.path.exists(out_subj_dir):
+                # Create output dir for the subject
+                os.mkdir(out_subj_dir)
+            for file_path in data_file_paths:
+                data = self._read_data_file(file_path)
+                json_data = {}
+                json_data['v_acc_data'] = np.array(data[1])
+                json_data['ml_acc_data'] = np.array(data[0])
+                json_data['ap_acc_data'] = np.array(data[2])
+                json_data['yaw_gyr_data'] = np.array(data[4])
+                json_data['pitch_gyr_data'] = np.array(data[3])
+                json_data['roll_gyr_data'] = np.array(data[5])
+                json_data['time'] = np.linspace(0, len(np.array(data[1])) / int(samp_freq), len(np.array(data[1])))
+                # Make file for
+                # Create output path
+                json_path = out_subj_dir + os.path.splitext(os.path.basename(file_path))[0] + '.json'
+                # Write the data out to JSON file
+                with open(json_path, 'w') as jf:
+                    json.dump(json_data, jf)
+
     def _generate_data_file_paths(self, dataset_path):
         data_file_paths = {}
         # Iterate through all of the files in the CSV directory, get all filenames
@@ -161,7 +187,8 @@ class DatasetBuilder(DatasetBuilder):
         with open(data_file_path) as mfp:
             data = pd.read_csv(mfp, sep=',', index_col='time')
             data = data.to_numpy().T
-            return data[1:7].T
+            # return data[1:7].T
+            return data
 
     def _get_subj_clin_data(self, subj_id):
         subj_data = self.subject_data[subj_id]
@@ -265,8 +292,10 @@ class DatasetBuilder(DatasetBuilder):
 
 def main():
     path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\SisFall_csv\SisFall_dataset_csv'
+    out_dir = 'rC:\Users\gsass\Desktop\Fall Project Master\datasets\Sisfall_json'
     t0 = time.time()
     db = DatasetBuilder()
+    db.write_csv_dataset_to_json(path, 200.0, )
     dataset = db.build_dataset(path, '', True, 8.0)
     print(str(time.time() - t0))
     print(dataset)
