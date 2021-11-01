@@ -1,7 +1,9 @@
+import os
 import pywt
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import uuid
 from scipy import signal
 
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
@@ -51,24 +53,31 @@ class CWT:
         min_height = 0.25 * max(coeff_sums)
         # Sets the minimum time difference between peaks to be 2s in samples
         min_peak_distance = 2.0/samp_per
-        peak_ixs = signal.find_peaks(coeff_sums, height=min_height,
-                          distance=min_peak_distance)
-        peak_values = coeff_sums[peak_ixs]
-        return peak_ixs, peak_values
+        return signal.find_peaks(coeff_sums, height=min_height,
+                                 distance=min_peak_distance)
 
-    def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums):
+    def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
+                         peak_ix, peak_value, output_dir=None, filename=None):
         fig, axs = plt.subplots(2, sharex=True)
         self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
-        self.plot_cwt_sums(fig, axs[1], coeff_sums, samp_per)
+        self.plot_cwt_sums(fig, axs[1], coeff_sums, samp_per,
+                           peak_ix, peak_value)
         plt.xlabel('Time (s)')
+        if output_dir:
+            # Write out the graph to the output dir
+            uuid_str = '_' + str(uuid.uuid4()) + '.png'
+            pic_filename = os.path.join(output_dir, (filename + uuid_str))
+            plt.savefig(pic_filename)
         plt.show()
 
-    def plot_cwt_sums(self, fig, ax, coeff_sums, samp_per):
+    def plot_cwt_sums(self, fig, ax, coeff_sums, samp_per,
+                      peak_ix, peak_value):
         # ax.hist(coeff_sums, bins=len(coeff_sums))
         # ax.hist(coeff_sums, bins=100)
         # ax.scatter(np.linspace(0.0, len(coeff_sums)*samp_per, len(coeff_sums)), coeff_sums)
-        ax.bar(np.linspace(0.0, len(coeff_sums) * samp_per, len(coeff_sums)),
-               coeff_sums, width=0.015)
+        time = np.linspace(0.0, len(coeff_sums) * samp_per, len(coeff_sums))
+        ax.bar(time, coeff_sums, width=0.015)
+        ax.scatter(time[peak_ix], peak_value)
 
     def plot_scalogram(self, fig, ax, coeffs, freqs, samp_per):
         # im = ax.contourf(x_coords, y_coords, coeffs, freqs)
@@ -1707,7 +1716,11 @@ def main():
     #                             len(v_acc_data))
     # plot_y_coords = freqs
     coeff_sums = cwt.sum_coeffs(coeffs)
-    cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums)
+    peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
+    peak_ix = peaks[0]
+    peak_values = peaks[1]['peak_heights']
+    output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\cwt\plots'
+    cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix, peak_values, output_dir, 'example_XXX')
     print(coeffs.shape, freqs.shape)
     print(freqs)
     # print(cwt.convert_scales_to_freq(scales, samp_freq))
