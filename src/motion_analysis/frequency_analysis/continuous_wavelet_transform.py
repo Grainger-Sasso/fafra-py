@@ -23,7 +23,8 @@ class CWT:
         """
         # Note: the Atrsaei paper chose the bior1.5 wavelet, not an option for
         # the pywt cwt
-        self.wavelet_name = 'mexh'
+        # self.wavelet_name = 'mexh'
+        self.wavelet_name = 'gaus4'
 
     def convert_scales_to_freq(self, scales, samp_freq):
         """
@@ -38,7 +39,7 @@ class CWT:
     def apply_cwt(self, x, scales, samp_period):
         # Scales correspond
         coeffs, freqs = pywt.cwt(x, scales, wavelet=self.wavelet_name,
-                                 sampling_period=samp_period)
+                                 sampling_period=samp_period, method='fft')
         return coeffs, freqs
 
     def sum_coeffs(self, coeffs):
@@ -58,9 +59,10 @@ class CWT:
 
     def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
                          peak_ix, peak_value, output_dir=None, filename=None):
-        fig, axs = plt.subplots(2, sharex=True)
+        # fig, axs = plt.subplots(2, sharex=True)
+        fig, axs = plt.subplots(2)
         self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
-        self.plot_cwt_sums(fig, axs[1], coeff_sums, samp_per,
+        self.plot_cwt_sums(axs[1], coeff_sums, samp_per,
                            peak_ix, peak_value)
         plt.xlabel('Time (s)')
         if output_dir:
@@ -70,14 +72,14 @@ class CWT:
             plt.savefig(pic_filename)
         plt.show()
 
-    def plot_cwt_sums(self, fig, ax, coeff_sums, samp_per,
+    def plot_cwt_sums(self, ax, coeff_sums, samp_per,
                       peak_ix, peak_value):
         # ax.hist(coeff_sums, bins=len(coeff_sums))
         # ax.hist(coeff_sums, bins=100)
         # ax.scatter(np.linspace(0.0, len(coeff_sums)*samp_per, len(coeff_sums)), coeff_sums)
         time = np.linspace(0.0, len(coeff_sums) * samp_per, len(coeff_sums))
-        ax.bar(time, coeff_sums, width=0.015)
-        ax.scatter(time[peak_ix], peak_value)
+        ax.plot(time, coeff_sums, 'bo')
+        ax.plot(time[peak_ix], peak_value, 'rv')
 
     def plot_scalogram(self, fig, ax, coeffs, freqs, samp_per):
         # im = ax.contourf(x_coords, y_coords, coeffs, freqs)
@@ -1699,17 +1701,27 @@ def main():
                            -1.08381007e+01, -1.08893211e+01, -1.09432613e+01,
                            -1.09980547e+01, -1.10518796e+01]])
     v_acc_data = data[0:1][0]
+    v_acc_data = v_acc_data[0:51]
     # TODO: Gotta figure out how scale values are related to frequency
     # Scales to freq for mexh wavelet correspond as follows:
     # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
     # min_max_scales = [125.0, 12.5]
-    min_max_scales = [30.0, 12.5]
+    min_max_scales = [200.0, 40.0]
     # min_max_scales = [30.0, 0.9]
     # Sampling frequency in Hz
     samp_freq = 100.0
     samp_period = 1/samp_freq
     num_scales = 100
     scales = np.linspace(min_max_scales[0], min_max_scales[1], num_scales).tolist()
+
+    # fs = 44100.0
+    # samp_period = 1/fs
+    # tclip = 10e-3
+    # nos = np.int(fs * tclip)
+    # t_points = np.linspace(0, 10e-3, nos)
+    # v_acc_data = np.cos(2 * np.pi * 500 * t_points)
+    # scales = np.arange(1,50,1)
+
     cwt = CWT()
     coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
     # plot_x_coords = np.linspace(0.0, len(v_acc_data)*samp_period,

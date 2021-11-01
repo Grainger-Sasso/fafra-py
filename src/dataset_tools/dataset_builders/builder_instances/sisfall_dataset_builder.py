@@ -199,7 +199,7 @@ class DatasetBuilder(DatasetBuilder):
         # Positive y: down, vertical
         # Positive z: forward, anteroposterior
         # Data: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z
-        activity_code = file_path[0:3]
+        activity_code = os.path.split(file_path)[1][0:3]
         v_acc_data = np.array(data.T[1])
         ml_acc_data = np.array(data.T[0])
         ap_acc_data = np.array(data.T[2])
