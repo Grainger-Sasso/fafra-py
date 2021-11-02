@@ -40,7 +40,6 @@ class AttitudeEstimator:
         - https://prgaero.github.io/Reports/p1b/semenovilya.pdf
         :return:
         """
-        # TODO: convert the inputs to user_data or imu_data
         # TODO: Convert the gyr data from deg/s to rads/s
         # Initialize the global reference frame
         # Initialize sensor attitude quaternion state with global ref z-axis
