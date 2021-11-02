@@ -1716,6 +1716,7 @@ def main():
     mf = MotionFilters()
     v_acc_data = mf.apply_lpass_filter(v_acc_data, 2, samp_freq)
     print(len(v_acc_data))
+    print(samp_freq)
 
     # samp_freq = 44100.0
     # samp_period = 1/samp_freq
