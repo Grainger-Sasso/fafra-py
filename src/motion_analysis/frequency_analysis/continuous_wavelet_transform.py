@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import uuid
 from scipy import signal
 
-from src.motion_analysis.peak_detection.peak_detector import PeakDetector
+from src.motion_analysis.filters.motion_filters import MotionFilters
 
 class CWT:
     def __init__(self):
@@ -23,8 +23,8 @@ class CWT:
         """
         # Note: the Atrsaei paper chose the bior1.5 wavelet, not an option for
         # the pywt cwt
-        # self.wavelet_name = 'mexh'
-        self.wavelet_name = 'gaus4'
+        self.wavelet_name = 'mexh'
+        # self.wavelet_name = 'gaus4'
 
     def convert_scales_to_freq(self, scales, samp_freq):
         """
@@ -87,10 +87,10 @@ class CWT:
         # coeffs = abs(coeffs)
         # L, R, bottom, top
         plot_extent = [0.0, len(coeffs[0])*samp_per, freqs[0], freqs[-1]]
-        im = ax.imshow(coeffs, norm=self.mat_norm(),
-                       cmap='coolwarm', aspect='auto',
-                       extent=plot_extent)
-        # im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
+        # im = ax.imshow(coeffs, norm=self.mat_norm(),
+        #                cmap='coolwarm', aspect='auto',
+        #                extent=plot_extent)
+        im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         cbar_ax = fig.add_axes([0.95, 0.5, 0.03, 0.25])
@@ -1701,26 +1701,30 @@ def main():
                            -1.08381007e+01, -1.08893211e+01, -1.09432613e+01,
                            -1.09980547e+01, -1.10518796e+01]])
     v_acc_data = data[0:1][0]
-    v_acc_data = v_acc_data[0:51]
-    # TODO: Gotta figure out how scale values are related to frequency
-    # Scales to freq for mexh wavelet correspond as follows:
-    # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
+    v_acc_data = v_acc_data - np.mean(v_acc_data)
+    # v_acc_data = v_acc_data[0:151]
+    # # TODO: Gotta figure out how scale values are related to frequency
+    # # Scales to freq for mexh wavelet correspond as follows:
+    # # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
     # min_max_scales = [125.0, 12.5]
-    min_max_scales = [200.0, 40.0]
-    # min_max_scales = [30.0, 0.9]
-    # Sampling frequency in Hz
+    min_max_scales = [100.0, 8.0]
+    # # Sampling frequency in Hz
     samp_freq = 100.0
     samp_period = 1/samp_freq
     num_scales = 100
     scales = np.linspace(min_max_scales[0], min_max_scales[1], num_scales).tolist()
+    mf = MotionFilters()
+    v_acc_data = mf.apply_lpass_filter(v_acc_data, 2, samp_freq)
+    print(len(v_acc_data))
 
-    # fs = 44100.0
-    # samp_period = 1/fs
+    # samp_freq = 44100.0
+    # samp_period = 1/samp_freq
     # tclip = 10e-3
-    # nos = np.int(fs * tclip)
+    # nos = np.int(samp_freq * tclip)
     # t_points = np.linspace(0, 10e-3, nos)
     # v_acc_data = np.cos(2 * np.pi * 500 * t_points)
     # scales = np.arange(1,50,1)
+    # print(len(v_acc_data))
 
     cwt = CWT()
     coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
