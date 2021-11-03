@@ -121,35 +121,12 @@ class FallRiskAssessment:
 
     def _apply_lp_filter(self, user_data):
         imu_data = user_data.get_imu_data()[IMUDataFilterType.RAW]
-        v_acc_data = imu_data.get_acc_axis_data('vertical')
-        ml_acc_data = imu_data.get_acc_axis_data('mediolateral')
-        ap_acc_data = imu_data.get_acc_axis_data('anteroposterior')
-        yaw_acc_data = imu_data.get_gyr_axis_data('yaw')
-        pitch_acc_data = imu_data.get_gyr_axis_data('pitch')
-        roll_acc_data = imu_data.get_gyr_axis_data('roll')
-        gyr_data = [yaw_acc_data, pitch_acc_data, roll_acc_data]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        all_raw_data = imu_data.get_all_data()
         lpf_data_all_axis = []
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(v_acc_data, 0.045))
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(v_acc_data, 0.1, samp_freq))
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(ml_acc_data, 0.035, samp_freq))
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(ap_acc_data, 0.07, samp_freq))
-        # for ax in gyr_data:
-        #     lpf_data_all_axis.append(
-        #         self.filter.apply_lpass_filter(ax, 0.05, samp_freq))
-        lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(v_acc_data, 2, samp_freq))
-        lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(ml_acc_data, 2, samp_freq))
-        lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(ap_acc_data, 2, samp_freq))
-        for ax in gyr_data:
+        for data in all_raw_data:
             lpf_data_all_axis.append(
-                self.filter.apply_lpass_filter(ax, 2, samp_freq))
+                self.filter.apply_lpass_filter(data, 2, samp_freq))
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
                                                         samp_freq)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
