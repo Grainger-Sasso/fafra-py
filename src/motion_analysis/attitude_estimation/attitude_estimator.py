@@ -18,7 +18,7 @@ class AttitudeEstimator:
         self.fig = None
         self.ax = None
 
-    def estimate_attitude(self, user_data: UserData):
+    def estimate_attitude(self, user_data: UserData, display_estimate: bool):
         """
         This method uses imu data and assumptions on the initial orientation of
         the sensor to calculate orientation (attitude) of the global frame
@@ -85,7 +85,9 @@ class AttitudeEstimator:
         orientation = self.convert_quat_to_3d(quat_all_t)
         # Derive the angle between the z (vertical) axis and the xy (ml-ap) plane
         theta = self.calc_vert_angle(orientation)
-        self.display_vectors(orientation)
+        if display_estimate:
+            self.display_vectors(orientation)
+        return theta
 
     def convert_deg_rad(self, gyr_data):
         return np.array([i * (math.pi/180) for i in gyr_data])
@@ -170,8 +172,8 @@ class AttitudeEstimator:
     def calc_vert_angle(self, orientation):
         # Returns angle between z axis of sensor and xy plane
         z_axis_mag = np.array([np.linalg.norm(ortn[2]) for ortn in orientation])
-        z_component = np.array([ortn[2][2] for ortn in orientation] )
-        return np.arcsin(z_component/z_axis_mag)
+        z_component = np.array([ortn[2][2] for ortn in orientation])
+        return np.arcsin(z_component/z_axis_mag) * (360/(2*np.pi))
 
     def display_vectors(self, orientation):
         self.fig, self.ax = plt.subplots(subplot_kw=dict(projection="3d"))
@@ -190,7 +192,7 @@ class AttitudeEstimator:
         self.ax.set_ylim(-2, 2)
         self.ax.set_zlim(-2, 2)
         ani = animation.FuncAnimation(self.fig, self.update, frames=orientation,
-                            interval=1)
+                            interval=0.1)
         # f = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\animations\test.gif'
         # ani.save(f)
         plt.show()
