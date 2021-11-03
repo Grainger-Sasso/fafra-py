@@ -2,7 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shap
 from sklearn.inspection import permutation_importance
-from sklearn.inspection import PartialDependenceDisplay #new library added
+from sklearn.inspection import partial_dependence
+from sklearn.inspection import PartialDependenceDisplay
+import pandas as pd
+from pdpbox import pdp, get_dataset, info_plots
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.risk_classifiers.classifier import Classifier
@@ -45,16 +48,67 @@ class InputMetricValidator:
         # plt.close()
         #shap.plots.force(shap_values)
 
-    def perform_partial_dependence_plot(self, model: Classifier,
+    def perform_partial_dependence_plot_sklearn(self, model: Classifier,
                                                input_metrics: InputMetrics, y):
+        '''This is a implementation of sklearn library by using from sklearn.inspection import PartialDependenceDisplay
+        The documentation that I used is: https://scikit-learn.org/stable/modules/partial_dependence.html
+        
+        '''
         x, names = input_metrics.get_metric_matrix()
+        
+        na=[eachName.get_name() for eachName in names]
+        print(names,"names")
+        print(na,"string")
+        print(type(x))
+        print(x.shape)
+        dataframe = pd.DataFrame(x, columns = na)
+        print(dataframe)
         y = input_metrics.get_labels()
 
-        # x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+        x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
         # train model
         clf = model.get_model()
-
-
-
-        PartialDependenceDisplay.from_estimator(clf, x, names, kind='both')
+        display = PartialDependenceDisplay.from_estimator(clf,dataframe,na)
+        #if I directly use PartialDependenceDisplay.from_estimator(clf,x,names,kind="both"), it returns an errow saying the "feature", which is names in this case, has to be a string or iterable,but ours are object, so  n
+        plt.show()
+        #plot_partial_dependence(clf, X=x, features=names, kind='both')
+    
+    
+    def perform_partial_dependence_plot_pdp(self, model: Classifier,
+                                               input_metrics: InputMetrics, y):
+        '''The following code is an implementation for library pdb, the link for this library is: https://github.com/SauceCat/PDPbox
+        There is a sample jupyternotebook example in this page: https://github.com/SauceCat/PDPbox/blob/master/tutorials/pdpbox_binary_classification.ipynb
+        '''
+        x, names = input_metrics.get_metric_matrix()
         
+        na=[eachName.get_name() for eachName in names]
+        print(names,"names")
+        print(na,"string")
+        print(type(x))
+        print(x.shape)
+        dataframe = pd.DataFrame(x, columns = na)
+        print(dataframe)
+        y = input_metrics.get_labels()
+        
+
+        x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+        x_train_dp=pd.DataFrame(x_train, columns = names)
+        # train model
+        clf = model.get_model()  
+        pdp_sex = pdp.pdp_isolate(
+                model=clf, dataset=dataframe, model_features=na, feature=na[1:3],
+                predict_kwds={"ignore_gp_model": True}
+            )
+        print(pdp_sex)
+        pdp.pdp_interact_plot(pdp_sex,na[1:3], x_quantile=True, plot_type='contour', plot_pdp=True)
+        #pdp.pdp_plot(pdp_sex, na, plot_pdp=True)                             
+        # for eachName in na:
+        #     pdp_sex = pdp.pdp_isolate(
+        #         model=clf, dataset=dataframe, model_features=na, feature=eachName,num_grid_points=50,
+        #         predict_kwds={"ignore_gp_model": True}
+        #     )
+        #     print(pdp_sex)
+        #     fig, axes = pdp.pdp_plot(pdp_sex, eachName, plot_lines=True)
+        #     fig.show()
+        #     fig, axes = pdp.pdp_plot(pdp_sex, eachName)
+        #     break
