@@ -3,6 +3,11 @@ from enum import Enum
 
 class ClassifierMetrics(Enum):
     EXAMPLE = 'example'
+    SHAP = 'shap'
+    PFI = 'permutation_feature_importance'
+    CV = 'cross_validation'
+    PDP = 'partial_dependence_plots'
+    LIME = 'lime'
 
     def get_name(self):
         # Self is the member here
