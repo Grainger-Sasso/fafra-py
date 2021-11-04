@@ -23,11 +23,11 @@ class DatasetBuilder(DatasetBuilder):
         # TODO: add second sisfall dataset for the second accelerometer in dataset, currently not being used
         super().__init__(DATASET_NAME)
         self.sampling_frequency = 200.0
-        # Original units: g,g,g,deg/s,deg/s,deg/s
-        # Converted to: m/s^2,m/s^2,m/s^2,deg/s,deg/s,deg/s
+        # Original units: g,g,g,°/s,°/s,°/s
+        # Converted to: m/s^2,m/s^2,m/s^2,°/s,°/s,°/s
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
-                      'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
+                      'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         # Adults were not screened for fall risk, therefor none of them are assumed to be fallers
         self.subject_data = {
             'SA01': {'id': 'SA01', 'age': 26, 'height': 165, 'weight': 53, 'sex': 'F'},
