@@ -64,10 +64,13 @@ def preprocess_data(user_data: UserData, samp_freq, type: str):
     if type == 'mean_subtraction':
         v_acc_data = user_data.get_imu_data()[
             IMUDataFilterType.LPF].get_acc_axis_data('vertical')
-        return v_acc_data - np.mean(v_acc_data)
+        v_acc_data = v_acc_data - np.mean(v_acc_data)
     elif type == 'remove_gravity':
         # Run the attitude estimation and remove the gravity componenet from
-        remove_gravity(user_data)
+        v_acc_data = remove_gravity(user_data)
+    else:
+        raise ValueError(f'Invalid preprocessing type: {type}')
+    return v_acc_data
 
 def lpf_data(user_data: UserData, samp_freq):
     mf = MotionFilters()
@@ -103,7 +106,8 @@ def remove_gravity(user_data):
         IMUDataFilterType.LPF].get_acc_axis_data('vertical')
     # As theta approaches 90°, amount of gravity component removed increases
     # As theta approaches 0°, amount of gravity component removed decreases
-    rm_g_v_acc_data = [(v_acc, theta) for v_acc, theta in zip(v_acc_data, theta)]
+    rm_g_v_acc_data = [v_acc - (9.8*theta) for v_acc, theta in zip(v_acc_data, theta)]
+    return rm_g_v_acc_data
 
 
 

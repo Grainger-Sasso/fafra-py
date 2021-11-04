@@ -173,7 +173,8 @@ class AttitudeEstimator:
         # Returns angle between z axis of sensor and xy plane
         z_axis_mag = np.array([np.linalg.norm(ortn[2]) for ortn in orientation])
         z_component = np.array([ortn[2][2] for ortn in orientation])
-        return np.arcsin(z_component/z_axis_mag) * (360/(2*np.pi))
+        # return np.arcsin(z_component/z_axis_mag) * (360/(2*np.pi))
+        return np.arcsin(z_component / z_axis_mag)
 
     def display_vectors(self, orientation):
         self.fig, self.ax = plt.subplots(subplot_kw=dict(projection="3d"))
