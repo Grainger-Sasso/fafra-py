@@ -21,8 +21,10 @@ class DatasetBuilder(DatasetBuilder):
         super().__init__(DATASET_NAME)
         self.header_and_data_file_paths = dict()
         self.sampling_frequency = 100.0
-        self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
-                      'anteroposterior-acc': 'g',
+        # Original units: g,g,g,deg/s,deg/s,deg/s
+        # Converted to: m/s^2,m/s^2,m/s^2,deg/s,deg/s,deg/s
+        self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
+                      'anteroposterior-acc': 'm/s^2',
                       'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
         # Mock height in meters
         self.height = 1.75
