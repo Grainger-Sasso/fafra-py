@@ -28,7 +28,7 @@ class InputMetricValidator:
         bar_plot.xlabel('feature Metrics', fontweight='bold', color='blue', fontsize='5', horizontalalignment='center')
         if show_plot:
             plt.show()
-        return bar_plot, r, importance
+        return [bar_plot, r, importance]
 
     def perform_shap_values(self, model, input_metrics: InputMetrics):
         x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
@@ -42,9 +42,11 @@ class InputMetricValidator:
         # visualize the first prediction's explaination
         cv,name = input_metrics.get_metric_matrix()
         shap_plot = shap.summary_plot(shap_values, x_test, feature_names=name)
+
         #p=shap.force_plot(explainer.expected_value, shap_values[0:5,:],x_test[0:5,:])
         # p = shap.force_plot(explainer.expected_value, shap_values,x_test, matplotlib = True, show = False)
         # plt.savefig('tmp.svg')
         # plt.close()
         #shap.plots.force(shap_values)
-        return shap_plot, shap_values
+
+        return [shap_plot, shap_values]

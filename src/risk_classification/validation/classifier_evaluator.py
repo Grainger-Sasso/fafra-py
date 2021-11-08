@@ -19,35 +19,42 @@ class ClassifierEvaluator:
     def run_models_evaluation(self, eval_metrics: List[ClassifierMetrics],
                               classifiers: List[Classifier],
                               input_metrics: InputMetrics, output_path):
-        results = []
+        plot_results = []
+        result_metrics = []
         # Iterate evaluation through list of classifiers
         for classifier in classifiers:
             # Perform specified evaluation techniques on classifier
             for eval_metric in eval_metrics:
                 if eval_metric == ClassifierMetrics.PFI:
                     y = input_metrics.get_labels()
-                    results.append(
-                        self.input_metric_validator.perform_permutation_feature_importance(
-                            classifier, input_metrics, y))
+                    results = self.input_metric_validator.perform_permutation_feature_importance(
+                            classifier, input_metrics, y)
+                    plot_results.append(results[0])
+                    result_metrics.append(results[1:])
                 elif eval_metric == ClassifierMetrics.SHAP:
-                    pass
+                    x = input_metrics.get_metric_matrix()
+                    results = self.input_metric_validator.perform_shap_values(
+                            classifier, x)
+                    plot_results.append(results[0])
+                    result_metrics.append(results[1])
                 elif eval_metric == ClassifierMetrics.CV:
                     x = input_metrics.get_metric_matrix()
                     y = input_metrics.get_labels()
-                    results.append(classifier.cross_validate(x, y))
+                    results = classifier.cross_validate(x, y)
+                    result_metrics.append(results)
                 else:
                     raise ValueError(f'Evaluation metric provided, {eval_metric}'
                                      f', is not a valid metric: {ClassifierMetrics.get_all_values()}')
-        self.parse_results(results)
-        self.write_results(output_path, results)
+        self.parse_results(plot_results, result_metrics)
+        self.write_results(output_path, plot_results, result_metrics)
         print('complete')
         return results
 
-    def parse_results(self, results):
+    def parse_results(self, result_plot, metrics_result):
         parsed_results = None
         return parsed_results
 
-    def write_results(self, output_path, results):
+    def write_results(self, output_path, result_plot, metrics_result):
         pass
 
 
