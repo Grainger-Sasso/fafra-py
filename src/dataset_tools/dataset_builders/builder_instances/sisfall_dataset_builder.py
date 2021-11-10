@@ -205,6 +205,8 @@ class DatasetBuilder(DatasetBuilder):
         # Data: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z
         activity_code = os.path.split(file_path)[1][0:3]
         v_acc_data = np.array(data.T[1])
+        # Flip the direction of vertical axis data such that gravity is now positive
+        v_acc_data = v_acc_data * -1.0
         ml_acc_data = np.array(data.T[0])
         ap_acc_data = np.array(data.T[2])
         yaw_gyr_data = np.array(data.T[4])

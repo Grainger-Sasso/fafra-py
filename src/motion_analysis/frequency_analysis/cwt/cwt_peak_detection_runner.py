@@ -45,17 +45,24 @@ def main():
                          num_scales).tolist()
     output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\cwt\plots'
     # Iterate through the ADL dataset and run CWT + peak detection on the batch
+    all_v_means = []
     for data in adl_dataset:
-        filename = os.path.split(os.path.splitext(data.get_imu_data_file_path())[0])
-        v_acc_data = preprocess_data(data, samp_freq, 'remove_gravity')
+        filename = os.path.split(os.path.splitext(data.get_imu_data_file_path())[0])[1]
+        # print(data.get_imu_data().get_activity_code())
+        v_acc_data = preprocess_data(data, samp_freq, 'mean_subtraction')
+        all_v_means.append(np.mean(v_acc_data))
         coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
         coeff_sums = cwt.sum_coeffs(coeffs)
         peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
         peak_ix = peaks[0]
         peak_values = peaks[1]['peak_heights']
+        # cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
+        #                      peak_values, output_dir, filename)
         cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
-                             peak_values, output_dir, filename)
+                             peak_values)
     # Evaluate the results
+    print(np.mean(all_v_means))
+    print(np.std(all_v_means))
     pass
 
 def preprocess_data(user_data: UserData, samp_freq, type: str):
@@ -106,6 +113,7 @@ def remove_gravity(user_data):
         IMUDataFilterType.LPF].get_acc_axis_data('vertical')
     # As theta approaches 90°, amount of gravity component removed increases
     # As theta approaches 0°, amount of gravity component removed decreases
+    # TODO: Implement the cos of the thesta
     rm_g_v_acc_data = [v_acc - (9.8*theta) for v_acc, theta in zip(v_acc_data, theta)]
     return rm_g_v_acc_data
 
