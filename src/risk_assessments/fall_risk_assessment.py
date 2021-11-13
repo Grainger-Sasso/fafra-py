@@ -76,7 +76,7 @@ class FallRiskAssessment:
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
         input_validator= InputMetricValidator()
-        input_validator.perform_partial_dependence_plot_pdp(self.rc,input_metrics,y)
+        input_validator.perform_partial_dependence_plot_lightGBM(self.rc,input_metrics,y)
         #input_validator.perform_partial_dependence_plot_sklearn(self.rc,input_metrics,y)
         #input_validator.perform_shap_values(self.rc,input_metrics)
         #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
