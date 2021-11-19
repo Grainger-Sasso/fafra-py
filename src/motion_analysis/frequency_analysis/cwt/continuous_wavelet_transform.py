@@ -58,13 +58,15 @@ class CWT:
                                  distance=min_peak_distance)
 
     def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
-                         peak_ix, peak_value, output_dir=None, filename=None):
+                         peak_ix, peak_value, act_code, act_code_data, output_dir=None, filename=None):
         # fig, axs = plt.subplots(2, sharex=True)
         fig, axs = plt.subplots(2)
         self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
         self.plot_cwt_sums(axs[1], coeff_sums, samp_per,
                            peak_ix, peak_value)
         plt.xlabel('Time (s)')
+        act_description = act_code_data[act_code]['description']
+        fig.suptitle(f'{act_code}: {act_description}')
         if output_dir:
             # Write out the graph to the output dir
             uuid_str = '_' + str(uuid.uuid4()) + '.png'
@@ -1704,8 +1706,10 @@ def main():
     v_acc_data = v_acc_data - np.mean(v_acc_data)
     # v_acc_data = v_acc_data[0:151]
     # # TODO: Gotta figure out how scale values are related to frequency
-    # # Scales to freq for mexh wavelet correspond as follows:
+    # # Scales to freq for mexh wavelet @ 100.0 Hz samp_rate correspond as follows:
     # # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
+    # # Scales to freq for mexh wavelet @ 200.0 Hz samp_rate correspond as follows:
+    # # (250.0 -> 0.2Hz) and (25.0 ->2.0Hz)
     # min_max_scales = [125.0, 12.5]
     min_max_scales = [100.0, 8.0]
     # # Sampling frequency in Hz

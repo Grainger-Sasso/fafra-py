@@ -26,18 +26,19 @@ def main():
     # Instantiate the dataset builder
     db = DatasetBuilder()
     # Build dataset
-    dataset: Dataset = db.build_dataset(path, '', True, 8.0)
+    # dataset: Dataset = db.build_dataset(path, '', True, 8.0)
+    dataset: Dataset = db.build_dataset(path, '', False, 0.0)
+    # Get activity codes of entire dataset
+    act_code_data = dataset.get_activity_codes()
     t_dataset = time.time()
     print(str(t_dataset-t0))
     # Get instances of SiSt and StSi
-    act_codes = ['D07', 'D08', 'D09', 'D10', 'D11', 'D12', 'D13']
+    pt_act_codes = ['D07', 'D08', 'D09', 'D10', 'D11', 'D12', 'D13']
     user_data: List[UserData] = dataset.get_dataset()
-    adl_dataset = [data for data in user_data if data.get_imu_data()[IMUDataFilterType.RAW].get_activity_code() in act_codes]
+    adl_dataset = [data for data in user_data if data.get_imu_data()[IMUDataFilterType.RAW].get_activity_code() in pt_act_codes]
     # Instantiate CWT and other parameters
     cwt = CWT()
-    # Scales to freq for mexh wavelet correspond as follows:
-    # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
-    min_max_scales = [125.0, 12.5]
+    min_max_scales = [250.0, 25.0]
     samp_freq = 200.0
     samp_period = 1 / samp_freq
     num_scales = 100
@@ -53,13 +54,15 @@ def main():
         all_v_means.append(np.mean(v_acc_data))
         coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
         coeff_sums = cwt.sum_coeffs(coeffs)
+        # TODO: apply smoothing to the CWT coeffs prior to peak detection
         peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
         peak_ix = peaks[0]
         peak_values = peaks[1]['peak_heights']
+        data_act_code = data.get_imu_data()[IMUDataFilterType.RAW].get_activity_code()
         # cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
-        #                      peak_values, output_dir, filename)
+        #                      peak_values, data_act_code, act_code_data, output_dir, filename)
         cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
-                             peak_values)
+                             peak_values, data_act_code, act_code_data)
     # Evaluate the results
     print(np.mean(all_v_means))
     print(np.std(all_v_means))
