@@ -77,11 +77,7 @@ class InputMetricValidator:
         
         na=[eachName.get_name() for eachName in names]
         dataframe = pd.DataFrame(x, columns = na)
-        y = input_metrics.get_labels()
         
-
-        x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
-        x_train_dp=pd.DataFrame(x_train, columns = names)
         # train model
         clf = model.get_model() 
         for n in na:
@@ -91,11 +87,4 @@ class InputMetricValidator:
                 )
             figg,axess=pdp.pdp_plot(pdp_sex,n,plot_lines=True)
             plt.show()
-
-
-        # pdp_sex = pdp.pdp_isolate(
-        #         model=clf, dataset=dataframe, model_features=na, feature=na[1],
-        #         predict_kwds={"ignore_gp_model": True}
-        #     )
-        # print(pdp_sex)
-        # fig,axes=pdp.pdp_plot(pdp_sex,na[1],plot_lines=True)
+            
