@@ -50,12 +50,15 @@ class CWT:
 
     def detect_cwt_peaks(self, coeff_sums, samp_per):
         """Returns peak indices of cwt summed coefficients"""
-        # Minimum peak height must be 1/4 of the max value in the cwt summed coefficients
-        min_height = 0.25 * max(coeff_sums)
+        # Minimum peak height must be 40% of the max value in the cwt summed coefficients
+        min_height = 0.3 * max(coeff_sums)
         # Sets the minimum time difference between peaks to be 2s in samples
         min_peak_distance = 2.0/samp_per
-        return signal.find_peaks(coeff_sums, height=min_height,
-                                 distance=min_peak_distance)
+        min_prominence = 0.3 * max(coeff_sums)
+        peaks = signal.find_peaks(coeff_sums, height=min_height,
+                                  distance=min_peak_distance,
+                                  prominence=min_prominence)
+        return peaks
 
     def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
                          peak_ix, peak_value, act_code, act_code_data, output_dir=None, filename=None):
