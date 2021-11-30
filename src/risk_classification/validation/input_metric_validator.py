@@ -2,6 +2,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import shap
 from sklearn.inspection import permutation_importance
+from sklearn.inspection import partial_dependence
+from sklearn.inspection import PartialDependenceDisplay
+import pandas as pd
+from pdpbox import pdp, get_dataset, info_plots
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.risk_classifiers.classifier import Classifier
@@ -43,3 +47,44 @@ class InputMetricValidator:
         # plt.savefig('tmp.svg')
         # plt.close()
         #shap.plots.force(shap_values)
+
+    def perform_partial_dependence_plot_sklearn(self, model: Classifier,
+                                               input_metrics: InputMetrics, y):
+        '''This is a implementation of sklearn library by using from sklearn.inspection import PartialDependenceDisplay
+        The documentation that I used is: https://scikit-learn.org/stable/modules/partial_dependence.html
+        
+        '''
+        x, names = input_metrics.get_metric_matrix()
+        
+        na=[eachName.get_name() for eachName in names]
+        dataframe = pd.DataFrame(x, columns = na)
+        y = input_metrics.get_labels()
+
+        x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+        # train model
+        clf = model.get_model()
+        display = PartialDependenceDisplay.from_estimator(clf,dataframe,na)
+        #if I directly use PartialDependenceDisplay.from_estimator(clf,x,names,kind="both"), it returns an errow saying the "feature", which is names in this case, has to be a string or iterable,but ours are object, so  n
+        plt.show()
+    
+    
+    def perform_partial_dependence_plot_lightGBM(self, model: Classifier,
+                                               input_metrics: InputMetrics, y):
+        '''The following code is an implementation for library pdb, the link for this library is: https://github.com/SauceCat/PDPbox
+        There is a sample jupyternotebook example in this page: https://github.com/SauceCat/PDPbox/blob/master/tutorials/pdpbox_binary_classification.ipynb
+        '''
+        x, names = input_metrics.get_metric_matrix()
+        
+        na=[eachName.get_name() for eachName in names]
+        dataframe = pd.DataFrame(x, columns = na)
+        
+        # train model
+        clf = model.get_model() 
+        for n in na:
+            pdp_sex = pdp.pdp_isolate(
+                    model=clf, dataset=dataframe, model_features=na, feature=n,
+                    predict_kwds={"ignore_gp_model": True}
+                )
+            figg,axess=pdp.pdp_plot(pdp_sex,n,plot_lines=True)
+            plt.show()
+            
