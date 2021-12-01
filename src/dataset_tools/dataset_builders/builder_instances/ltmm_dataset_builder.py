@@ -80,6 +80,7 @@ class DatasetBuilder(DatasetBuilder):
 
     def _generate_imu_data_instance(self, data, sampling_freq):
         activity_code = ''
+        activity_description = ''
         v_acc_data = np.array(data.T[0])
         ml_acc_data = np.array(data.T[1])
         ap_acc_data = np.array(data.T[2])
@@ -88,8 +89,9 @@ class DatasetBuilder(DatasetBuilder):
         roll_gyr_data = np.array(data.T[5])
         time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
                            len(v_acc_data))
-        return IMUData(activity_code, v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
 
     def _generate_header_and_data_file_paths(self, dataset_path):
         data_file_paths = {}

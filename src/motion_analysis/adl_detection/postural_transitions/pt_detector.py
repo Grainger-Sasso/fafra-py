@@ -13,9 +13,8 @@ from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
-class PT_Detector:
-
-    def __init__(self):
+class PTDetector:
+    def __init__(self, wavelet_name='mexh'):
         """
         Based on CWT technique found in:
         Atrsaei, Arash et al. “Postural transitions detection and
@@ -24,24 +23,37 @@ class PT_Detector:
         vol. 17,1 70. 3 Jun. 2020, doi:10.1186/s12984-020-00692-4
         https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7271521/
         """
-        pass
+        self.wavelet_name = wavelet_name
+        self.cwt = CWT(wavelet_name)
 
-    def detect_pts(self, user_data: UserData):
+    def detect_pts(self, user_data: UserData, scales, plot_cwt=False, output_dir=None, filename=None):
         """
         Assumes data has gravity component removed (e.g., naieve mean
         subtraction, attitude estimation)
-        :param data:
+        :param user_data:
         :return:
         """
         # Initialize output variable
         pt_indices = []
         # Get the attitude estimated data vertical acceleration data
-        v_acc_data = user_data.get_imu_data(IMUDataFilterType.ATTITUDE_ESTIMATION)
+        v_acc_data = user_data.get_imu_data(IMUDataFilterType.ATTITUDE_ESTIMATION).get_acc_axis_data('vertical')
+        # Get the sampling period from sampling frequency
+        samp_period = 1/(user_data.get_imu_metadata().get_sampling_frequency())
         # Apply CWT to data
         cwt = CWT()
         coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
         coeff_sums = cwt.sum_coeffs(coeffs)
         # Find potential PTs as peaks in the CWT data
+        peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
+        peak_ix = peaks[0]
+        peak_values = peaks[1]['peak_heights']
+        # If specified, plot cwt results
+        if plot_cwt:
+            data_act_code = user_data.get_imu_data(
+                IMUDataFilterType.RAW).get_activity_code()
+            cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
+                                 peak_ix, peak_values, act_code,
+                                 act_code_description, output_dir, filename)
         # Integrate vertical acceleration to get vertical velocity
         # Integrate vertical velocity to get vertical displacement
         # Fit the vertical displacement data to sigmoid model

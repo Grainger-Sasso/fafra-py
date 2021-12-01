@@ -204,6 +204,7 @@ class DatasetBuilder(DatasetBuilder):
         # Positive z: forward, anteroposterior
         # Data: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z
         activity_code = os.path.split(file_path)[1][0:3]
+        activity_description = self.activity_codes[activity_code]['description']
         v_acc_data = np.array(data.T[1])
         # Flip the direction of vertical axis data such that gravity is now positive
         v_acc_data = v_acc_data * -1.0
@@ -214,8 +215,9 @@ class DatasetBuilder(DatasetBuilder):
         roll_gyr_data = np.array(data.T[5])
         time = np.linspace(0, len(v_acc_data) / int(samp_freq),
                            len(v_acc_data))
-        return IMUData(activity_code, v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
 
 
 # class ConvertSisFallDataset:

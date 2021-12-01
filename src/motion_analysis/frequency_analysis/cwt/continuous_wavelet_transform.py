@@ -8,8 +8,9 @@ from scipy import signal
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 
+
 class CWT:
-    def __init__(self):
+    def __init__(self, wavelet_name='mexh'):
         """
         Initilization function for the continuous wavelet transformer (CWT)
         :param wavelet_name: Name of the wavelet used in cwt;
@@ -23,10 +24,10 @@ class CWT:
         """
         # Note: the Atrsaei paper chose the bior1.5 wavelet, not an option for
         # the pywt cwt
-        self.wavelet_name = 'mexh'
+        self.wavelet_name = wavelet_name
         # self.wavelet_name = 'gaus4'
 
-    def convert_scales_to_freq(self, scales, samp_freq):
+    def convert_scales_to_freq(self, scales, samp_period):
         """
         More info on how to appropriately choose scales can be found:
         https://pywavelets.readthedocs.io/en/latest/ref/cwt.html#choosing-the-scales-for-cwt
@@ -34,7 +35,7 @@ class CWT:
         :param samp_freq:
         :return:
         """
-        return pywt.scale2frequency(self.wavelet_name, scales) / (1/samp_freq)
+        return pywt.scale2frequency(self.wavelet_name, scales) / samp_period
 
     def apply_cwt(self, x, scales, samp_period):
         # Scales correspond

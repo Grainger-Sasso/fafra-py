@@ -2,10 +2,12 @@ import numpy as np
 
 
 class IMUData:
-    def __init__(self, activity_code, v_acc_data, ml_acc_data, ap_acc_data,
-                 yaw_gyr_data, pitch_gyr_data, roll_gyr_data,
-                 time):
+    def __init__(self, activity_code, activity_description, v_acc_data,
+                 ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                 roll_gyr_data, time):
+        # Activity code and activity code description
         self.activity_code: str = activity_code
+        self.activity_description: str = activity_description
         # Vertical axis accelerometer data
         self.v_acc_data = np.array(v_acc_data)
         # Mediolateral axis accelerometer data
