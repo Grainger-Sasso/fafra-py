@@ -18,7 +18,7 @@ class PTDetector:
     def __init__(self, wavelet_name='mexh'):
         """
         Based on CWT technique found in:
-        Atrsaei, Arash et al. “Postural transitions detection and
+        [1] Atrsaei, Arash et al. “Postural transitions detection and
         characterization in healthy and patient populations using a single
         waist sensor.” Journal of neuroengineering and rehabilitation
         vol. 17,1 70. 3 Jun. 2020, doi:10.1186/s12984-020-00692-4
@@ -29,6 +29,7 @@ class PTDetector:
 
     def detect_pts(self, user_data: UserData, scales, plot_cwt=False, output_dir=None, filename=None):
         """
+        See init for reference to methodology used for CWT-based PT detection
         Assumes data has gravity component removed (e.g., naieve mean
         subtraction, attitude estimation)
         :param user_data:
@@ -42,40 +43,55 @@ class PTDetector:
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         samp_period = 1/samp_freq
         # Apply CWT to data
-        cwt = CWT()
-        coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
-        coeff_sums = cwt.sum_coeffs(coeffs)
+        coeffs, freqs = self.cwt.apply_cwt(v_acc_data, scales, samp_period)
+        coeff_sums = self.cwt.sum_coeffs(coeffs)
         # Find potential PTs as peaks in the CWT data
-        peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
-        peak_ix = peaks[0]
-        peak_values = peaks[1]['peak_heights']
+        cwt_peaks = self.cwt.detect_cwt_peaks(coeff_sums, samp_period)
+        cwt_peak_ixs = cwt_peaks[0]
+        cwt_peak_values = cwt_peaks[1]['peak_heights']
         # If specified, plot cwt results
         if plot_cwt:
-            act_code = user_data.get_imu_data(
-                IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_code()
-            act_description = user_data.get_imu_data(
-                IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_description()
-            cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
-                                 peak_ix, peak_values, act_code,
-                                 act_description, output_dir, filename)
-        # Calculate vertical displacement through double integration of
-        # vertical acceleration
-        v_displacement = GaitAnalyzer().estimate_v_displacement(v_acc_data, 0,
-                                                len(v_acc_data), samp_freq)
-        # Fit the vertical displacement data to sigmoid model
-
+            self._plot_cwt(user_data, coeffs, freqs, samp_period, coeff_sums,
+                  cwt_peak_ixs, cwt_peak_values, output_dir, filename)
+        # Set the duration in samples around the peak to include at PT
+        # candidate region, empirically set to 4 seconds [1]
+        pt_duration = 4.0*samp_freq
+        # Get potential PT candidates as region of data around CWT peaks
+        pt_candidates = [[ix-round(pt_duration/2.0), ix+round(pt_duration/2.0)] for ix in cwt_peak_ixs]
+        # Check for edge cases on the ends of the acceleration file
+        if pt_candidates[0][0] < 0:
+            pt_candidates[0][0] = 0
+        if pt_candidates[-1][1] > len(v_acc_data):
+            pt_candidates[-1][1] = len(v_acc_data)
+        # Set model fitting threshold
+        model_fitting_threshold = 2.0
+        # For all PT candidates
+        for pt_candidate, cwt_peak_ix in zip(pt_candidates, cwt_peak_ixs):
+            # Calculate vertical displacement through double integration of
+            # vertical acceleration
+            pt_start_ix = pt_candidate[0]
+            pt_end_ix = pt_candidate[1]
+            v_displacement = GaitAnalyzer().estimate_v_displacement(v_acc_data,
+                                                0, len(v_acc_data), samp_freq)
+            # Fit the vertical displacement data to sigmoid model
+            model = None
+            # Calculate model fitting coefficient, R^2
+            model_r_squared = None
+            # If the fitting coefficient exceeds fitting threshold
+            if model_r_squared > model_fitting_threshold:
+                # Consider PT candidate to be PT, add to output variable
+                pt_indices.append(cwt_peak_ix)
         return pt_indices
 
-    def _compute_single_integration(self, data, period, x0):
-        # single integration for time series data is the sum of (the
-        # product of the signal at time t and the sample period) and
-        # (the current integrated value at time t)
-        x = [x0]
-        for i in data:
-            x_t = i * period + x0
-            x.append(x_t)
-            x0 = x_t
-        return x
+    def _plot_cwt(self, user_data, coeffs, freqs, samp_period, coeff_sums,
+                  cwt_peak_ixs, cwt_peak_values, output_dir, filename):
+        act_code = user_data.get_imu_data(
+            IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_code()
+        act_description = user_data.get_imu_data(
+            IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_description()
+        self.cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
+                             cwt_peak_ixs, cwt_peak_values, act_code,
+                             act_description, output_dir, filename)
 
 def main():
     """
