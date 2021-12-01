@@ -1,6 +1,8 @@
 import os
 import time
+import math
 import numpy as np
+from scipy.optimize import curve_fit
 from typing import List
 
 from src.motion_analysis.frequency_analysis.cwt.continuous_wavelet_transform import CWT
@@ -27,6 +29,7 @@ class PTDetector:
         self.wavelet_name = wavelet_name
         self.cwt = CWT(wavelet_name)
 
+
     def detect_pts(self, user_data: UserData, scales, plot_cwt=False, output_dir=None, filename=None):
         """
         See init for reference to methodology used for CWT-based PT detection
@@ -36,7 +39,7 @@ class PTDetector:
         :return:
         """
         # Initialize output variable
-        pt_indices = []
+        pt_events = []
         # Get the attitude estimated data vertical acceleration data
         v_acc_data = user_data.get_imu_data(IMUDataFilterType.ATTITUDE_ESTIMATION).get_acc_axis_data('vertical')
         # Get the sampling period from sampling frequency
@@ -63,25 +66,50 @@ class PTDetector:
             pt_candidates[0][0] = 0
         if pt_candidates[-1][1] > len(v_acc_data):
             pt_candidates[-1][1] = len(v_acc_data)
-        # Set model fitting threshold
-        model_fitting_threshold = 2.0
+        # Set model fitting threshold, R^2 value, empiracally determined 0.92
+        model_fitting_threshold = 0.92
+        min_pt_elevation_change = 1.0
         # For all PT candidates
         for pt_candidate, cwt_peak_ix in zip(pt_candidates, cwt_peak_ixs):
             # Calculate vertical displacement through double integration of
             # vertical acceleration
             pt_start_ix = pt_candidate[0]
             pt_end_ix = pt_candidate[1]
-            v_displacement = GaitAnalyzer().estimate_v_displacement(v_acc_data,
-                                                0, len(v_acc_data), samp_freq)
-            # Fit the vertical displacement data to sigmoid model
-            model = None
+            v_disp = GaitAnalyzer().estimate_v_displacement(v_acc_data,
+                                                pt_start_ix, pt_end_ix,
+                                                samp_freq)
+            v_disp_time = np.linspace(0.0, (len(v_disp)-1)*samp_period,
+                                      len(v_disp))
+            # Fit the vertical displacement data to sigmoid model, returns
+            # optimal model params (mp1-mp4) and optimal model param covariance
+            mp_opt, mp_cov = curve_fit(self._fitting_function, v_disp_time, v_disp)
             # Calculate model fitting coefficient, R^2
             model_r_squared = None
+            # Sigmoid model fitting params 1-4
+            # Accounts for linear drift
+            mp1 = mp_opt[0]
+            # Determines the amplitude of the elevation change
+            mp2 = mp_opt[0]
+            # Time localization of PT event
+            mp3 = mp_opt[0]
+            # Linearly proportional to the transition duration
+            mp4 = mp_opt[0]
             # If the fitting coefficient exceeds fitting threshold
-            if model_r_squared > model_fitting_threshold:
+            if (model_r_squared > model_fitting_threshold) and (mp2 > min_pt_elevation_change):
                 # Consider PT candidate to be PT, add to output variable
-                pt_indices.append(cwt_peak_ix)
-        return pt_indices
+                pt_index = cwt_peak_ix
+                pt_time = mp3
+                pt_duration = mp4
+                if mp2 > 0.0:
+                    pt_type = 'sit-to-stand'
+                else:
+                    pt_type = 'stand-to_sit'
+                pt_events.append({'pt_index': pt_index, 'pt_time': pt_time,
+                                  'pt_duration': pt_duration, 'pt_type': pt_type})
+        return pt_events
+
+    def _fitting_function(self, x, mp1, mp2, mp3, mp4):
+        return (mp1*x) + (mp2/(1+(math.exp((mp3-x)/mp4))))
 
     def _plot_cwt(self, user_data, coeffs, freqs, samp_period, coeff_sums,
                   cwt_peak_ixs, cwt_peak_values, output_dir, filename):
