@@ -26,6 +26,9 @@ class IMUData:
     def get_activity_code(self):
         return self.activity_code
 
+    def get_activity_description(self):
+        return self.activity_code
+
     def get_acc_axis_data(self, axis):
         if axis == 'vertical':
             data = self.v_acc_data

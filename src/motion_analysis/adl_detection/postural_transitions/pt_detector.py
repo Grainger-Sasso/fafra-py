@@ -49,11 +49,13 @@ class PTDetector:
         peak_values = peaks[1]['peak_heights']
         # If specified, plot cwt results
         if plot_cwt:
-            data_act_code = user_data.get_imu_data(
-                IMUDataFilterType.RAW).get_activity_code()
+            act_code = user_data.get_imu_data(
+                IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_code()
+            act_description = user_data.get_imu_data(
+                IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_description()
             cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
                                  peak_ix, peak_values, act_code,
-                                 act_code_description, output_dir, filename)
+                                 act_description, output_dir, filename)
         # Integrate vertical acceleration to get vertical velocity
         # Integrate vertical velocity to get vertical displacement
         # Fit the vertical displacement data to sigmoid model
