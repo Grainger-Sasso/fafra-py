@@ -25,8 +25,12 @@ class UserData:
     def get_clinical_demo_file_path(self):
         return self.clinical_demo_file_path
 
-    def get_imu_data(self):
-        return self.imu_data
+    def get_imu_data(self, filter_type: IMUDataFilterType = None):
+        if filter_type:
+            data = self.imu_data[filter_type]
+        else:
+            data = self.imu_data
+        return data
 
     def get_imu_metadata(self):
         return self.imu_metadata

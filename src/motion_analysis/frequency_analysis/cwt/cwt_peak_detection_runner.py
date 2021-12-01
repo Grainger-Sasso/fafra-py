@@ -35,7 +35,7 @@ def main():
     # Get instances of SiSt and StSi
     pt_act_codes = ['D07', 'D08', 'D09', 'D10', 'D11', 'D12', 'D13']
     user_data: List[UserData] = dataset.get_dataset()
-    adl_dataset = [data for data in user_data if data.get_imu_data()[IMUDataFilterType.RAW].get_activity_code() in pt_act_codes]
+    adl_dataset = [data for data in user_data if data.get_imu_data(IMUDataFilterType.RAW).get_activity_code() in pt_act_codes]
     # Instantiate CWT and other parameters
     cwt = CWT()
     min_max_scales = [250.0, 25.0]
@@ -58,7 +58,7 @@ def main():
         peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
         peak_ix = peaks[0]
         peak_values = peaks[1]['peak_heights']
-        data_act_code = data.get_imu_data()[IMUDataFilterType.RAW].get_activity_code()
+        data_act_code = data.get_imu_data(IMUDataFilterType.RAW).get_activity_code()
         # cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
         #                      peak_values, data_act_code, act_code_data, output_dir, filename)
         cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
@@ -72,8 +72,7 @@ def preprocess_data(user_data: UserData, samp_freq, type: str):
     # Apply LPF
     lpf_data(user_data, samp_freq)
     if type == 'mean_subtraction':
-        v_acc_data = user_data.get_imu_data()[
-            IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+        v_acc_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
         v_acc_data = v_acc_data - np.mean(v_acc_data)
     elif type == 'remove_gravity':
         # Run the attitude estimation and remove the gravity componenet from
@@ -84,7 +83,7 @@ def preprocess_data(user_data: UserData, samp_freq, type: str):
 
 def lpf_data(user_data: UserData, samp_freq):
     mf = MotionFilters()
-    imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
+    imu_data: IMUData = user_data.get_imu_data(IMUDataFilterType.RAW)
     act_code = imu_data.get_activity_code()
     all_raw_data = imu_data.get_all_data()
     lpf_data_all_axis = []

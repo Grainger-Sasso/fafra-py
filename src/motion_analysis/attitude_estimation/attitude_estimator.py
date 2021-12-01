@@ -55,7 +55,7 @@ class AttitudeEstimator:
         # Compute change in global attitude relative to sensor attitude
         # for all imu data samples (all time, t)
         # Retrieve and reformat the imu data
-        imu_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_all_data()
+        imu_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_all_data()
         acc_data = imu_data[0:3].T
         gyr_data = imu_data[3:].T
         gyr_data = self.convert_deg_rad(gyr_data)

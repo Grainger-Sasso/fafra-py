@@ -32,11 +32,11 @@ class GaitAnalyzer:
         #  segmented walking bouts, this function should assume to have
         #  walking bouts readily available
         # Access data required for gait speed estimation from keyword arguments
-        lpf_v_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+        lpf_v_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical
         # acc data
         v_acc_data = lpf_v_data - 9.81
-        ap_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('anteroposterior')
+        ap_acc_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         # Detect the peaks (heel strikes) in the walking data
