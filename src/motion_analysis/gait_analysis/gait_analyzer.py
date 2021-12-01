@@ -69,7 +69,7 @@ class GaitAnalyzer:
         step_end_ixs = strike_indexes[1:]
         for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
             # Calculate the vertical displacement of that step
-            step_v_disp = self._estimate_step_v_displacement(v_acc, start_ix,
+            step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
                                                   end_ix, samp_freq)
             # Add step vertical displacement to the walking bout
             # vertical displacment
@@ -85,7 +85,7 @@ class GaitAnalyzer:
             step_lengths.append(step_length)
         return np.array(step_lengths), v_displacement
 
-    def _estimate_step_v_displacement(self, v_acc, start_ix,
+    def estimate_v_displacement(self, v_acc, start_ix,
                                       end_ix, samp_freq):
         period = 1 / samp_freq
         # The initial position of the CoM at t=0 is arbitrary, set to 0

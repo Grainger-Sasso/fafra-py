@@ -6,6 +6,7 @@ from typing import List
 from src.motion_analysis.frequency_analysis.cwt.continuous_wavelet_transform import CWT
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
 from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.motion_analysis.gait_analysis.gait_analyzer import GaitAnalyzer
 from src.dataset_tools.dataset_builders.builder_instances.sisfall_dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
@@ -38,7 +39,8 @@ class PTDetector:
         # Get the attitude estimated data vertical acceleration data
         v_acc_data = user_data.get_imu_data(IMUDataFilterType.ATTITUDE_ESTIMATION).get_acc_axis_data('vertical')
         # Get the sampling period from sampling frequency
-        samp_period = 1/(user_data.get_imu_metadata().get_sampling_frequency())
+        samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        samp_period = 1/samp_freq
         # Apply CWT to data
         cwt = CWT()
         coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
@@ -56,10 +58,24 @@ class PTDetector:
             cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
                                  peak_ix, peak_values, act_code,
                                  act_description, output_dir, filename)
-        # Integrate vertical acceleration to get vertical velocity
-        # Integrate vertical velocity to get vertical displacement
+        # Calculate vertical displacement through double integration of
+        # vertical acceleration
+        v_displacement = GaitAnalyzer().estimate_v_displacement(v_acc_data, 0,
+                                                len(v_acc_data), samp_freq)
         # Fit the vertical displacement data to sigmoid model
+
         return pt_indices
+
+    def _compute_single_integration(self, data, period, x0):
+        # single integration for time series data is the sum of (the
+        # product of the signal at time t and the sample period) and
+        # (the current integrated value at time t)
+        x = [x0]
+        for i in data:
+            x_t = i * period + x0
+            x.append(x_t)
+            x0 = x_t
+        return x
 
 def main():
     """
