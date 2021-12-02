@@ -4,6 +4,7 @@ import copy
 import numpy as np
 from scipy.optimize import curve_fit
 from typing import List
+from matplotlib import pyplot
 
 from src.motion_analysis.frequency_analysis.cwt.continuous_wavelet_transform import CWT
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
@@ -80,6 +81,8 @@ class PTDetector:
             # Calculate model fitting coefficient, R^2
             model_curve = self._fitting_function(v_disp, mp_opt[0], mp_opt[1],
                                                  mp_opt[2], mp_opt[3])
+            pyplot.plot(v_disp_time, v_disp, color='blue')
+            pyplot.plot(v_disp_time, model_curve, color='red')
             model_r_squared = self.calculate_corr_coeff(v_disp, model_curve)
             # If the fitting coefficient exceeds fitting threshold
             if (model_r_squared > model_fitting_threshold) and (
@@ -174,8 +177,7 @@ def main():
     print(str(t_dataset-t0))
     # Get instances of SiSt and StSi
     pt_act_codes = ['D07', 'D08', 'D09', 'D10', 'D11', 'D12', 'D13']
-    user_dataset: List[UserData] = dataset.get_dataset()
-    adl_dataset: List[UserData] = [data for data in user_dataset if data.get_imu_data(IMUDataFilterType.RAW).get_activity_code() in pt_act_codes]
+    adl_dataset: List[UserData] = [data for data in dataset.get_dataset() if data.get_imu_data(IMUDataFilterType.RAW).get_activity_code() in pt_act_codes]
     min_max_scales = [250.0, 25.0]
     num_scales = 100
     scales = np.linspace(min_max_scales[0], min_max_scales[1],
@@ -213,16 +215,17 @@ def lpf_data(user_data: UserData, samp_freq):
     mf = MotionFilters()
     imu_data: IMUData = user_data.get_imu_data(IMUDataFilterType.RAW)
     act_code = imu_data.get_activity_code()
+    act_description = imu_data.get_activity_description()
     all_raw_data = imu_data.get_all_data()
     lpf_data_all_axis = []
     for data in all_raw_data:
         lpf_data_all_axis.append(
             mf.apply_lpass_filter(data, 2, samp_freq))
     lpf_imu_data = generate_imu_data_instance(
-        lpf_data_all_axis, samp_freq, act_code)
+        lpf_data_all_axis, samp_freq, act_code, act_description)
     user_data.add_filtered_data(lpf_imu_data, IMUDataFilterType.LPF)
 
-def generate_imu_data_instance(data, samp_freq, act_code):
+def generate_imu_data_instance(data, samp_freq, act_code, act_description):
     v_acc_data = np.array(data[0])
     ml_acc_data = np.array(data[1])
     ap_acc_data = np.array(data[2])
@@ -231,8 +234,8 @@ def generate_imu_data_instance(data, samp_freq, act_code):
     roll_gyr_data = np.array(data[5])
     time = np.linspace(0, len(v_acc_data) / int(samp_freq),
                        len(v_acc_data))
-    return IMUData(act_code, v_acc_data, ml_acc_data, ap_acc_data,
-                   yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+    return IMUData(act_code, act_description, v_acc_data, ml_acc_data,
+                ap_acc_data, yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
 def remove_gravity(user_data):
     att_est = AttitudeEstimator()

@@ -62,14 +62,13 @@ class CWT:
         return peaks
 
     def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
-                         peak_ix, peak_value, act_code, act_code_data, output_dir=None, filename=None):
+                         peak_ix, peak_value, act_code, act_description, output_dir=None, filename=None):
         # fig, axs = plt.subplots(2, sharex=True)
         fig, axs = plt.subplots(2)
         self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
         self.plot_cwt_sums(axs[1], coeff_sums, samp_per,
                            peak_ix, peak_value)
         plt.xlabel('Time (s)')
-        act_description = act_code_data[act_code]['description']
         fig.suptitle(f'{act_code}: {act_description}')
         if output_dir:
             # Write out the graph to the output dir
