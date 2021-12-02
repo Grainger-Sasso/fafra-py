@@ -4,7 +4,7 @@ import copy
 import numpy as np
 from scipy.optimize import curve_fit
 from typing import List
-from matplotlib import pyplot
+from matplotlib import pyplot as plt
 
 from src.motion_analysis.frequency_analysis.cwt.continuous_wavelet_transform import CWT
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
@@ -81,10 +81,11 @@ class PTDetector:
             mp_opt, mp_cov = curve_fit(
                 self._fitting_function, v_disp_time, v_disp)
             # Calculate model fitting coefficient, R^2
-            model_curve = self._fitting_function(v_disp, mp_opt[0], mp_opt[1],
+            model_curve = self._fitting_function(v_disp_time, mp_opt[0], mp_opt[1],
                                                  mp_opt[2], mp_opt[3])
-            pyplot.plot(v_disp_time, v_disp, color='blue')
-            pyplot.plot(v_disp_time, model_curve, color='red')
+            plt.plot(v_disp_time, v_disp, color='blue')
+            plt.plot(v_disp_time, model_curve, color='red')
+            plt.show()
             model_r_squared = self.calculate_corr_coeff(v_disp, model_curve)
             # If the fitting coefficient exceeds fitting threshold
             if (model_r_squared > model_fitting_threshold) and (
@@ -132,7 +133,7 @@ class PTDetector:
         :param mp4: Linearly proportional to the transition duration
         :return:
         """
-        return (mp1*x) + (mp2/(1+(math.exp((mp3-x)/mp4))))
+        return (mp1*x) + (mp2/(1+(np.exp((mp3-x)/mp4))))
 
     def find_cwt_peaks(self, v_acc_data, scales, samp_period,
                   plot_cwt, user_data, output_dir, filename):
