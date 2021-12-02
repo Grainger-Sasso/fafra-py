@@ -45,16 +45,17 @@ class ClassifierEvaluator:
                 else:
                     raise ValueError(f'Evaluation metric provided, {eval_metric}'
                                      f', is not a valid metric: {ClassifierMetrics.get_all_values()}')
-        self.parse_results(plot_results, result_metrics)
+        self.parse_results(result_metrics, plot_results)
         self.write_results(output_path, plot_results, result_metrics)
         print('complete')
-        return results
+        return result_metrics
 
-    def parse_results(self, result_plot, metrics_result):
-        parsed_results = None
-        return parsed_results
+    def parse_results(self, metrics_result, plots_results):
+        plots_results.savefig("result_plot.png")
+        self.write_results('/home', metrics_result)
+        return
 
-    def write_results(self, output_path, result_plot, metrics_result):
+    def write_results(self, output_path, metrics_result):
         pass
 
 
