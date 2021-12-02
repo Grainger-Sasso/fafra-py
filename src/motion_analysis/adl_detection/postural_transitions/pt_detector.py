@@ -68,7 +68,9 @@ class PTDetector:
             pt_candidates[-1][1] = len(v_acc_data)
         # Set model fitting threshold, R^2 value, empiracally determined 0.92
         model_fitting_threshold = 0.92
-        min_pt_elevation_change = 1.0
+        # Bounds of postural transition elevation change in meters
+        min_pt_height_change = 0.20
+        max_pt_height_change = 0.60
         # For all PT candidates
         for pt_candidate, cwt_peak_ix in zip(pt_candidates, cwt_peak_ixs):
             # Calculate vertical displacement through double integration of
@@ -84,23 +86,18 @@ class PTDetector:
             # optimal model params (mp1-mp4) and optimal model param covariance
             mp_opt, mp_cov = curve_fit(self._fitting_function, v_disp_time, v_disp)
             # Calculate model fitting coefficient, R^2
-            model_r_squared = None
-            # Sigmoid model fitting params 1-4
-            # Accounts for linear drift
-            mp1 = mp_opt[0]
-            # Determines the amplitude of the elevation change
-            mp2 = mp_opt[0]
-            # Time localization of PT event
-            mp3 = mp_opt[0]
-            # Linearly proportional to the transition duration
-            mp4 = mp_opt[0]
+            model_curve = self._fitting_function(v_disp, mp_opt[0], mp_opt[1],
+                                                 mp_opt[2], mp_opt[3])
+            model_r_squared = self.calculate_corr_coeff(v_disp, model_curve)
             # If the fitting coefficient exceeds fitting threshold
-            if (model_r_squared > model_fitting_threshold) and (mp2 > min_pt_elevation_change):
+            if (model_r_squared > model_fitting_threshold) and (
+                    min_pt_height_change < abs(mp_opt[1]) < max_pt_height_change):
                 # Consider PT candidate to be PT, add to output variable
                 pt_index = cwt_peak_ix
-                pt_time = mp3
-                pt_duration = mp4
-                if mp2 > 0.0:
+                pt_time = mp_opt[2]
+                pt_duration = self.calculate_transition_duration(mp_opt[1],
+                                                                 mp_opt[3])
+                if mp_opt[1] > 0.0:
                     pt_type = 'sit-to-stand'
                 else:
                     pt_type = 'stand-to_sit'
@@ -108,7 +105,36 @@ class PTDetector:
                                   'pt_duration': pt_duration, 'pt_type': pt_type})
         return pt_events
 
+    def calc_transition_duration_a(self, mp2, mp4):
+        # TODO: better define the tuning factor, article claims it is the
+        #  acceleration threshold at start and end of plateau, don't know what
+        #  this means
+        tuning_factor = 1.0
+        beta = ((mp4 ** 2) * tuning_factor)/mp2
+        alpha = 2 * np.ln((2 * beta) / (-2 * beta) + 1 - math.sqrt(1 - (4 * beta)))
+        transition_duration = alpha * mp4
+        return transition_duration
+
+    def calc_transition_duration_omega(self):
+        # Calculate the transition duration using angular velocity, omega
+        pass
+
+    def calculate_corr_coeff(self, x, y):
+        correlation_matrix = np.corrcoef(x, y)
+        correlation_xy = correlation_matrix[0, 1]
+        r_squared = correlation_xy ** 2
+        return r_squared
+
     def _fitting_function(self, x, mp1, mp2, mp3, mp4):
+        """
+        Sigmoidal model fitting function
+        :param x: Input vector
+        :param mp1: Accounts for linear drift
+        :param mp2: Determines the amplitude of the elevation change
+        :param mp3: Time localization of PT event
+        :param mp4: Linearly proportional to the transition duration
+        :return:
+        """
         return (mp1*x) + (mp2/(1+(math.exp((mp3-x)/mp4))))
 
     def _plot_cwt(self, user_data, coeffs, freqs, samp_period, coeff_sums,
