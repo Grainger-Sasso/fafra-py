@@ -30,7 +30,8 @@ class PTDetector:
         self.wavelet_name = wavelet_name
         self.cwt = CWT(wavelet_name)
 
-    def detect_pts(self, user_data: UserData, scales, plot_cwt=False, output_dir=None, filename=None):
+    def detect_pts(self, user_data: UserData, scales,
+                   plot_cwt=False, output_dir=None, filename=None):
         """
         See init for reference to methodology used for CWT-based PT detection
         Assumes data has gravity component removed (e.g., naieve mean
@@ -70,14 +71,15 @@ class PTDetector:
             # vertical acceleration
             pt_start_ix = pt_candidate[0]
             pt_end_ix = pt_candidate[1]
-            v_disp = GaitAnalyzer().estimate_v_displacement(v_acc_data,
+            v_disp = np.array(GaitAnalyzer().estimate_v_displacement(v_acc_data,
                                                 pt_start_ix, pt_end_ix,
-                                                samp_freq)
+                                                samp_freq))
             v_disp_time = np.linspace(0.0, (len(v_disp)-1)*samp_period,
                                       len(v_disp))
             # Fit the vertical displacement data to sigmoid model, returns
             # optimal model params (mp1-mp4) and optimal model param covariance
-            mp_opt, mp_cov = curve_fit(self._fitting_function, v_disp_time, v_disp)
+            mp_opt, mp_cov = curve_fit(
+                self._fitting_function, v_disp_time, v_disp)
             # Calculate model fitting coefficient, R^2
             model_curve = self._fitting_function(v_disp, mp_opt[0], mp_opt[1],
                                                  mp_opt[2], mp_opt[3])
