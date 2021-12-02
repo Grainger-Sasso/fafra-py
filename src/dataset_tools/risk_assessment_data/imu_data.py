@@ -67,3 +67,23 @@ class IMUData:
 
     def get_time(self):
         return self.time
+
+    def set_acc_axis_data(self, axis, data):
+        if axis == 'vertical':
+            self.v_acc_data = data
+        elif axis == 'mediolateral':
+            self.ml_acc_data = data
+        elif axis == 'anteroposterior':
+            self.ap_acc_data = data
+        else:
+            raise ValueError(f'{axis} is not a valid axis')
+
+    def set_gyr_axis_data(self, axis, data):
+        if axis == 'yaw':
+            self.yaw_gyr_data = data
+        elif axis == 'pitch':
+            self.pitch_gyr_data = data
+        elif axis == 'roll':
+            self.roll_gyr_data = data
+        else:
+            raise ValueError(f'{axis} is not a valid axis')

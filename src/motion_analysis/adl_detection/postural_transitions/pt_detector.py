@@ -1,6 +1,6 @@
-import os
 import time
 import math
+import copy
 import numpy as np
 from scipy.optimize import curve_fit
 from typing import List
@@ -29,7 +29,6 @@ class PTDetector:
         self.wavelet_name = wavelet_name
         self.cwt = CWT(wavelet_name)
 
-
     def detect_pts(self, user_data: UserData, scales, plot_cwt=False, output_dir=None, filename=None):
         """
         See init for reference to methodology used for CWT-based PT detection
@@ -46,16 +45,9 @@ class PTDetector:
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         samp_period = 1/samp_freq
         # Apply CWT to data
-        coeffs, freqs = self.cwt.apply_cwt(v_acc_data, scales, samp_period)
-        coeff_sums = self.cwt.sum_coeffs(coeffs)
-        # Find potential PTs as peaks in the CWT data
-        cwt_peaks = self.cwt.detect_cwt_peaks(coeff_sums, samp_period)
-        cwt_peak_ixs = cwt_peaks[0]
-        cwt_peak_values = cwt_peaks[1]['peak_heights']
-        # If specified, plot cwt results
-        if plot_cwt:
-            self._plot_cwt(user_data, coeffs, freqs, samp_period, coeff_sums,
-                  cwt_peak_ixs, cwt_peak_values, output_dir, filename)
+        cwt_peak_ixs, cwt_peak_values = self.find_cwt_peaks(
+            v_acc_data, scales, samp_period, plot_cwt, user_data,
+            output_dir, filename)
         # Set the duration in samples around the peak to include at PT
         # candidate region, empirically set to 4 seconds [1]
         pt_duration = 4.0*samp_freq
@@ -95,8 +87,8 @@ class PTDetector:
                 # Consider PT candidate to be PT, add to output variable
                 pt_index = cwt_peak_ix
                 pt_time = mp_opt[2]
-                pt_duration = self.calculate_transition_duration(mp_opt[1],
-                                                                 mp_opt[3])
+                pt_duration = self.calc_transition_duration_a(
+                    mp_opt[1], mp_opt[3])
                 if mp_opt[1] > 0.0:
                     pt_type = 'sit-to-stand'
                 else:
@@ -137,6 +129,20 @@ class PTDetector:
         """
         return (mp1*x) + (mp2/(1+(math.exp((mp3-x)/mp4))))
 
+    def find_cwt_peaks(self, v_acc_data, scales, samp_period,
+                  plot_cwt, user_data, output_dir, filename):
+        coeffs, freqs = self.cwt.apply_cwt(v_acc_data, scales, samp_period)
+        coeff_sums = self.cwt.sum_coeffs(coeffs)
+        # Find potential PTs as peaks in the CWT data
+        cwt_peaks = self.cwt.detect_cwt_peaks(coeff_sums, samp_period)
+        cwt_peak_ixs = cwt_peaks[0]
+        cwt_peak_values = cwt_peaks[1]['peak_heights']
+        # If specified, plot cwt results
+        if plot_cwt:
+            self._plot_cwt(user_data, coeffs, freqs, samp_period, coeff_sums,
+                           cwt_peak_ixs, cwt_peak_values, output_dir, filename)
+        return cwt_peak_ixs, cwt_peak_values
+
     def _plot_cwt(self, user_data, coeffs, freqs, samp_period, coeff_sums,
                   cwt_peak_ixs, cwt_peak_values, output_dir, filename):
         act_code = user_data.get_imu_data(
@@ -168,39 +174,24 @@ def main():
     print(str(t_dataset-t0))
     # Get instances of SiSt and StSi
     pt_act_codes = ['D07', 'D08', 'D09', 'D10', 'D11', 'D12', 'D13']
-    user_data: List[UserData] = dataset.get_dataset()
-    adl_dataset = [data for data in user_data if data.get_imu_data(IMUDataFilterType.RAW).get_activity_code() in pt_act_codes]
-    # Instantiate CWT and other parameters
-    cwt = CWT()
+    user_dataset: List[UserData] = dataset.get_dataset()
+    adl_dataset: List[UserData] = [data for data in user_dataset if data.get_imu_data(IMUDataFilterType.RAW).get_activity_code() in pt_act_codes]
     min_max_scales = [250.0, 25.0]
-    samp_freq = 200.0
-    samp_period = 1 / samp_freq
     num_scales = 100
     scales = np.linspace(min_max_scales[0], min_max_scales[1],
                          num_scales).tolist()
     output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\cwt\plots'
     # Iterate through the ADL dataset and run CWT + peak detection on the batch
-    all_v_means = []
-    for data in adl_dataset:
-        filename = os.path.split(os.path.splitext(data.get_imu_data_file_path())[0])[1]
+    pt_detector = PTDetector()
+    adl_dataset_pt_events = []
+    for user_data in adl_dataset:
+        filename = user_data.get_imu_data_file_name()
         # print(data.get_imu_data().get_activity_code())
-        v_acc_data = preprocess_data(data, samp_freq, 'mean_subtraction')
-        all_v_means.append(np.mean(v_acc_data))
-        coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
-        coeff_sums = cwt.sum_coeffs(coeffs)
-        # TODO: apply smoothing to the CWT coeffs prior to peak detection
-        peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
-        peak_ix = peaks[0]
-        peak_values = peaks[1]['peak_heights']
-        data_act_code = data.get_imu_data(IMUDataFilterType.RAW).get_activity_code()
-        # cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
-        #                      peak_values, data_act_code, act_code_data, output_dir, filename)
-        cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix,
-                             peak_values, data_act_code, act_code_data)
-    # Evaluate the results
-    print(np.mean(all_v_means))
-    print(np.std(all_v_means))
-    pass
+        samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        preprocess_data(user_data, samp_freq, 'mean_subtraction')
+        pt_events = pt_detector.detect_pts(user_data, scales,
+                               plot_cwt=True, output_dir=None, filename=None)
+        adl_dataset_pt_events.append(pt_events)
 
 def preprocess_data(user_data: UserData, samp_freq, type: str):
     # Apply LPF
@@ -213,7 +204,10 @@ def preprocess_data(user_data: UserData, samp_freq, type: str):
         v_acc_data = remove_gravity(user_data)
     else:
         raise ValueError(f'Invalid preprocessing type: {type}')
-    return v_acc_data
+    normalized_imu_data = copy.deepcopy(user_data.get_imu_data(IMUDataFilterType.LPF))
+    normalized_imu_data.set_acc_axis_data('vertical', v_acc_data)
+    user_data.add_filtered_data(normalized_imu_data,
+                                IMUDataFilterType.ATTITUDE_ESTIMATION)
 
 def lpf_data(user_data: UserData, samp_freq):
     mf = MotionFilters()
@@ -224,8 +218,9 @@ def lpf_data(user_data: UserData, samp_freq):
     for data in all_raw_data:
         lpf_data_all_axis.append(
             mf.apply_lpass_filter(data, 2, samp_freq))
-    lpf_imu_data = generate_imu_data_instance(lpf_data_all_axis, samp_freq, act_code)
-    user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
+    lpf_imu_data = generate_imu_data_instance(
+        lpf_data_all_axis, samp_freq, act_code)
+    user_data.add_filtered_data(lpf_imu_data, IMUDataFilterType.LPF)
 
 def generate_imu_data_instance(data, samp_freq, act_code):
     v_acc_data = np.array(data[0])
