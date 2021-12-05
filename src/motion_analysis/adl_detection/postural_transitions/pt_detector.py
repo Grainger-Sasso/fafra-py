@@ -52,7 +52,8 @@ class PTDetector:
             output_dir, filename)
         # Set the duration in samples around the peak to include at PT
         # candidate region, empirically set to 4 seconds [1]
-        pt_duration = 4.0*samp_freq
+        # pt_duration = 4.0*samp_freq
+        pt_duration = 2.0 * samp_freq
         # Get potential PT candidates as region of data around CWT peaks
         pt_candidates = [[ix-round(pt_duration/2.0), ix+round(pt_duration/2.0)] for ix in cwt_peak_ixs]
         # Check for edge cases on the ends of the acceleration file
