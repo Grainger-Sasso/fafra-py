@@ -78,7 +78,7 @@ class FallRiskAssessment:
         class_report = self.rc.create_classification_report(y_test, y_predictions)
         input_validator= InputMetricValidator()
         print(self.rc.get_model().params)
-        input_validator.perform_shap_values(self.rc, input_metrics)
+        input_validator.perform_shap_values_gbm(self.rc, input_metrics)
         #input_validator.perform_permutation_feature_importance(self.rc, input_metrics,y)
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
