@@ -95,11 +95,11 @@ class GaitAnalyzer:
         v0 = 0.0
         acc = v_acc[start_ix:(end_ix - 1)]
         vel = self._compute_single_integration(acc, period, v0)
-        vel = MotionFilters().apply_lpass_filter(vel, 0.5,
-                                                 samp_freq, 'high')
+        # vel = MotionFilters().apply_lpass_filter(vel, 0.5,
+        #                                          samp_freq, 'high')
         pos = self._compute_single_integration(vel[:-1], period, p0)
-        pos = MotionFilters().apply_lpass_filter(pos, 0.5,
-                                                 samp_freq, 'high')
+        # pos = MotionFilters().apply_lpass_filter(pos, 0.5,
+        #                                          samp_freq, 'high')
         return pos
 
     def _compute_single_integration(self, data, period, x0):
