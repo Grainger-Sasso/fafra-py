@@ -47,12 +47,12 @@ class PTDetector:
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         samp_period = 1/samp_freq
         # Apply CWT to data
-        cwt_peak_ixs, cwt_peak_values = self.find_cwt_peaks(
-            v_acc_data, scales, samp_period, plot_cwt, user_data,
-            output_dir, filename)
+        cwt_results = self.find_cwt_peaks(v_acc_data, scales, samp_period)
+        coeffs, freqs, coeff_sums, cwt_peak_ixs, cwt_peak_values = cwt_results
+        time = np.linspace(0.0, len(coeff_sums) * samp_period, len(coeff_sums))
         # Set the duration in samples around the peak to include at PT
         # candidate region, empirically set to 4 seconds [1]
-        # pt_duration = 4.0*samp_freq
+        # pt_duration = 4.0 * samp_freq
         pt_duration = 2.0 * samp_freq
         # Get potential PT candidates as region of data around CWT peaks
         pt_candidates = [[ix-round(pt_duration/2.0), ix+round(pt_duration/2.0)] for ix in cwt_peak_ixs]
@@ -66,12 +66,18 @@ class PTDetector:
         # Bounds of postural transition elevation change in meters
         min_pt_height_change = 0.20
         max_pt_height_change = 0.60
+        # Initialize the vertical displacement, model curve,
+        # and fitting coeffiecient arrays
+        v_disps = []
+        model_curves = []
+        fitting_coeffs = []
         # For all PT candidates
         for pt_candidate, cwt_peak_ix in zip(pt_candidates, cwt_peak_ixs):
             # Calculate vertical displacement through double integration of
             # vertical acceleration
             pt_start_ix = pt_candidate[0]
             pt_end_ix = pt_candidate[1]
+            # TODO: go back and make sure that the acceleration is in m/s^2 prior to calculating displacement
             v_disp = np.array(GaitAnalyzer().estimate_v_displacement(v_acc_data,
                                                 pt_start_ix, pt_end_ix,
                                                 samp_freq))
@@ -84,25 +90,51 @@ class PTDetector:
             # Calculate model fitting coefficient, R^2
             model_curve = self._fitting_function(v_disp_time, mp_opt[0], mp_opt[1],
                                                  mp_opt[2], mp_opt[3])
-            plt.plot(v_disp_time, v_disp, color='blue')
-            plt.plot(v_disp_time, model_curve, color='red')
-            plt.show()
             model_r_squared = self.calculate_corr_coeff(v_disp, model_curve)
-            # If the fitting coefficient exceeds fitting threshold
-            if (model_r_squared > model_fitting_threshold) and (
-                    min_pt_height_change < abs(mp_opt[1]) < max_pt_height_change):
-                # Consider PT candidate to be PT, add to output variable
-                pt_index = cwt_peak_ix
-                pt_time = mp_opt[2]
-                pt_duration = self.calc_transition_duration_a(
-                    mp_opt[1], mp_opt[3])
-                if mp_opt[1] > 0.0:
-                    pt_type = 'sit-to-stand'
-                else:
-                    pt_type = 'stand-to_sit'
-                pt_events.append({'pt_index': pt_index, 'pt_time': pt_time,
-                                  'pt_duration': pt_duration, 'pt_type': pt_type})
+            v_disps.append(v_disp)
+            model_curves.append(model_curve)
+            fitting_coeffs.append(model_r_squared)
+
+        if plot_cwt:
+            fig, axs = self._plot_cwt(user_data, coeffs, freqs,
+                                      samp_period, coeff_sums,
+                                      cwt_peak_ixs, cwt_peak_values,
+                                      output_dir, filename)
+            pt_ixs = [item for sublist in pt_candidates
+                      for item in sublist]
+            axs[1].plot(time[pt_ixs], coeff_sums[pt_ixs], 'yv')
+            self.plot_fitted_curves(axs[2], v_disps, model_curves, time, pt_candidates)
+            axs[3].plot(time, v_acc_data)
+            axs[3].plot(time, np.zeros(len(time)))
+            # Plot the vertical acceleration signal
+            plt.show()
+
+        # If the fitting coefficient exceeds fitting threshold
+        if (model_r_squared > model_fitting_threshold) and (
+                min_pt_height_change < abs(mp_opt[1]) < max_pt_height_change):
+            # Consider PT candidate to be PT, add to output variable
+            pt_index = cwt_peak_ix
+            pt_time = mp_opt[2]
+            pt_duration = self.calc_transition_duration_a(
+                mp_opt[1], mp_opt[3])
+            if mp_opt[1] > 0.0:
+                pt_type = 'sit-to-stand'
+            else:
+                pt_type = 'stand-to_sit'
+            pt_events.append({'pt_index': pt_index, 'pt_time': pt_time,
+                              'pt_duration': pt_duration, 'pt_type': pt_type})
         return pt_events
+
+    def plot_fitted_curves(self, ax, v_disps, model_curves, time, pt_candidates):
+        v_disp_curve = np.zeros(len(time))
+        whole_model_curve = np.zeros(len(time))
+        for pt_candidate, v_disp, model_curve in zip(pt_candidates, v_disps, model_curves):
+            pt_start_ix = pt_candidate[0]
+            pt_end_ix = pt_candidate[1]
+            v_disp_curve[pt_start_ix: pt_end_ix] = v_disp
+            whole_model_curve[pt_start_ix: pt_end_ix] = model_curve
+        ax.plot(time, v_disp_curve, color='blue')
+        ax.plot(time, whole_model_curve, color='red')
 
     def calc_transition_duration_a(self, mp2, mp4):
         # TODO: better define the tuning factor, article claims it is the
@@ -136,19 +168,15 @@ class PTDetector:
         """
         return (mp1*x) + (mp2/(1+(np.exp((mp3-x)/mp4))))
 
-    def find_cwt_peaks(self, v_acc_data, scales, samp_period,
-                  plot_cwt, user_data, output_dir, filename):
+    def find_cwt_peaks(self, v_acc_data, scales, samp_period):
         coeffs, freqs = self.cwt.apply_cwt(v_acc_data, scales, samp_period)
         coeff_sums = self.cwt.sum_coeffs(coeffs)
         # Find potential PTs as peaks in the CWT data
         cwt_peaks = self.cwt.detect_cwt_peaks(coeff_sums, samp_period)
         cwt_peak_ixs = cwt_peaks[0]
         cwt_peak_values = cwt_peaks[1]['peak_heights']
-        # If specified, plot cwt results
-        if plot_cwt:
-            self._plot_cwt(user_data, coeffs, freqs, samp_period, coeff_sums,
-                           cwt_peak_ixs, cwt_peak_values, output_dir, filename)
-        return cwt_peak_ixs, cwt_peak_values
+        results = [coeffs, freqs, coeff_sums, cwt_peak_ixs, cwt_peak_values]
+        return results
 
     def _plot_cwt(self, user_data, coeffs, freqs, samp_period, coeff_sums,
                   cwt_peak_ixs, cwt_peak_values, output_dir, filename):
@@ -156,9 +184,10 @@ class PTDetector:
             IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_code()
         act_description = user_data.get_imu_data(
             IMUDataFilterType.ATTITUDE_ESTIMATION).get_activity_description()
-        self.cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
+        fig, axs = self.cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums,
                              cwt_peak_ixs, cwt_peak_values, act_code,
                              act_description, output_dir, filename)
+        return fig, axs
 
 def main():
     """

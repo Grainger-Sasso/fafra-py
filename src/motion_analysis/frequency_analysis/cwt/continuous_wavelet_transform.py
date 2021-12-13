@@ -64,7 +64,7 @@ class CWT:
     def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
                          peak_ix, peak_value, act_code, act_description, output_dir=None, filename=None):
         # fig, axs = plt.subplots(2, sharex=True)
-        fig, axs = plt.subplots(2)
+        fig, axs = plt.subplots(4)
         self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
         self.plot_cwt_sums(axs[1], coeff_sums, samp_per,
                            peak_ix, peak_value)
@@ -75,7 +75,7 @@ class CWT:
             uuid_str = '_' + str(uuid.uuid4()) + '.png'
             pic_filename = os.path.join(output_dir, (filename + uuid_str))
             plt.savefig(pic_filename)
-        plt.show()
+        return fig, axs
 
     def plot_cwt_sums(self, ax, coeff_sums, samp_per,
                       peak_ix, peak_value):

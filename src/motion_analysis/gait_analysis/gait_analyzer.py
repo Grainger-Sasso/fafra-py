@@ -107,10 +107,11 @@ class GaitAnalyzer:
         # product of the signal at time t and the sample period) and
         # (the current integrated value at time t)
         x = [x0]
+        x_i = x0
         for i in data:
-            x_t = i * period + x0
+            x_t = i * period + x_i
             x.append(x_t)
-            x0 = x_t
+            x_i = x_t
         return x
 
     def detect_gait(self, data):
