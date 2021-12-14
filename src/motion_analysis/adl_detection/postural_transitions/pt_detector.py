@@ -52,15 +52,15 @@ class PTDetector:
         time = np.linspace(0.0, len(coeff_sums) * samp_period, len(coeff_sums))
         # Set the duration in samples around the peak to include at PT
         # candidate region, empirically set to 4 seconds [1]
-        # pt_duration = 4.0 * samp_freq
-        pt_duration = 2.0 * samp_freq
+        pt_duration = 4.0 * samp_freq
+        # pt_duration = 2.0 * samp_freq
         # Get potential PT candidates as region of data around CWT peaks
         pt_candidates = [[ix-round(pt_duration/2.0), ix+round(pt_duration/2.0)] for ix in cwt_peak_ixs]
         # Check for edge cases on the ends of the acceleration file
         if pt_candidates[0][0] < 0:
             pt_candidates[0][0] = 0
-        if pt_candidates[-1][1] > len(v_acc_data):
-            pt_candidates[-1][1] = len(v_acc_data)
+        if pt_candidates[-1][1] > len(v_acc_data)-1:
+            pt_candidates[-1][1] = len(v_acc_data)-1
         # Set model fitting threshold, R^2 value, empiracally determined 0.92
         model_fitting_threshold = 0.92
         # Bounds of postural transition elevation change in meters
@@ -142,7 +142,7 @@ class PTDetector:
         #  this means
         tuning_factor = 1.0
         beta = ((mp4 ** 2) * tuning_factor)/mp2
-        alpha = 2 * np.ln((2 * beta) / (-2 * beta) + 1 - math.sqrt(1 - (4 * beta)))
+        alpha = 2 * np.log((2 * beta) / (-2 * beta) + 1 - math.sqrt(1 - (4 * beta)))
         transition_duration = alpha * mp4
         return transition_duration
 

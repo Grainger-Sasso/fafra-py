@@ -1,5 +1,5 @@
 import numpy as np
-
+from matplotlib import pyplot as plt
 
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
@@ -95,6 +95,7 @@ class GaitAnalyzer:
         v0 = 0.0
         acc = v_acc[start_ix:(end_ix - 1)]
         vel = self._compute_single_integration(acc, period, v0)
+        # TODO: investigate a more appropriate cut-off frequency for the high-pass filter, atm the filter is confounding the results/is not usefult for preventing integration drift
         # vel = MotionFilters().apply_lpass_filter(vel, 0.5,
         #                                          samp_freq, 'high')
         pos = self._compute_single_integration(vel[:-1], period, p0)
