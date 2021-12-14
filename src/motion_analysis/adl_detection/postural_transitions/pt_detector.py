@@ -142,7 +142,7 @@ class PTDetector:
         #  this means
         tuning_factor = 1.0
         beta = ((mp4 ** 2) * tuning_factor)/mp2
-        alpha = 2 * np.log((2 * beta) / (-2 * beta) + 1 - math.sqrt(1 - (4 * beta)))
+        alpha = 2 * np.log((2 * beta) / ((-2 * beta) + 1 - math.sqrt(1 - (4 * beta))))
         transition_duration = alpha * mp4
         return transition_duration
 
@@ -225,7 +225,7 @@ def main():
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         preprocess_data(user_data, samp_freq, 'mean_subtraction')
         pt_events = pt_detector.detect_pts(user_data, scales,
-                               plot_cwt=True, output_dir=None, filename=None)
+                               plot_cwt=False, output_dir=None, filename=None)
         adl_dataset_pt_events.append(pt_events)
 
 def preprocess_data(user_data: UserData, samp_freq, type: str):
