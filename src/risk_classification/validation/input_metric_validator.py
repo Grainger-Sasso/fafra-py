@@ -28,7 +28,8 @@ class InputMetricValidator:
         bar_plot.xlabel('feature Metrics', fontweight='bold', color='blue', fontsize='5', horizontalalignment='center')
         if show_plot:
             plt.show()
-        return [bar_plot, r, importance]
+        dictionary = {'plots': [bar_plot], 'metrics': [r, importance]}
+        return dictionary
 
     def perform_shap_values(self, model, input_metrics: InputMetrics):
         x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
@@ -48,5 +49,5 @@ class InputMetricValidator:
         # plt.savefig('tmp.svg')
         # plt.close()
         #shap.plots.force(shap_values)
-
-        return [shap_plot, shap_values]
+        dictionary = {'plots': [shap_plot], 'metrics': [shap_values]}
+        return dictionary
