@@ -108,9 +108,9 @@ class MetricGenerator:
         if data_type == MetricDataTypes.USER_DATA:
             data = user_data
         elif data_type == MetricDataTypes.VERTICAL:
-            data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+            data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
         elif data_type == MetricDataTypes.RESULTANT:
-            tri_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_triax_acc_data()
+            tri_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_triax_acc_data()
             data = self.motion_filters.calculate_resultant_vector(
                 tri_data['vertical'],
                 tri_data['mediolateral'],

@@ -1,4 +1,5 @@
 import os
+import json
 import pandas as pd
 import numpy as np
 import glob
@@ -22,9 +23,11 @@ class DatasetBuilder(DatasetBuilder):
         # TODO: add second sisfall dataset for the second accelerometer in dataset, currently not being used
         super().__init__(DATASET_NAME)
         self.sampling_frequency = 200.0
-        self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
-                      'anteroposterior-acc': 'g',
-                      'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
+        # Original units: g,g,g,°/s,°/s,°/s
+        # Converted to: m/s^2,m/s^2,m/s^2,°/s,°/s,°/s
+        self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
+                      'anteroposterior-acc': 'm/s^2',
+                      'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         # Adults were not screened for fall risk, therefor none of them are assumed to be fallers
         self.subject_data = {
             'SA01': {'id': 'SA01', 'age': 26, 'height': 165, 'weight': 53, 'sex': 'F'},
@@ -66,7 +69,7 @@ class DatasetBuilder(DatasetBuilder):
             'SE14': {'id': 'SE14', 'age': 67, 'height': 163, 'weight': 58, 'sex': 'M'},
             'SE15': {'id': 'SE15', 'age': 64, 'height': 150, 'weight': 50, 'sex': 'F'}
         }
-        self.activity_codes = activity_ids = {
+        self.activity_codes = {
             'D01': {'code': 'D01', 'fall': False, 'description': 'Walking slowly', 'trials': 1, 'duration': 100},
             'D02': {'code': 'D02', 'fall': False, 'description': 'Walking quickly', 'trials': 1, 'duration': 100},
             'D03': {'code': 'D03', 'fall': False, 'description': 'Jogging slowly', 'trials': 1, 'duration': 100},
@@ -108,9 +111,11 @@ class DatasetBuilder(DatasetBuilder):
         data_file_paths = self._generate_data_file_paths(dataset_path)
         dataset = []
         for subj_id, data_file_paths in data_file_paths.items():
+            print(subj_id)
             for file_path in data_file_paths:
                 data = self._read_data_file(file_path)
-                print(file_path)
+                # Convert accelerometer data from g to m/s^2
+                data[:, 0:3] = data[:, 0:3] * 9.81
                 imu_data_file_path: str = file_path
                 imu_metadata_file_path: str = 'N/A'
                 clinical_demo_path: str = 'N/A'
@@ -144,6 +149,32 @@ class DatasetBuilder(DatasetBuilder):
                                  imu_metadata, subj_clin_data))
         return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
 
+    def write_csv_dataset_to_json(self, dataset_path, samp_freq, output_dir):
+        # Read in the data from CSV files
+        data_file_paths = self._generate_data_file_paths(dataset_path)
+        dataset = []
+        for subj_id, data_file_paths in data_file_paths.items():
+            out_subj_dir = os.path.join(output_dir, subj_id)
+            if not os.path.exists(out_subj_dir):
+                # Create output dir for the subject
+                os.mkdir(out_subj_dir)
+            for file_path in data_file_paths:
+                data = self._read_data_file(file_path)
+                json_data = {}
+                json_data['v_acc_data'] = np.array(data[1])
+                json_data['ml_acc_data'] = np.array(data[0])
+                json_data['ap_acc_data'] = np.array(data[2])
+                json_data['yaw_gyr_data'] = np.array(data[4])
+                json_data['pitch_gyr_data'] = np.array(data[3])
+                json_data['roll_gyr_data'] = np.array(data[5])
+                json_data['time'] = np.linspace(0, len(np.array(data[1])) / int(samp_freq), len(np.array(data[1])))
+                # Make file for
+                # Create output path
+                json_path = out_subj_dir + os.path.splitext(os.path.basename(file_path))[0] + '.json'
+                # Write the data out to JSON file
+                with open(json_path, 'w') as jf:
+                    json.dump(json_data, jf)
+
     def _generate_data_file_paths(self, dataset_path):
         data_file_paths = {}
         # Iterate through all of the files in the CSV directory, get all filenames
@@ -172,8 +203,11 @@ class DatasetBuilder(DatasetBuilder):
         # Positive y: down, vertical
         # Positive z: forward, anteroposterior
         # Data: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z
-        activity_code = file_path[0:3]
+        activity_code = os.path.split(file_path)[1][0:3]
+        activity_description = self.activity_codes[activity_code]['description']
         v_acc_data = np.array(data.T[1])
+        # Flip the direction of vertical axis data such that gravity is now positive
+        v_acc_data = v_acc_data * -1.0
         ml_acc_data = np.array(data.T[0])
         ap_acc_data = np.array(data.T[2])
         yaw_gyr_data = np.array(data.T[4])
@@ -181,8 +215,9 @@ class DatasetBuilder(DatasetBuilder):
         roll_gyr_data = np.array(data.T[5])
         time = np.linspace(0, len(v_acc_data) / int(samp_freq),
                            len(v_acc_data))
-        return IMUData(activity_code, v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
 
 
 # class ConvertSisFallDataset:

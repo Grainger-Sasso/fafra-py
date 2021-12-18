@@ -1,5 +1,5 @@
 import numpy as np
-
+from matplotlib import pyplot as plt
 
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
@@ -32,11 +32,11 @@ class GaitAnalyzer:
         #  segmented walking bouts, this function should assume to have
         #  walking bouts readily available
         # Access data required for gait speed estimation from keyword arguments
-        lpf_v_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('vertical')
+        lpf_v_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical
         # acc data
         v_acc_data = lpf_v_data - 9.81
-        ap_acc_data = user_data.get_imu_data()[IMUDataFilterType.LPF].get_acc_axis_data('anteroposterior')
+        ap_acc_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         # Detect the peaks (heel strikes) in the walking data
@@ -69,7 +69,7 @@ class GaitAnalyzer:
         step_end_ixs = strike_indexes[1:]
         for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
             # Calculate the vertical displacement of that step
-            step_v_disp = self._estimate_step_v_displacement(v_acc, start_ix,
+            step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
                                                   end_ix, samp_freq)
             # Add step vertical displacement to the walking bout
             # vertical displacment
@@ -85,7 +85,7 @@ class GaitAnalyzer:
             step_lengths.append(step_length)
         return np.array(step_lengths), v_displacement
 
-    def _estimate_step_v_displacement(self, v_acc, start_ix,
+    def estimate_v_displacement(self, v_acc, start_ix,
                                       end_ix, samp_freq):
         period = 1 / samp_freq
         # The initial position of the CoM at t=0 is arbitrary, set to 0
@@ -95,11 +95,12 @@ class GaitAnalyzer:
         v0 = 0.0
         acc = v_acc[start_ix:(end_ix - 1)]
         vel = self._compute_single_integration(acc, period, v0)
-        vel = MotionFilters().apply_lpass_filter(vel, 0.5,
-                                                 samp_freq, 'high')
+        # TODO: investigate a more appropriate cut-off frequency for the high-pass filter, atm the filter is confounding the results/is not usefult for preventing integration drift
+        # vel = MotionFilters().apply_lpass_filter(vel, 0.5,
+        #                                          samp_freq, 'high')
         pos = self._compute_single_integration(vel[:-1], period, p0)
-        pos = MotionFilters().apply_lpass_filter(pos, 0.5,
-                                                 samp_freq, 'high')
+        # pos = MotionFilters().apply_lpass_filter(pos, 0.5,
+        #                                          samp_freq, 'high')
         return pos
 
     def _compute_single_integration(self, data, period, x0):
@@ -107,10 +108,11 @@ class GaitAnalyzer:
         # product of the signal at time t and the sample period) and
         # (the current integrated value at time t)
         x = [x0]
+        x_i = x0
         for i in data:
-            x_t = i * period + x0
+            x_t = i * period + x_i
             x.append(x_t)
-            x0 = x_t
+            x_i = x_t
         return x
 
     def detect_gait(self, data):

@@ -21,9 +21,11 @@ class DatasetBuilder(DatasetBuilder):
         super().__init__(DATASET_NAME)
         self.header_and_data_file_paths = dict()
         self.sampling_frequency = 100.0
-        self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
-                      'anteroposterior-acc': 'g',
-                      'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
+        # Original units: g,g,g,°/s,°/s,°/s
+        # Converted to: m/s^2,m/s^2,m/s^2,°/s,°/s,°/s
+        self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
+                      'anteroposterior-acc': 'm/s^2',
+                      'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         # Mock height in meters
         self.height = 1.75
 
@@ -78,6 +80,7 @@ class DatasetBuilder(DatasetBuilder):
 
     def _generate_imu_data_instance(self, data, sampling_freq):
         activity_code = ''
+        activity_description = ''
         v_acc_data = np.array(data.T[0])
         ml_acc_data = np.array(data.T[1])
         ap_acc_data = np.array(data.T[2])
@@ -86,8 +89,9 @@ class DatasetBuilder(DatasetBuilder):
         roll_gyr_data = np.array(data.T[5])
         time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
                            len(v_acc_data))
-        return IMUData(activity_code, v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
 
     def _generate_header_and_data_file_paths(self, dataset_path):
         data_file_paths = {}

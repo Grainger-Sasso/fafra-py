@@ -1,13 +1,16 @@
+import os
 import pywt
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import uuid
 from scipy import signal
 
-from src.motion_analysis.peak_detection.peak_detector import PeakDetector
+from src.motion_analysis.filters.motion_filters import MotionFilters
+
 
 class CWT:
-    def __init__(self):
+    def __init__(self, wavelet_name='mexh'):
         """
         Initilization function for the continuous wavelet transformer (CWT)
         :param wavelet_name: Name of the wavelet used in cwt;
@@ -21,9 +24,10 @@ class CWT:
         """
         # Note: the Atrsaei paper chose the bior1.5 wavelet, not an option for
         # the pywt cwt
-        self.wavelet_name = 'mexh'
+        self.wavelet_name = wavelet_name
+        # self.wavelet_name = 'gaus4'
 
-    def convert_scales_to_freq(self, scales, samp_freq):
+    def convert_scales_to_freq(self, scales, samp_period):
         """
         More info on how to appropriately choose scales can be found:
         https://pywavelets.readthedocs.io/en/latest/ref/cwt.html#choosing-the-scales-for-cwt
@@ -31,12 +35,12 @@ class CWT:
         :param samp_freq:
         :return:
         """
-        return pywt.scale2frequency(self.wavelet_name, scales) / (1/samp_freq)
+        return pywt.scale2frequency(self.wavelet_name, scales) / samp_period
 
     def apply_cwt(self, x, scales, samp_period):
         # Scales correspond
         coeffs, freqs = pywt.cwt(x, scales, wavelet=self.wavelet_name,
-                                 sampling_period=samp_period)
+                                 sampling_period=samp_period, method='fft')
         return coeffs, freqs
 
     def sum_coeffs(self, coeffs):
@@ -47,28 +51,40 @@ class CWT:
 
     def detect_cwt_peaks(self, coeff_sums, samp_per):
         """Returns peak indices of cwt summed coefficients"""
-        # Minimum peak height must be 1/4 of the max value in the cwt summed coefficients
-        min_height = 0.25 * max(coeff_sums)
+        # Minimum peak height must be 40% of the max value in the cwt summed coefficients
+        min_height = 0.3 * max(coeff_sums)
         # Sets the minimum time difference between peaks to be 2s in samples
         min_peak_distance = 2.0/samp_per
-        peak_ixs = signal.find_peaks(coeff_sums, height=min_height,
-                          distance=min_peak_distance)
-        peak_values = coeff_sums[peak_ixs]
-        return peak_ixs, peak_values
+        min_prominence = 0.3 * max(coeff_sums)
+        peaks = signal.find_peaks(coeff_sums, height=min_height,
+                                  distance=min_peak_distance,
+                                  prominence=min_prominence)
+        return peaks
 
-    def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums):
-        fig, axs = plt.subplots(2, sharex=True)
+    def plot_cwt_results(self, coeffs, freqs, samp_per, coeff_sums,
+                         peak_ix, peak_value, act_code, act_description, output_dir=None, filename=None):
+        # fig, axs = plt.subplots(2, sharex=True)
+        fig, axs = plt.subplots(4)
         self.plot_scalogram(fig, axs[0], coeffs, freqs, samp_per)
-        self.plot_cwt_sums(fig, axs[1], coeff_sums, samp_per)
+        self.plot_cwt_sums(axs[1], coeff_sums, samp_per,
+                           peak_ix, peak_value)
         plt.xlabel('Time (s)')
-        plt.show()
+        fig.suptitle(f'{act_code}: {act_description}')
+        if output_dir:
+            # Write out the graph to the output dir
+            uuid_str = '_' + str(uuid.uuid4()) + '.png'
+            pic_filename = os.path.join(output_dir, (filename + uuid_str))
+            plt.savefig(pic_filename)
+        return fig, axs
 
-    def plot_cwt_sums(self, fig, ax, coeff_sums, samp_per):
+    def plot_cwt_sums(self, ax, coeff_sums, samp_per,
+                      peak_ix, peak_value):
         # ax.hist(coeff_sums, bins=len(coeff_sums))
         # ax.hist(coeff_sums, bins=100)
         # ax.scatter(np.linspace(0.0, len(coeff_sums)*samp_per, len(coeff_sums)), coeff_sums)
-        ax.bar(np.linspace(0.0, len(coeff_sums) * samp_per, len(coeff_sums)),
-               coeff_sums, width=0.015)
+        time = np.linspace(0.0, len(coeff_sums) * samp_per, len(coeff_sums))
+        ax.plot(time, coeff_sums, 'bo')
+        ax.plot(time[peak_ix], peak_value, 'rv')
 
     def plot_scalogram(self, fig, ax, coeffs, freqs, samp_per):
         # im = ax.contourf(x_coords, y_coords, coeffs, freqs)
@@ -76,10 +92,10 @@ class CWT:
         # coeffs = abs(coeffs)
         # L, R, bottom, top
         plot_extent = [0.0, len(coeffs[0])*samp_per, freqs[0], freqs[-1]]
-        im = ax.imshow(coeffs, norm=self.mat_norm(),
-                       cmap='coolwarm', aspect='auto',
-                       extent=plot_extent)
-        # im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
+        # im = ax.imshow(coeffs, norm=self.mat_norm(),
+        #                cmap='coolwarm', aspect='auto',
+        #                extent=plot_extent)
+        im = ax.imshow(coeffs, cmap='coolwarm', aspect='auto', extent=plot_extent)
         ax.spines['right'].set_visible(False)
         ax.spines['top'].set_visible(False)
         cbar_ax = fig.add_axes([0.95, 0.5, 0.03, 0.25])
@@ -1690,24 +1706,45 @@ def main():
                            -1.08381007e+01, -1.08893211e+01, -1.09432613e+01,
                            -1.09980547e+01, -1.10518796e+01]])
     v_acc_data = data[0:1][0]
-    # TODO: Gotta figure out how scale values are related to frequency
-    # Scales to freq for mexh wavelet correspond as follows:
-    # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
+    v_acc_data = v_acc_data - np.mean(v_acc_data)
+    # v_acc_data = v_acc_data[0:151]
+    # # TODO: Gotta figure out how scale values are related to frequency
+    # # Scales to freq for mexh wavelet @ 100.0 Hz samp_rate correspond as follows:
+    # # (125.0 -> 0.2Hz) and (12.5 ->2.0Hz)
+    # # Scales to freq for mexh wavelet @ 200.0 Hz samp_rate correspond as follows:
+    # # (250.0 -> 0.2Hz) and (25.0 ->2.0Hz)
     # min_max_scales = [125.0, 12.5]
-    min_max_scales = [30.0, 12.5]
-    # min_max_scales = [30.0, 0.9]
-    # Sampling frequency in Hz
+    min_max_scales = [100.0, 8.0]
+    # # Sampling frequency in Hz
     samp_freq = 100.0
     samp_period = 1/samp_freq
     num_scales = 100
     scales = np.linspace(min_max_scales[0], min_max_scales[1], num_scales).tolist()
+    mf = MotionFilters()
+    v_acc_data = mf.apply_lpass_filter(v_acc_data, 2, samp_freq)
+    print(len(v_acc_data))
+    print(samp_freq)
+
+    # samp_freq = 44100.0
+    # samp_period = 1/samp_freq
+    # tclip = 10e-3
+    # nos = np.int(samp_freq * tclip)
+    # t_points = np.linspace(0, 10e-3, nos)
+    # v_acc_data = np.cos(2 * np.pi * 500 * t_points)
+    # scales = np.arange(1,50,1)
+    # print(len(v_acc_data))
+
     cwt = CWT()
     coeffs, freqs = cwt.apply_cwt(v_acc_data, scales, samp_period)
     # plot_x_coords = np.linspace(0.0, len(v_acc_data)*samp_period,
     #                             len(v_acc_data))
     # plot_y_coords = freqs
     coeff_sums = cwt.sum_coeffs(coeffs)
-    cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums)
+    peaks = cwt.detect_cwt_peaks(coeff_sums, samp_period)
+    peak_ix = peaks[0]
+    peak_values = peaks[1]['peak_heights']
+    output_dir = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\cwt\plots'
+    cwt.plot_cwt_results(coeffs, freqs, samp_period, coeff_sums, peak_ix, peak_values, output_dir, 'example_XXX')
     print(coeffs.shape, freqs.shape)
     print(freqs)
     # print(cwt.convert_scales_to_freq(scales, samp_freq))
