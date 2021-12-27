@@ -56,6 +56,9 @@ class ReportGenerator:
         col_2, row_2 = self.get_coord_from_str(y)
         return [col_1, row_1], [col_2, row_2]
 
+    def replace_col(self, ws, new_col_values):
+        pass
+
 
 def main():
     rg = ReportGenerator()
