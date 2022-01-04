@@ -4,21 +4,32 @@ import shutil
 import openpyxl
 import pandas
 
+from typing import List
+
 
 class ReportGenerator:
     def __init__(self):
-        pass
+        self.eft = ExcelFormattingTool()
 
     def convert_wb(self, old_wb_path, template_wb_path, output_wb_path):
         # Open existing workbook with data
-        old_wb = openpyxl.load_workbook(old_wb_path)
+        old_wb = self.eft.load_workbook(old_wb_path)
         # Create copy of template for data
         shutil.copy(template_wb_path, output_wb_path)
         # Copy data from existing workbook into the new template wb
-        output_wb = openpyxl.load_workbook(output_wb_path)
+        output_wb = self.eft.load_workbook(output_wb_path)
 
 
-    def append_values(self, ws: openpyxl.worksheet.worksheet.Worksheet, values):
+class ExcelFormattingTool:
+
+    def __init__(self):
+        pass
+
+    def load_workbook(self, path: str) -> openpyxl.workbook.Workbook:
+        return openpyxl.load_workbook(path)
+    
+    def append_values(self, ws: openpyxl.worksheet.worksheet.Worksheet,
+                      values):
         """
         Adds values to the bottom of the provided sheet
         :param ws:
@@ -45,23 +56,44 @@ class ReportGenerator:
         sheet.cell(row=m, column=n).value = value
 
     def get_coord_from_str(self, ix_str):
-        xy = openpyxl.utils.cell.coordinate_from_string(ix_str)
-        col = openpyxl.utils.cell.column_index_from_string(xy[0])
-        row = xy[1]
+        """
+        https://openpyxl.readthedocs.io/en/stable/api/openpyxl.utils.cell.html
+        https://stackoverflow.com/questions/12902621/getting-the-row-and-column-numbers-from-coordinate-value-in-openpyxl
+        :param ix_str:
+        :return:
+        """
+        row, col = openpyxl.utils.cell.coordinate_to_tuple(ix_str)
         return col, row
 
     def get_sheet_dims(self, ws: openpyxl.worksheet.worksheet.Worksheet):
-        x, y = re.split(':', ws.calculate_dimension())
-        col_1, row_1 = self.get_coord_from_str(x)
-        col_2, row_2 = self.get_coord_from_str(y)
+        coord_1, coord_2 = re.split(':', ws.calculate_dimension())
+        col_1, row_1 = self.get_coord_from_str(coord_1)
+        col_2, row_2 = self.get_coord_from_str(coord_2)
         return [col_1, row_1], [col_2, row_2]
+
+    def get_wb_sheet_names(self, wb: openpyxl.workbook.Workbook) -> List[str]:
+        return wb.sheetnames
 
     def replace_col(self, ws, new_col_values):
         pass
 
+    def iter_wb_sheets(self, wb, fxn, **kwargs):
+        for sheet in wb:
+            fxn(sheet)
+
+    def copy_sheet_in_wb(self, wb: openpyxl.workbook.Workbook,
+                         sheet: openpyxl.worksheet.worksheet.Worksheet
+                         ) -> openpyxl.worksheet.worksheet.Worksheet:
+        # You also cannot copy worksheets between workbooks
+        sheet_copy = wb.copy_worksheet(sheet)
+        return sheet_copy
+
+    def get_col_length(self):
+        pass
 
 def main():
     rg = ReportGenerator()
+    eft = ExcelFormattingTool()
     # Paths and filenames
     path = r'C:\Users\gsass\Documents\My Tableau Repository\Datasources\fall_risk_assessments\cohort_1_fall_risk_metrics.xlsx'
     folder = r'C:\Users\gsass\Documents\My Tableau Repository\Datasources\fall_risk_assessments'
@@ -78,7 +110,8 @@ def main():
     dim1, dim2 = rg.get_sheet_dims(ws)
     for i in ws.columns:
         print(i)
-    # start creating basic functions to copy columns, modify values etc to prep for the conversion of MR stuff
+    # start creating basic functions to copy columns, modify values etc to prep
+    # for the conversion of MR stuff
 
     # data = pandas.read_excel(new_file_path, engine='openpyxl')
     # with open(new_file_path, 'w') as xl_file:
