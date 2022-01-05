@@ -1,4 +1,7 @@
 import os
+import pandas as pd
+import numpy as np
+from scipy.io import wavfile
 
 
 def read_UIUC_gaitspeed_dataset(path):
@@ -16,11 +19,21 @@ def read_UIUC_gaitspeed_dataset(path):
 
     Within main folder, there is rawdataanalysis folder with a few scripts
     needed for raw data reading and conversion.
+
+    Acceleration:
+    Units: g
+    Frequency: 64
+    Unit (bin download): g/256
+
     :param path:
     :return:
     """
+    # Need to create a dataset builder for this
+    # Not sure if there is a user demographics anywhere in the data folder
     path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\validation\gait_speed\test_data\UIUC\GaitSpeedValidation'
 
 
+def read_wav():
+    pass
 
 
