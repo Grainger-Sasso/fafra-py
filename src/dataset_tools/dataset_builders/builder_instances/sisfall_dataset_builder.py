@@ -28,7 +28,7 @@ class DatasetBuilder(DatasetBuilder):
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
-        # Adults were not screened for fall risk, therefor none of them are assumed to be fallers
+        # Adults were not screened for fall risk, therefore none of them are assumed to be fallers
         self.subject_data = {
             'SA01': {'id': 'SA01', 'age': 26, 'height': 165, 'weight': 53, 'sex': 'F'},
             'SA02': {'id': 'SA02', 'age': 23, 'height': 176, 'weight': 58.5, 'sex': 'M'},

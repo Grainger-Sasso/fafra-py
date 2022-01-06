@@ -1,4 +1,5 @@
 import os
+import glob
 import pandas as pd
 import numpy as np
 from scipy.io import wavfile
@@ -20,14 +21,116 @@ class DatasetBuilder(DatasetBuilder):
     def __init__(self, ):
         # TODO: add second sisfall dataset for the second accelerometer in dataset, currently not being used
         super().__init__(DATASET_NAME)
-        self.sampling_frequency = 200.0
-        # Original units: g,g,g,°/s,°/s,°/s
-        # Converted to: m/s^2,m/s^2,m/s^2,°/s,°/s,°/s
+        self.sampling_frequency = 64.0
+        # Original units: g,g,g
+        # Converted to: m/s^2,m/s^2,m/s^2
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
-                      'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
-        # Adults were not screened for fall risk, therefor none of them are assumed to be fallers
-        self.subject_data = {}
+                      'yaw': None, 'pitch': None, 'roll': None}
+        # Adults were not screened for fall risk, therefore none of them are assumed to be fallers
+        self.subject_data = {
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '102': {'id': '102', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None},
+            '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
+                    'sex': None}
+
+        }
         self.activity_codes = {}
 
     def build_dataset(self, dataset_path, clinical_demo_path,
@@ -72,6 +175,17 @@ class DatasetBuilder(DatasetBuilder):
                                  {IMUDataFilterType.RAW: imu_data},
                                  imu_metadata, subj_clin_data))
         return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
+
+    def _generate_data_file_paths(self, dataset_path):
+        data_file_paths = {}
+        # Iterate through all of the files in the CSV directory, get all filenames
+        for subject_id in next(os.walk(dataset_path))[1]:
+            data_file_paths[subject_id] = []
+            subj_data_folder = os.path.join(dataset_path, subject_id)
+            for data_file_path in glob.glob(
+                os.path.join(subj_data_folder, '*.csv')):
+                data_file_paths[subject_id].append(data_file_path)
+        return data_file_paths
 
     def read_UIUC_gaitspeed_dataset(self, path):
         """
