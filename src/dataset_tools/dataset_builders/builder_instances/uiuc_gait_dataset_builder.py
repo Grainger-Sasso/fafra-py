@@ -18,8 +18,7 @@ DATASET_NAME = DatasetNames.UIUC_GAIT
 
 
 class DatasetBuilder(DatasetBuilder):
-    def __init__(self, ):
-        # TODO: add second sisfall dataset for the second accelerometer in dataset, currently not being used
+    def __init__(self):
         super().__init__(DATASET_NAME)
         self.sampling_frequency = 64.0
         # Original units: g,g,g
@@ -27,7 +26,6 @@ class DatasetBuilder(DatasetBuilder):
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
                       'yaw': None, 'pitch': None, 'roll': None}
-        # Adults were not screened for fall risk, therefore none of them are assumed to be fallers
         self.subject_data = {
             '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
                     'sex': None},
@@ -140,51 +138,56 @@ class DatasetBuilder(DatasetBuilder):
     def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size):
         data_file_paths = self._generate_data_file_paths(dataset_path)
-        dataset = []
-        for subj_id, data_file_paths in data_file_paths.items():
-            print(subj_id)
-            for file_path in data_file_paths:
-                data = self._read_data_file(file_path)
-                # Convert accelerometer data from g to m/s^2
-                data[:, 0:3] = data[:, 0:3] * 9.81
-                imu_data_file_path: str = file_path
-                imu_metadata_file_path: str = 'N/A'
-                clinical_demo_path: str = 'N/A'
-                imu_metadata = IMUMetadata(None,
-                                           self.sampling_frequency, self.units)
-                subj_clin_data = self._get_subj_clin_data(subj_id)
-                # Build dataset objects from the data and metadata
-                if segment_dataset:
-                    # TODO: track the segmented data with a linked list
-                    # Segment the data and build a UserData object for each epoch
-                    data_segments = self.segment_data(data, epoch_size,
-                                                      self.sampling_frequency)
-                    for segment in data_segments:
-                        imu_data = self._generate_imu_data_instance(file_path, segment,
-                                                                    self.sampling_frequency)
-                        dataset.append(UserData(imu_data_file_path,
-                                                imu_metadata_file_path,
-                                                clinical_demo_path,
-                                                {
-                                                    IMUDataFilterType.RAW: imu_data},
-                                                imu_metadata,
-                                                subj_clin_data))
-                else:
-                    # Build a UserData object for the whole data
-                    imu_data = self._generate_imu_data_instance(file_path, data,
-                                                                self.sampling_frequency)
-                    dataset.append(
-                        UserData(imu_data_file_path, imu_metadata_file_path,
-                                 clinical_demo_path,
-                                 {IMUDataFilterType.RAW: imu_data},
-                                 imu_metadata, subj_clin_data))
-        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
+        # dataset = []
+        # for subj_id, data_file_paths in data_file_paths.items():
+        #     print(subj_id)
+        #     for file_path in data_file_paths:
+        #         data = self._read_data_file(file_path)
+        #         # Convert accelerometer data from g to m/s^2
+        #         data[:, 0:3] = data[:, 0:3] * 9.81
+        #         imu_data_file_path: str = file_path
+        #         imu_metadata_file_path: str = 'N/A'
+        #         clinical_demo_path: str = 'N/A'
+        #         imu_metadata = IMUMetadata(None,
+        #                                    self.sampling_frequency, self.units)
+        #         subj_clin_data = self._get_subj_clin_data(subj_id)
+        #         # Build dataset objects from the data and metadata
+        #         if segment_dataset:
+        #             # TODO: track the segmented data with a linked list
+        #             # Segment the data and build a UserData object for each epoch
+        #             data_segments = self.segment_data(data, epoch_size,
+        #                                               self.sampling_frequency)
+        #             for segment in data_segments:
+        #                 imu_data = self._generate_imu_data_instance(file_path, segment,
+        #                                                             self.sampling_frequency)
+        #                 dataset.append(UserData(imu_data_file_path,
+        #                                         imu_metadata_file_path,
+        #                                         clinical_demo_path,
+        #                                         {
+        #                                             IMUDataFilterType.RAW: imu_data},
+        #                                         imu_metadata,
+        #                                         subj_clin_data))
+        #         else:
+        #             # Build a UserData object for the whole data
+        #             imu_data = self._generate_imu_data_instance(file_path, data,
+        #                                                         self.sampling_frequency)
+        #             dataset.append(
+        #                 UserData(imu_data_file_path, imu_metadata_file_path,
+        #                          clinical_demo_path,
+        #                          {IMUDataFilterType.RAW: imu_data},
+        #                          imu_metadata, subj_clin_data))
+        # return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
 
     def _generate_data_file_paths(self, dataset_path):
         data_file_paths = {}
         # Iterate through all of the files in the CSV directory, get all filenames
-        for subject_id in next(os.walk(dataset_path))[1]:
-            data_file_paths[subject_id] = []
+        subj_ids = next(os.walk(dataset_path))[1]
+        subj_paths = [os.path.join(dataset_path, subj_id) for subj_id in subj_ids]
+        trial_ids = next(os.walk(subj_paths))[1]
+        trial_paths = [os.path.join(dataset_path, trial) for trial in trial_ids]
+        for subj_id, trial, path in zip(subj_ids, trial_ids, trial_paths):
+            print('a')
+            data_file_paths[subj_id] = []
             subj_data_folder = os.path.join(dataset_path, subject_id)
             for data_file_path in glob.glob(
                 os.path.join(subj_data_folder, '*.csv')):
@@ -217,7 +220,20 @@ class DatasetBuilder(DatasetBuilder):
         """
         # Need to create a dataset builder for this
         # Not sure if there is a user demographics anywhere in the data folder
-        path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\validation\gait_speed\test_data\UIUC\GaitSpeedValidation
-
-    def read_wav():
         pass
+
+    def read_wav(self):
+        pass
+
+
+def main():
+    path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\bin_data\subj_files'
+    clinical_demo_path = ''
+    segment_dataset = False
+    epoch_size = 0.0
+    db = DatasetBuilder()
+    db.build_dataset(path, clinical_demo_path, segment_dataset, epoch_size)
+
+
+if __name__ == '__main__':
+    main()
