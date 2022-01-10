@@ -18,7 +18,9 @@ class GaitAnalyzer:
         Several assumptions are made in this version of the gait speed
         estimator:
         1. The orientation of the sensor is such that the vertical axis of the
-            accelerometer is parallel to the vertical axis of the body
+            accelerometer is parallel to the vertical axis of the body, i.e. we
+            do not need to transform the accelerometer axes from sensor to
+            global
         2. The heel strike is defined by the peak anteroposterior acceleration
             of the stride cycle (Ziljstra 2003)
         3. The vertical velocity upon each heel strike is approximately zero

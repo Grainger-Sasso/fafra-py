@@ -179,20 +179,43 @@ class DatasetBuilder(DatasetBuilder):
         # return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
 
     def _generate_data_file_paths(self, dataset_path):
-        data_file_paths = {}
-        # Iterate through all of the files in the CSV directory, get all filenames
+        """
+        Returns the subject IDs, trial IDs, and associated accelerometer files
+        in JSON format
+        :param dataset_path:
+        :return:
+        """
+        # Initialize the output variable, dir with subj and trial info + paths
+        data_file_paths = []
+        # Collects all subject IDs in the dataset based on folder inside
+        # top dataset dir location
         subj_ids = next(os.walk(dataset_path))[1]
+        # Assmebles paths to subj trial data from top dir level and subj IDs
         subj_paths = [os.path.join(dataset_path, subj_id) for subj_id in subj_ids]
-        trial_ids = next(os.walk(subj_paths))[1]
-        trial_paths = [os.path.join(dataset_path, trial) for trial in trial_ids]
-        for subj_id, trial, path in zip(subj_ids, trial_ids, trial_paths):
-            print('a')
-            data_file_paths[subj_id] = []
-            subj_data_folder = os.path.join(dataset_path, subject_id)
-            for data_file_path in glob.glob(
-                os.path.join(subj_data_folder, '*.csv')):
-                data_file_paths[subject_id].append(data_file_path)
+        # Scrape all subj paths for trial IDs by folder names
+        all_trial_ids = [next(os.walk(subj_path))[1] for subj_path in subj_paths]
+        # Iterate through all trial folders searching for acceleration files
+        for subj_path, subj_id, trial_ids in zip(subj_paths, subj_ids, all_trial_ids):
+            subj_data_paths = {'subj_id': subj_id, 'trials': []}
+            for trial_id in trial_ids:
+                trial_data_paths = {'trial_id': trial_id, 'paths': []}
+                # Search for acceleration files and construct their paths
+                trial_path = os.path.join(subj_path, trial_id)
+                for root, dirs, files in os.walk(trial_path):
+                    for file in files:
+                        if 'acceleration' in file:
+                            trial_data_paths['paths'].append(
+                                os.path.join(root, file))
+                subj_data_paths['trials'].append(trial_data_paths)
+            data_file_paths.append(subj_data_paths)
         return data_file_paths
+
+        #     data_file_paths[subj_id] = []
+        #     subj_data_folder = os.path.join(dataset_path, subj_id)
+        #     for data_file_path in glob.glob(
+        #         os.path.join(subj_data_folder, '*.csv')):
+        #         data_file_paths[subj_id].append(data_file_path)
+        # return data_file_paths
 
     def read_UIUC_gaitspeed_dataset(self, path):
         """
