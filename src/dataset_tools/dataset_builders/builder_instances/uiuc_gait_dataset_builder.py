@@ -26,7 +26,7 @@ class DatasetBuilder(DatasetBuilder):
         # Converted to: m/s^2,m/s^2,m/s^2
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
-                      'yaw': None, 'pitch': None, 'roll': None}
+                      'yaw': 'N/A', 'pitch': 'N/A', 'roll': 'N/A'}
         self.subject_data = {
             '101': {'id': '101', 'age': None, 'height': None, 'weight': None,
                     'sex': None},
@@ -161,7 +161,7 @@ class DatasetBuilder(DatasetBuilder):
                         tri_ax_acc_data['x_acc_data'],
                         tri_ax_acc_data['y_acc_data'],
                         tri_ax_acc_data['z_acc_data']
-                    ])
+                    ]).T
                     if segment_dataset:
                         # TODO: track the segmented data with a linked list
                         # Segment the data and build a UserData object for each epoch
@@ -295,9 +295,9 @@ class DatasetBuilder(DatasetBuilder):
         v_acc_data = v_acc_data * -1.0
         ml_acc_data = np.array(data.T[0])
         ap_acc_data = np.array(data.T[2])
-        yaw_gyr_data = np.array(data.T[4])
-        pitch_gyr_data = np.array(data.T[3])
-        roll_gyr_data = np.array(data.T[5])
+        yaw_gyr_data = np.array([])
+        pitch_gyr_data = np.array([])
+        roll_gyr_data = np.array([])
         time = np.linspace(0, len(v_acc_data) / int(samp_freq),
                            len(v_acc_data))
         return IMUData(activity_code, activity_description, v_acc_data,
