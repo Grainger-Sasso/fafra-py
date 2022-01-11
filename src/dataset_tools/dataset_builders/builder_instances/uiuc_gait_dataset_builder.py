@@ -264,8 +264,11 @@ class DatasetBuilder(DatasetBuilder):
         return tri_ax_acc_data
 
     def _read_wav(self, path):
-        data = wavfile.read(path)
-        data = np.array(data[1], dtype=float)
+        # Data is stored as 16-bit int, converts to float
+        data = wavfile.read(path)[1]
+        data = np.array(data, dtype=float)/256.0
+        #Initial units are g = value/256, converts directly from g to m/s^2
+        data = data / 256 * 9.80665
         return data
 
     def read_UIUC_gaitspeed_dataset(self, path):

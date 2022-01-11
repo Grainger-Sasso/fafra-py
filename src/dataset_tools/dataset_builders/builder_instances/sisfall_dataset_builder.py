@@ -115,7 +115,7 @@ class DatasetBuilder(DatasetBuilder):
             for file_path in data_file_paths:
                 data = self._read_data_file(file_path)
                 # Convert accelerometer data from g to m/s^2
-                data[:, 0:3] = data[:, 0:3] * 9.81
+                data[:, 0:3] = data[:, 0:3] * 9.80665
                 imu_data_file_path: str = file_path
                 imu_metadata_file_path: str = 'N/A'
                 clinical_demo_path: str = 'N/A'
