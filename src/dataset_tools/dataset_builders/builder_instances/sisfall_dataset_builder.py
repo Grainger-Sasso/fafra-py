@@ -118,7 +118,7 @@ class DatasetBuilder(DatasetBuilder):
                 data[:, 0:3] = data[:, 0:3] * 9.80665
                 imu_data_file_path: str = file_path
                 imu_data_file_name: str = \
-                os.path.split(os.path.splitext(self.imu_data_file_path)[0])[1]
+                os.path.split(os.path.splitext(imu_data_file_path)[0])[1]
                 imu_metadata_file_path: str = 'N/A'
                 clinical_demo_path: str = 'N/A'
                 imu_metadata = IMUMetadata(None,
