@@ -3,6 +3,7 @@ import glob
 import pandas as pd
 import numpy as np
 from scipy.io import wavfile
+from typing import List, Dict, Any
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
@@ -138,50 +139,74 @@ class DatasetBuilder(DatasetBuilder):
     def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size):
         data_file_paths = self._generate_data_file_paths(dataset_path)
-        # dataset = []
-        # for subj_id, data_file_paths in data_file_paths.items():
-        #     print(subj_id)
-        #     for file_path in data_file_paths:
-        #         data = self._read_data_file(file_path)
-        #         # Convert accelerometer data from g to m/s^2
-        #         data[:, 0:3] = data[:, 0:3] * 9.81
-        #         imu_data_file_path: str = file_path
-        #         imu_metadata_file_path: str = 'N/A'
-        #         clinical_demo_path: str = 'N/A'
-        #         imu_metadata = IMUMetadata(None,
-        #                                    self.sampling_frequency, self.units)
-        #         subj_clin_data = self._get_subj_clin_data(subj_id)
-        #         # Build dataset objects from the data and metadata
-        #         if segment_dataset:
-        #             # TODO: track the segmented data with a linked list
-        #             # Segment the data and build a UserData object for each epoch
-        #             data_segments = self.segment_data(data, epoch_size,
-        #                                               self.sampling_frequency)
-        #             for segment in data_segments:
-        #                 imu_data = self._generate_imu_data_instance(file_path, segment,
-        #                                                             self.sampling_frequency)
-        #                 dataset.append(UserData(imu_data_file_path,
-        #                                         imu_metadata_file_path,
-        #                                         clinical_demo_path,
-        #                                         {
-        #                                             IMUDataFilterType.RAW: imu_data},
-        #                                         imu_metadata,
-        #                                         subj_clin_data))
-        #         else:
-        #             # Build a UserData object for the whole data
-        #             imu_data = self._generate_imu_data_instance(file_path, data,
-        #                                                         self.sampling_frequency)
-        #             dataset.append(
-        #                 UserData(imu_data_file_path, imu_metadata_file_path,
-        #                          clinical_demo_path,
-        #                          {IMUDataFilterType.RAW: imu_data},
-        #                          imu_metadata, subj_clin_data))
-        # return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
+        dataset = []
+        for subj in data_file_paths:
+            subj_id = subj['subj_id']
+            for trial in subj['trials']:
+                trial_id = trial['trial_id']
+                paths = trial['paths']
+                # Read files in only if number of paths for trial is 3
+                if len(paths) == 3:
+                    # Read in the paths and build data objects
+                    tri_ax_acc_data = self._read_data_files(paths)
+                    print('a')
+
+        for subj_id, data_file_paths in data_file_paths.items():
+            print(subj_id)
+            for file_path in data_file_paths:
+                data = self._read_data_file(file_path)
+                # Convert accelerometer data from g to m/s^2
+                data[:, 0:3] = data[:, 0:3] * 9.81
+                imu_data_file_path: str = file_path
+                imu_metadata_file_path: str = 'N/A'
+                clinical_demo_path: str = 'N/A'
+                imu_metadata = IMUMetadata(None,
+                                           self.sampling_frequency, self.units)
+                subj_clin_data = self._get_subj_clin_data(subj_id)
+                # Build dataset objects from the data and metadata
+                if segment_dataset:
+                    # TODO: track the segmented data with a linked list
+                    # Segment the data and build a UserData object for each epoch
+                    data_segments = self.segment_data(data, epoch_size,
+                                                      self.sampling_frequency)
+                    for segment in data_segments:
+                        imu_data = self._generate_imu_data_instance(file_path, segment,
+                                                                    self.sampling_frequency)
+                        dataset.append(UserData(imu_data_file_path,
+                                                imu_metadata_file_path,
+                                                clinical_demo_path,
+                                                {
+                                                    IMUDataFilterType.RAW: imu_data},
+                                                imu_metadata,
+                                                subj_clin_data))
+                else:
+                    # Build a UserData object for the whole data
+                    imu_data = self._generate_imu_data_instance(file_path, data,
+                                                                self.sampling_frequency)
+                    dataset.append(
+                        UserData(imu_data_file_path, imu_metadata_file_path,
+                                 clinical_demo_path,
+                                 {IMUDataFilterType.RAW: imu_data},
+                                 imu_metadata, subj_clin_data))
+        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
 
     def _generate_data_file_paths(self, dataset_path):
         """
         Returns the subject IDs, trial IDs, and associated accelerometer files
-        in JSON format
+        in JSON format:
+        [
+          {
+            "subj_id": XXX,
+            "trials": [
+              {
+                "trial_id": XXXX,
+                "paths": [
+                  *ALL PATHS WITH ACCELERATION IN THEM*
+                ]
+              },...
+            ]
+          },...
+        ]
         :param dataset_path:
         :return:
         """
@@ -203,11 +228,13 @@ class DatasetBuilder(DatasetBuilder):
                 trial_path = os.path.join(subj_path, trial_id)
                 for root, dirs, files in os.walk(trial_path):
                     for file in files:
-                        if 'acceleration' in file:
+                        if 'acceleration' in file and file.endswith('.wav'):
                             trial_data_paths['paths'].append(
                                 os.path.join(root, file))
                 subj_data_paths['trials'].append(trial_data_paths)
             data_file_paths.append(subj_data_paths)
+        # Remove duplicated files from the first subject
+        data_file_paths[0]['trials'][0]['paths'] = data_file_paths[0]['trials'][0]['paths'][3:]
         return data_file_paths
 
         #     data_file_paths[subj_id] = []
@@ -216,6 +243,30 @@ class DatasetBuilder(DatasetBuilder):
         #         os.path.join(subj_data_folder, '*.csv')):
         #         data_file_paths[subj_id].append(data_file_path)
         # return data_file_paths
+
+    def _read_data_files(self, paths: List[str]):
+        # Initialize output variable
+        tri_ax_acc_data = {
+            'x_acc_data': [],
+            'y_acc_data': [],
+            'z_acc_data': []
+                           }
+        for path in paths:
+            data = self._read_wav(path)
+            if path.lower()[-5] == 'x':
+                tri_ax_acc_data['x_acc_data'] = data
+            elif path.lower()[-5] == 'y':
+                tri_ax_acc_data['y_acc_data'] = data
+            elif path.lower()[-5] == 'z':
+                tri_ax_acc_data['z_acc_data'] = data
+            else:
+                raise ValueError(f'Path does not contain axis info: {path}')
+        return tri_ax_acc_data
+
+    def _read_wav(self, path):
+        data = wavfile.read(path)
+        data = np.array(data[1], dtype=float)
+        return data
 
     def read_UIUC_gaitspeed_dataset(self, path):
         """
@@ -245,8 +296,7 @@ class DatasetBuilder(DatasetBuilder):
         # Not sure if there is a user demographics anywhere in the data folder
         pass
 
-    def read_wav(self):
-        pass
+
 
 
 def main():
