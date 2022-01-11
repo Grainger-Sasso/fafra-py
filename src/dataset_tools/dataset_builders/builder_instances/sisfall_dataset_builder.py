@@ -117,6 +117,8 @@ class DatasetBuilder(DatasetBuilder):
                 # Convert accelerometer data from g to m/s^2
                 data[:, 0:3] = data[:, 0:3] * 9.80665
                 imu_data_file_path: str = file_path
+                imu_data_file_name: str = \
+                os.path.split(os.path.splitext(self.imu_data_file_path)[0])[1]
                 imu_metadata_file_path: str = 'N/A'
                 clinical_demo_path: str = 'N/A'
                 imu_metadata = IMUMetadata(None,
@@ -132,6 +134,7 @@ class DatasetBuilder(DatasetBuilder):
                         imu_data = self._generate_imu_data_instance(file_path, segment,
                                                                     self.sampling_frequency)
                         dataset.append(UserData(imu_data_file_path,
+                                                imu_data_file_name,
                                                 imu_metadata_file_path,
                                                 clinical_demo_path,
                                                 {
@@ -143,7 +146,9 @@ class DatasetBuilder(DatasetBuilder):
                     imu_data = self._generate_imu_data_instance(file_path, data,
                                                                 self.sampling_frequency)
                     dataset.append(
-                        UserData(imu_data_file_path, imu_metadata_file_path,
+                        UserData(imu_data_file_path,
+                                 imu_data_file_name,
+                                 imu_metadata_file_path,
                                  clinical_demo_path,
                                  {IMUDataFilterType.RAW: imu_data},
                                  imu_metadata, subj_clin_data))

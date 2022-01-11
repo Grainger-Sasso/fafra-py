@@ -59,6 +59,7 @@ class DatasetBuilder(DatasetBuilder):
                 raise ValueError('LTMM Data faller status unclear from id')
 
             imu_data_file_path: str = data_file_path
+            imu_data_file_name: str = os.path.split(os.path.splitext(self.imu_data_file_path)[0])[1]
             imu_metadata_file_path: str = header_file_path
             clinical_demo_path: str = 'N/A'
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
@@ -69,12 +70,12 @@ class DatasetBuilder(DatasetBuilder):
                 data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
                 for segment in data_segments:
                     imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
-                    dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_path,
+                    dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                             {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
             else:
                 # Build a UserData object for the whole data
                 imu_data = self._generate_imu_data_instance(data, self.sampling_frequency)
-                dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_path,
+                dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, {})
 

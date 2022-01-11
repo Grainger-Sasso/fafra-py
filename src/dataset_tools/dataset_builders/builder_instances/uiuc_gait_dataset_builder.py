@@ -149,46 +149,51 @@ class DatasetBuilder(DatasetBuilder):
                 if len(paths) == 3:
                     # Read in the paths and build data objects
                     tri_ax_acc_data = self._read_data_files(paths)
-                    print('a')
+                    imu_data_file_path: List[str] = paths
+                    imu_data_file_name: str = 'acc_data'
+                    imu_metadata_file_path: str = 'N/A'
+                    clinical_demo_path: str = 'N/A'
+                    imu_metadata = IMUMetadata(None,
+                                               self.sampling_frequency,
+                                               self.units)
+                    subj_clin_data = self._get_subj_clin_data(subj_id)
+                    data = np.array([
+                        tri_ax_acc_data['x_acc_data'],
+                        tri_ax_acc_data['y_acc_data'],
+                        tri_ax_acc_data['z_acc_data']
+                    ])
+                    if segment_dataset:
+                        # TODO: track the segmented data with a linked list
+                        # Segment the data and build a UserData object for each epoch
+                        data_segments = self.segment_data(data, epoch_size,
+                                                          self.sampling_frequency)
+                        for segment in data_segments:
+                            imu_data = self._generate_imu_data_instance(
+                                paths, segment,
+                                self.sampling_frequency)
+                            dataset.append(UserData(imu_data_file_path,
+                                                    imu_data_file_name,
+                                                    imu_metadata_file_path,
+                                                    clinical_demo_path,
+                                                    {
+                                                        IMUDataFilterType.RAW: imu_data},
+                                                    imu_metadata,
+                                                    subj_clin_data))
+                    else:
+                        # Build a UserData object for the whole data
+                        imu_data = self._generate_imu_data_instance(
+                            data, self.sampling_frequency)
+                        dataset.append(
+                            UserData(imu_data_file_path,
+                                     imu_data_file_name,
+                                     imu_metadata_file_path,
+                                     clinical_demo_path,
+                                     {IMUDataFilterType.RAW: imu_data},
+                                     imu_metadata, subj_clin_data))
+                return Dataset(self.get_dataset_name(), dataset_path,
+                               clinical_demo_path, dataset,
+                               self.activity_codes)
 
-        for subj_id, data_file_paths in data_file_paths.items():
-            print(subj_id)
-            for file_path in data_file_paths:
-                data = self._read_data_file(file_path)
-                # Convert accelerometer data from g to m/s^2
-                data[:, 0:3] = data[:, 0:3] * 9.81
-                imu_data_file_path: str = file_path
-                imu_metadata_file_path: str = 'N/A'
-                clinical_demo_path: str = 'N/A'
-                imu_metadata = IMUMetadata(None,
-                                           self.sampling_frequency, self.units)
-                subj_clin_data = self._get_subj_clin_data(subj_id)
-                # Build dataset objects from the data and metadata
-                if segment_dataset:
-                    # TODO: track the segmented data with a linked list
-                    # Segment the data and build a UserData object for each epoch
-                    data_segments = self.segment_data(data, epoch_size,
-                                                      self.sampling_frequency)
-                    for segment in data_segments:
-                        imu_data = self._generate_imu_data_instance(file_path, segment,
-                                                                    self.sampling_frequency)
-                        dataset.append(UserData(imu_data_file_path,
-                                                imu_metadata_file_path,
-                                                clinical_demo_path,
-                                                {
-                                                    IMUDataFilterType.RAW: imu_data},
-                                                imu_metadata,
-                                                subj_clin_data))
-                else:
-                    # Build a UserData object for the whole data
-                    imu_data = self._generate_imu_data_instance(file_path, data,
-                                                                self.sampling_frequency)
-                    dataset.append(
-                        UserData(imu_data_file_path, imu_metadata_file_path,
-                                 clinical_demo_path,
-                                 {IMUDataFilterType.RAW: imu_data},
-                                 imu_metadata, subj_clin_data))
-        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, self.activity_codes)
 
     def _generate_data_file_paths(self, dataset_path):
         """
@@ -266,10 +271,38 @@ class DatasetBuilder(DatasetBuilder):
     def _read_wav(self, path):
         # Data is stored as 16-bit int, converts to float
         data = wavfile.read(path)[1]
-        data = np.array(data, dtype=float)/256.0
+        data = np.array(data, dtype=float)
         #Initial units are g = value/256, converts directly from g to m/s^2
-        data = data / 256 * 9.80665
+        data = data / 256.0 * 9.80665
         return data
+
+    def _get_subj_clin_data(self, subj_id):
+        subj_data = self.subject_data[subj_id]
+        # TODO: replace this height with builder attribute for height
+        # float(subj_data['height']
+        subj_height = 2.0
+        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, subj_height)
+
+    def _generate_imu_data_instance(self, data, samp_freq):
+        # Positive x: right, mediolateral
+        # Positive y: down, vertical
+        # Positive z: forward, anteroposterior
+        # Data: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z
+        activity_code = 'walk'
+        activity_description = 'walking at self-selected pace'
+        v_acc_data = np.array(data.T[1])
+        # Flip the direction of vertical axis data such that gravity is now positive
+        v_acc_data = v_acc_data * -1.0
+        ml_acc_data = np.array(data.T[0])
+        ap_acc_data = np.array(data.T[2])
+        yaw_gyr_data = np.array(data.T[4])
+        pitch_gyr_data = np.array(data.T[3])
+        roll_gyr_data = np.array(data.T[5])
+        time = np.linspace(0, len(v_acc_data) / int(samp_freq),
+                           len(v_acc_data))
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
 
     def read_UIUC_gaitspeed_dataset(self, path):
         """
