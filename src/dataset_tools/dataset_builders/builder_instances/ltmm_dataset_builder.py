@@ -62,7 +62,8 @@ class DatasetBuilder(DatasetBuilder):
             imu_data_file_name: str = os.path.split(os.path.splitext(imu_data_file_path)[0])[1]
             imu_metadata_file_path: str = header_file_path
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
-            clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
+            trial = ''
+            clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height, trial)
             if segment_dataset:
                 #TODO: track the segmented data with a linked list
                 # Segment the data and build a UserData object for each epoch

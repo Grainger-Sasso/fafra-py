@@ -1,10 +1,15 @@
+from typing import Any
+
+
 class ClinicalDemographicData:
-    def __init__(self, id: str, age: float, sex: str, faller_status: bool, height: float):
+    def __init__(self, id: str, age: float, sex: str, faller_status: bool,
+                 height: float, trial: Any):
         self.id = id
         self.age = age
         self.sex = sex
         self.faller_status = faller_status
         self.height = height
+        self.trial = trial
 
     def get_id(self):
         return self.id
@@ -20,3 +25,6 @@ class ClinicalDemographicData:
 
     def get_height(self):
         return self.height
+
+    def get_trial(self):
+        return self.trial

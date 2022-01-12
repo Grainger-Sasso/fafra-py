@@ -200,7 +200,8 @@ class DatasetBuilder(DatasetBuilder):
 
     def _get_subj_clin_data(self, subj_id):
         subj_data = self.subject_data[subj_id]
-        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, float(subj_data['height']))
+        trial = ''
+        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, float(subj_data['height']), trial)
 
     def _generate_imu_data_instance(self, file_path, data, samp_freq):
         # Positive x: right, mediolateral

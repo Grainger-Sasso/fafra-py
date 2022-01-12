@@ -156,10 +156,11 @@ class DatasetBuilder(DatasetBuilder):
                     tri_ax_acc_data = self._read_data_files(paths)
                     imu_data_file_path: List[str] = paths
                     imu_data_file_name: str = 'acc_data'
-                    imu_metadata = IMUMetadata(raw_imu_metadata,
+                    imu_metadata = IMUMetadata({'device_position':
+                                                    raw_imu_metadata},
                                                self.sampling_frequency,
                                                self.units)
-                    subj_clin_data = self._get_subj_clin_data(subj_id)
+                    subj_clin_data = self._get_subj_clin_data(subj_id, trial_id)
                     data = np.array([
                         tri_ax_acc_data['x_acc_data'],
                         tri_ax_acc_data['y_acc_data'],
@@ -285,12 +286,12 @@ class DatasetBuilder(DatasetBuilder):
         data = data / 256.0 * 9.80665
         return data
 
-    def _get_subj_clin_data(self, subj_id):
+    def _get_subj_clin_data(self, subj_id, trial_id):
         subj_data = self.subject_data[subj_id]
         # TODO: replace this height with builder attribute for height
         # float(subj_data['height']
         subj_height = 2.0
-        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, subj_height)
+        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, subj_height, trial_id)
 
     def _generate_imu_data_instance(self, data, samp_freq):
         """
@@ -352,29 +353,13 @@ def main():
     db = DatasetBuilder()
     uiuc_gait_dataset = db.build_dataset(path, clinical_demo_path, segment_dataset, epoch_size)
     print('\n\n\n')
-    v_acc_means = [abs(np.mean(
-        user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data(
-            'vertical'))) for user_data in uiuc_gait_dataset.get_dataset()]
-    ml_acc_means = [abs(np.mean(
-        user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data(
-            'mediolateral'))) for user_data in uiuc_gait_dataset.get_dataset()]
-    ap_acc_means = [abs(np.mean(
-        user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data(
-            'anteroposterior'))) for user_data in uiuc_gait_dataset.get_dataset()]
-    v_count = 0
-    ml_count = 0
-    ap_count = 0
-    for v, ml, ap in zip(v_acc_means, ml_acc_means, ap_acc_means):
-        if (7.0 < v < 13.0):
-            v_count += 1
-        elif (7.0 < ml < 13.0):
-            ml_count += 1
-        elif (7.0 < ap < 13.0):
-            ap_count += 1
-    print(v_count)
-    print(ml_count)
-    print(ap_count)
-    print(v_count + ml_count + ap_count)
+    positions = [user_data.get_imu_metadata().get_metadata()['device_position']
+                 for user_data in uiuc_gait_dataset.get_dataset()]
+    subj_trial_pos = [{'subj_id': user_data.get_clinical_demo_data().get_id(),
+                       'trial_id': None,
+                       'device_position': user_data.get_imu_metadata().get_metadata()['device_position']}
+                 for user_data in uiuc_gait_dataset.get_dataset()]
+    pos_1 = positions.count(1)
 
     # v_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')

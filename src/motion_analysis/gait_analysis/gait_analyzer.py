@@ -37,7 +37,7 @@ class GaitAnalyzer:
         lpf_v_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical
         # acc data
-        v_acc_data = lpf_v_data - 9.81
+        v_acc_data = lpf_v_data - 9.80665
         ap_acc_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
