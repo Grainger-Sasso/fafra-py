@@ -120,7 +120,6 @@ class DatasetBuilder(DatasetBuilder):
                 imu_data_file_name: str = \
                 os.path.split(os.path.splitext(imu_data_file_path)[0])[1]
                 imu_metadata_file_path: str = 'N/A'
-                clinical_demo_path: str = 'N/A'
                 imu_metadata = IMUMetadata(None,
                                            self.sampling_frequency, self.units)
                 subj_clin_data = self._get_subj_clin_data(subj_id)
@@ -307,7 +306,7 @@ def main():
     path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\SisFall_csv\SisFall_dataset_csv'
     t0 = time.time()
     db = DatasetBuilder()
-    dataset = db.build_dataset(path, '', True, 8.0)
+    dataset = db.build_dataset(path, 'N/A', True, 8.0)
     print(str(time.time() - t0))
     print(dataset)
 

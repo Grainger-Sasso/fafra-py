@@ -61,7 +61,6 @@ class DatasetBuilder(DatasetBuilder):
             imu_data_file_path: str = data_file_path
             imu_data_file_name: str = os.path.split(os.path.splitext(imu_data_file_path)[0])[1]
             imu_metadata_file_path: str = header_file_path
-            clinical_demo_path: str = 'N/A'
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
             clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
             if segment_dataset:

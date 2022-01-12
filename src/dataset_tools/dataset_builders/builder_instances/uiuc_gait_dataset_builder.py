@@ -152,7 +152,6 @@ class DatasetBuilder(DatasetBuilder):
                     imu_data_file_path: List[str] = paths
                     imu_data_file_name: str = 'acc_data'
                     imu_metadata_file_path: str = 'N/A'
-                    clinical_demo_path: str = 'N/A'
                     imu_metadata = IMUMetadata(None,
                                                self.sampling_frequency,
                                                self.units)
@@ -284,14 +283,17 @@ class DatasetBuilder(DatasetBuilder):
         return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, subj_height)
 
     def _generate_imu_data_instance(self, data, samp_freq):
-        # Positive x: right, mediolateral
-        # Positive y: down, vertical
-        # Positive z: forward, anteroposterior
-        # Data: acc_x, acc_y, acc_z, gyr_x, gyr_y, gyr_z
+        """
+        Positive x: right, mediolateral
+        Positive y: down, vertical
+        Positive z: forward, anteroposterior
+        Data: acc_x, acc_y, acc_z
+        """
         activity_code = 'walk'
         activity_description = 'walking at self-selected pace'
         v_acc_data = np.array(data.T[1])
-        # Flip the direction of vertical axis data such that gravity is now positive
+        # Flip the direction of vertical axis data such that gravity is
+        # now positive
         v_acc_data = v_acc_data * -1.0
         ml_acc_data = np.array(data.T[0])
         ap_acc_data = np.array(data.T[2])
@@ -337,7 +339,7 @@ class DatasetBuilder(DatasetBuilder):
 
 def main():
     path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\bin_data\subj_files'
-    clinical_demo_path = ''
+    clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
     db = DatasetBuilder()
