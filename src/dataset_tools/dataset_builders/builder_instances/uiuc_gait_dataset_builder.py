@@ -1,9 +1,9 @@
 import os
-import glob
 import pandas as pd
 import numpy as np
 from scipy.io import wavfile
 from typing import List, Dict, Any
+from matplotlib import pyplot as plt
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
@@ -139,20 +139,24 @@ class DatasetBuilder(DatasetBuilder):
     def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size):
         data_file_paths = self._generate_data_file_paths(dataset_path)
-        dataset = []
+        dataset: List[UserData] = []
         for subj in data_file_paths:
             subj_id = subj['subj_id']
+            print(subj_id)
             for trial in subj['trials']:
                 trial_id = trial['trial_id']
-                paths = trial['paths']
-                # Read files in only if number of paths for trial is 3
+                paths = trial['acc_paths']
+                imu_metadata_file_path = trial['metadata_path']
+                # Read in acc data files and metadata files
+                # only if number of acc paths for trial is 3
                 if len(paths) == 3:
+                    # Read in imu metadata
+                    raw_imu_metadata = self._read_imu_metadata(imu_metadata_file_path)
                     # Read in the paths and build data objects
                     tri_ax_acc_data = self._read_data_files(paths)
                     imu_data_file_path: List[str] = paths
                     imu_data_file_name: str = 'acc_data'
-                    imu_metadata_file_path: str = 'N/A'
-                    imu_metadata = IMUMetadata(None,
+                    imu_metadata = IMUMetadata(raw_imu_metadata,
                                                self.sampling_frequency,
                                                self.units)
                     subj_clin_data = self._get_subj_clin_data(subj_id)
@@ -189,10 +193,9 @@ class DatasetBuilder(DatasetBuilder):
                                      clinical_demo_path,
                                      {IMUDataFilterType.RAW: imu_data},
                                      imu_metadata, subj_clin_data))
-                return Dataset(self.get_dataset_name(), dataset_path,
-                               clinical_demo_path, dataset,
-                               self.activity_codes)
-
+        return Dataset(self.get_dataset_name(), dataset_path,
+                       clinical_demo_path, dataset,
+                       self.activity_codes)
 
     def _generate_data_file_paths(self, dataset_path):
         """
@@ -227,26 +230,33 @@ class DatasetBuilder(DatasetBuilder):
         for subj_path, subj_id, trial_ids in zip(subj_paths, subj_ids, all_trial_ids):
             subj_data_paths = {'subj_id': subj_id, 'trials': []}
             for trial_id in trial_ids:
-                trial_data_paths = {'trial_id': trial_id, 'paths': []}
+                trial_data_paths = {'trial_id': trial_id, 'acc_paths': [], 'metadata_path': ''}
                 # Search for acceleration files and construct their paths
                 trial_path = os.path.join(subj_path, trial_id)
+                metadata_path_found = False
                 for root, dirs, files in os.walk(trial_path):
                     for file in files:
                         if 'acceleration' in file and file.endswith('.wav'):
-                            trial_data_paths['paths'].append(
+                            trial_data_paths['acc_paths'].append(
                                 os.path.join(root, file))
+                        elif 'device_position.csv' in file:
+                            trial_data_paths['metadata_path'] = os.path.join(root, file)
+                            metadata_path_found = True
+                num_files_found = len(trial_data_paths['acc_paths'])
+                # If all the acceleration files were found and the metadata path was not found
+                if num_files_found == 3 and not metadata_path_found:
+                    raise ValueError(f'No metadata file path found for subj: {subj_id} and trial {trial_id}')
                 subj_data_paths['trials'].append(trial_data_paths)
             data_file_paths.append(subj_data_paths)
         # Remove duplicated files from the first subject
-        data_file_paths[0]['trials'][0]['paths'] = data_file_paths[0]['trials'][0]['paths'][3:]
+        data_file_paths[0]['trials'][0]['acc_paths'] = data_file_paths[0]['trials'][0]['acc_paths'][3:]
         return data_file_paths
 
-        #     data_file_paths[subj_id] = []
-        #     subj_data_folder = os.path.join(dataset_path, subj_id)
-        #     for data_file_path in glob.glob(
-        #         os.path.join(subj_data_folder, '*.csv')):
-        #         data_file_paths[subj_id].append(data_file_path)
-        # return data_file_paths
+    def _read_imu_metadata(self, imu_metadata_file_path):
+        md_df = pd.read_csv(imu_metadata_file_path)
+        pos_key = md_df.keys()[1]
+        dev_pos = md_df[pos_key][0]
+        return dev_pos
 
     def _read_data_files(self, paths: List[str]):
         # Initialize output variable
@@ -284,10 +294,10 @@ class DatasetBuilder(DatasetBuilder):
 
     def _generate_imu_data_instance(self, data, samp_freq):
         """
-        Positive x: right, mediolateral
+        Positive x: forward, anteroposterior
         Positive y: down, vertical
-        Positive z: forward, anteroposterior
-        Data: acc_x, acc_y, acc_z
+        Positive z: right, mediolateral
+        Data: acc_x (0 ix), acc_y (1 ix), acc_z (2 ix)
         """
         activity_code = 'walk'
         activity_description = 'walking at self-selected pace'
@@ -295,8 +305,8 @@ class DatasetBuilder(DatasetBuilder):
         # Flip the direction of vertical axis data such that gravity is
         # now positive
         v_acc_data = v_acc_data * -1.0
-        ml_acc_data = np.array(data.T[0])
-        ap_acc_data = np.array(data.T[2])
+        ml_acc_data = np.array(data.T[2])
+        ap_acc_data = np.array(data.T[0])
         yaw_gyr_data = np.array([])
         pitch_gyr_data = np.array([])
         roll_gyr_data = np.array([])
@@ -326,7 +336,6 @@ class DatasetBuilder(DatasetBuilder):
         Units: g
         Frequency: 64
         Unit (bin download): g/256
-
         :param path:
         :return:
         """
@@ -335,15 +344,75 @@ class DatasetBuilder(DatasetBuilder):
         pass
 
 
-
-
 def main():
     path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\bin_data\subj_files'
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
     db = DatasetBuilder()
-    db.build_dataset(path, clinical_demo_path, segment_dataset, epoch_size)
+    uiuc_gait_dataset = db.build_dataset(path, clinical_demo_path, segment_dataset, epoch_size)
+    print('\n\n\n')
+    v_acc_means = [abs(np.mean(
+        user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data(
+            'vertical'))) for user_data in uiuc_gait_dataset.get_dataset()]
+    ml_acc_means = [abs(np.mean(
+        user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data(
+            'mediolateral'))) for user_data in uiuc_gait_dataset.get_dataset()]
+    ap_acc_means = [abs(np.mean(
+        user_data.get_imu_data()[IMUDataFilterType.RAW].get_acc_axis_data(
+            'anteroposterior'))) for user_data in uiuc_gait_dataset.get_dataset()]
+    v_count = 0
+    ml_count = 0
+    ap_count = 0
+    for v, ml, ap in zip(v_acc_means, ml_acc_means, ap_acc_means):
+        if (7.0 < v < 13.0):
+            v_count += 1
+        elif (7.0 < ml < 13.0):
+            ml_count += 1
+        elif (7.0 < ap < 13.0):
+            ap_count += 1
+    print(v_count)
+    print(ml_count)
+    print(ap_count)
+    print(v_count + ml_count + ap_count)
+
+    # v_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
+    # ml_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('mediolateral')
+    # ap_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
+    # time = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    #     IMUDataFilterType.RAW).get_time()
+    # plt.plot(time, v_acc, 'r')
+    # plt.plot(time, ml_acc, 'g')
+    # plt.plot(time, ap_acc, 'b')
+    # plt.show()
+    # v_acc = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
+    # ml_acc = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('mediolateral')
+    # ap_acc = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
+    # time = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    #     IMUDataFilterType.RAW).get_time()
+    # plt.plot(time, v_acc, 'r')
+    # plt.plot(time, ml_acc, 'g')
+    # plt.plot(time, ap_acc, 'b')
+    # plt.show()
+    # v_acc = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
+    # ml_acc = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('mediolateral')
+    # ap_acc = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    #     IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
+    # time = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    #     IMUDataFilterType.RAW).get_time()
+    # plt.plot(time, v_acc, 'r')
+    # plt.plot(time, ml_acc, 'g')
+    # plt.plot(time, ap_acc, 'b')
+    # plt.show()
+    print('a')
 
 
 if __name__ == '__main__':
