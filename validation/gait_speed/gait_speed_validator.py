@@ -1,16 +1,20 @@
+import numpy as np
 
+from src.risk_assessments.fall_risk_assessment import FallRiskAssessment
 from src.motion_analysis.gait_analysis.gait_analyzer import GaitAnalyzer
 from src.dataset_tools.dataset_builders.builder_instances.uiuc_gait_dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
+from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+
 
 class GaitSpeedValidator:
     def __init__(self):
         """
         Constructor of the GaitSpeedValidator class
         For the UIUC gait speed data, see for truth data:
-        C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\Fixed speed data_Instrumented Treadmill
+        root folder -> Fixed speed data_Instrumented Treadmill
         """
         self.subj_gs_truth = {
             '101 ': {'CWT': 1.25, 'BS': 1.25},
@@ -74,7 +78,21 @@ class GaitSpeedValidator:
         # Instantiate gait analyzer and run the dataset through the gait analyzer
         ga = GaitAnalyzer()
         # Compare the results of the gait analyzer with truth values
-        pass
+        gs_results = [{
+            'id': user_data.get_clinical_demo_data().get_id(),
+            'gait_speed': ga.estimate_gait_speed(user_data)
+                       } for user_data in dataset.get_dataset()]
+        cwt_diffs = []
+        bs_diffs = []
+        for result in gs_results:
+            cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+            bs_truth_value = self.subj_gs_truth[result['id']]['BS']
+            cwt_diffs.append(abs(cwt_truth_value - result['gait_speed']))
+            bs_diffs.append(abs(bs_truth_value - result['gait_speed']))
+        cwt_diffs = np.array(cwt_diffs)
+        bs_diffs = np.array(bs_diffs)
+        return cwt_diffs, bs_diffs
+
 
 
 def main():
@@ -89,8 +107,20 @@ def main():
     db = DatasetBuilder()
     dataset = db.build_dataset(dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size)
+    # Run dataset through low-pass filter
+    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
+    for user_data in dataset:
+        fra.apply_lp_filter(user_data)
     # Run the validation
-    pass
+    cwt_diffs, bs_diffs = val.validate_gait_speed_estimator(dataset)
+    print(min(cwt_diffs))
+    print(max(cwt_diffs))
+    print(cwt_diffs.mean())
+    print('\n\n\n')
+    print(min(bs_diffs))
+    print(max(bs_diffs))
+    print(bs_diffs.mean())
+
 
 if __name__ == '__main__':
     main()

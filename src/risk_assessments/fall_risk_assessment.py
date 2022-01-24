@@ -29,7 +29,7 @@ from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeE
 
 
 class FallRiskAssessment:
-    def __init__(self, risk_classifier):
+    def __init__(self, risk_classifier: Classifier):
         # Required input parameters
         self.dataset_builders: Dict[str: DatasetBuilder] = {}
         self.datasets: Dict[DatasetNames: Dataset] = {}
@@ -115,13 +115,13 @@ class FallRiskAssessment:
         for name, dataset in self.datasets.items():
             for user_data in dataset.get_dataset():
                 # Filter the data
-                self._apply_lp_filter(user_data)
+                self.apply_lp_filter(user_data)
                 #self.att_est.estimate_attitude(user_data)
                 # self.apply_kalman_filter()
                 # Remove effects of gravity in vertical axis
                 # self._unbias_axes(user_data)
 
-    def _apply_lp_filter(self, user_data):
+    def apply_lp_filter(self, user_data):
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         act_code = imu_data.get_activity_code()
