@@ -109,7 +109,7 @@ def main():
                       segment_dataset, epoch_size)
     # Run dataset through low-pass filter
     fra = FallRiskAssessment(LightGBMRiskClassifier({}))
-    for user_data in dataset:
+    for user_data in dataset.get_dataset():
         fra.apply_lp_filter(user_data)
     # Run the validation
     cwt_diffs, bs_diffs = val.validate_gait_speed_estimator(dataset)
