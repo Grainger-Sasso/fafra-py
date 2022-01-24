@@ -1,11 +1,15 @@
-"""
-For the UIUC gait speed data, see for truth data:
-C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\Fixed speed data_Instrumented Treadmill
-"""
 
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
+from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 
 class GaitSpeedValidator:
     def __init__(self):
+        """
+        Constructor of the GaitSpeedValidator class
+        For the UIUC gait speed data, see for truth data:
+        C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\Fixed speed data_Instrumented Treadmill
+        """
         self.subj_gs_truth = {
             '101 ': {'CWT': 1.25, 'BS': 1.25},
             '102': {'CWT': 1.3, 'BS': 1.3},
@@ -64,5 +68,16 @@ class GaitSpeedValidator:
 
         }
 
-    def validate_gait_speed_estimator(self):
+    def validate_gait_speed_estimator(self, dataset: Dataset):
+        # Run the UIUC dataset through the gait analyzer
+        # Compare the results of the gait analyzer with truth values
         pass
+
+
+def main():
+    # Build the UIUC gait dataset
+    # Run the validation
+    pass
+
+if __name__ == '__main__':
+    main()
