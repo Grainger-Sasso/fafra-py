@@ -1,4 +1,6 @@
 
+from src.motion_analysis.gait_analysis.gait_analyzer import GaitAnalyzer
+from src.dataset_tools.dataset_builders.builder_instances.uiuc_gait_dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
@@ -69,13 +71,24 @@ class GaitSpeedValidator:
         }
 
     def validate_gait_speed_estimator(self, dataset: Dataset):
-        # Run the UIUC dataset through the gait analyzer
+        # Instantiate gait analyzer and run the dataset through the gait analyzer
+        ga = GaitAnalyzer()
         # Compare the results of the gait analyzer with truth values
         pass
 
 
 def main():
-    # Build the UIUC gait dataset
+    # Instantiate the Validator
+    val = GaitSpeedValidator()
+    # Set dataset paths and builder parameters
+    dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\GaitSpeedValidation\GaitSpeedValidation\Hexoskin Binary Data files 2\Hexoskin Binary Data files'
+    clinical_demo_path = 'N/A'
+    segment_dataset = False
+    epoch_size = 0.0
+    # Instantiate the builder and build the dataset
+    db = DatasetBuilder()
+    dataset = db.build_dataset(dataset_path, clinical_demo_path,
+                      segment_dataset, epoch_size)
     # Run the validation
     pass
 

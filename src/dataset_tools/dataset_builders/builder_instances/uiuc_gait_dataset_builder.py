@@ -153,13 +153,13 @@ class DatasetBuilder(DatasetBuilder):
                 # only if number of acc paths for trial is 3
                 if len(paths) == 3:
                     # Read in imu metadata
-                    raw_imu_metadata = self._read_imu_metadata(imu_metadata_file_path)
+                    device_position = self._read_imu_metadata(imu_metadata_file_path)
                     # Read in the paths and build data objects
                     tri_ax_acc_data = self._read_data_files(paths)
                     imu_data_file_path: List[str] = paths
                     imu_data_file_name: str = 'acc_data'
                     imu_metadata = IMUMetadata({'device_position':
-                                                    raw_imu_metadata},
+                                                    device_position},
                                                self.sampling_frequency,
                                                self.units)
                     subj_clin_data = self._get_subj_clin_data(subj_id, trial_id)
@@ -176,7 +176,7 @@ class DatasetBuilder(DatasetBuilder):
                         for segment in data_segments:
                             imu_data = self._generate_imu_data_instance(
                                 paths, segment,
-                                self.sampling_frequency)
+                                self.sampling_frequency, device_position)
                             dataset.append(UserData(imu_data_file_path,
                                                     imu_data_file_name,
                                                     imu_metadata_file_path,
@@ -188,7 +188,7 @@ class DatasetBuilder(DatasetBuilder):
                     else:
                         # Build a UserData object for the whole data
                         imu_data = self._generate_imu_data_instance(
-                            data, self.sampling_frequency)
+                            data, self.sampling_frequency, device_position)
                         dataset.append(
                             UserData(imu_data_file_path,
                                      imu_data_file_name,
@@ -295,7 +295,7 @@ class DatasetBuilder(DatasetBuilder):
         subj_height = 2.0
         return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, subj_height, trial_id)
 
-    def _generate_imu_data_instance(self, data, samp_freq):
+    def _generate_imu_data_instance(self, data, samp_freq, device_position):
         """
         Positive x: forward, anteroposterior
         Positive y: down, vertical
@@ -304,12 +304,19 @@ class DatasetBuilder(DatasetBuilder):
         """
         activity_code = 'walk'
         activity_description = 'walking at self-selected pace'
-        v_acc_data = np.array(data.T[1])
-        # Flip the direction of vertical axis data such that gravity is
-        # now positive
-        v_acc_data = v_acc_data * -1.0
-        ml_acc_data = np.array(data.T[2])
-        ap_acc_data = np.array(data.T[0])
+        if device_position == 2:
+            v_acc_data = np.array(data.T[1])
+            ml_acc_data = np.array(data.T[2])
+            ap_acc_data = np.array(data.T[0])
+        elif device_position == 6:
+            v_acc_data = np.array(data.T[0])
+            ml_acc_data = np.array(data.T[2])
+            ap_acc_data = np.array(data.T[1])
+        else:
+            raise ValueError(f'Invalid device position: {device_position}')
+        # Check the directionality of the device v-axis data
+        if v_acc_data.mean() < 0.0:
+            v_acc_data = v_acc_data * -1.0
         yaw_gyr_data = np.array([])
         pitch_gyr_data = np.array([])
         roll_gyr_data = np.array([])
@@ -348,28 +355,29 @@ class DatasetBuilder(DatasetBuilder):
 
 
 def main():
-    path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\bin_data\subj_files'
+    # path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed\bin_data\subj_files'
+    path = r'C:\Users\gsass\Documents\fafra\datasets\GaitSpeedValidation\GaitSpeedValidation\Hexoskin Binary Data files 2\Hexoskin Binary Data files'
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
     db = DatasetBuilder()
     uiuc_gait_dataset = db.build_dataset(path, clinical_demo_path, segment_dataset, epoch_size)
     print('\n\n\n')
-    positions = [user_data.get_imu_metadata().get_metadata()['device_position']
-                 for user_data in uiuc_gait_dataset.get_dataset()]
-    subj_trial_pos = [{"subj_id": user_data.get_clinical_demo_data().get_id(),
-                       "trial_id": user_data.get_clinical_demo_data().get_trial(),
-                       "device_position": int(user_data.get_imu_metadata().get_metadata()['device_position'])}
-                 for user_data in uiuc_gait_dataset.get_dataset()]
-    pos_counts_1_6 = [positions.count(1), positions.count(2),
-                      positions.count(3), positions.count(4),
-                      positions.count(5), positions.count(6)]
-    print(pos_counts_1_6)
-    outdir = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed'
-    filename = 'subject_trial_dev_pos.json'
-    outfile = os.path.join(outdir, filename)
-    with open(outfile, 'w') as f:
-        json.dump(subj_trial_pos, f)
+    # positions = [user_data.get_imu_metadata().get_metadata()['device_position']
+    #              for user_data in uiuc_gait_dataset.get_dataset()]
+    # subj_trial_pos = [{"subj_id": user_data.get_clinical_demo_data().get_id(),
+    #                    "trial_id": user_data.get_clinical_demo_data().get_trial(),
+    #                    "device_position": int(user_data.get_imu_metadata().get_metadata()['device_position'])}
+    #              for user_data in uiuc_gait_dataset.get_dataset()]
+    # pos_counts_1_6 = [positions.count(1), positions.count(2),
+    #                   positions.count(3), positions.count(4),
+    #                   positions.count(5), positions.count(6)]
+    # print(pos_counts_1_6)
+    # outdir = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\UIUC_gaitspeed'
+    # filename = 'subject_trial_dev_pos.json'
+    # outfile = os.path.join(outdir, filename)
+    # with open(outfile, 'w') as f:
+    #     json.dump(subj_trial_pos, f)
     # v_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
     # ml_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
