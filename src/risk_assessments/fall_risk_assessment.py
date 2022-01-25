@@ -13,8 +13,9 @@ from matplotlib import pyplot as plt
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
-from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+
 from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.risk_classification.validation.cross_validator import CrossValidator
 from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
@@ -125,16 +126,17 @@ class FallRiskAssessment:
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         act_code = imu_data.get_activity_code()
+        act_des = imu_data.get_activity_description()
         all_raw_data = imu_data.get_all_data()
         lpf_data_all_axis = []
         for data in all_raw_data:
             lpf_data_all_axis.append(
                 self.filter.apply_lpass_filter(data, 2, samp_freq))
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
-                                                        samp_freq, act_code)
+                                                        samp_freq, act_code, act_des)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
 
-    def _generate_imu_data_instance(self, data, sampling_freq, act_code):
+    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
         ap_acc_data = np.array(data[2])
@@ -143,7 +145,7 @@ class FallRiskAssessment:
         roll_gyr_data = np.array(data[5])
         time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
                            len(v_acc_data))
-        return IMUData(act_code, v_acc_data, ml_acc_data, ap_acc_data,
+        return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
     def _unbias_axes(self, user_data):

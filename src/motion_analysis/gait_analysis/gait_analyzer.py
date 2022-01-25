@@ -1,4 +1,5 @@
 import numpy as np
+import math
 from matplotlib import pyplot as plt
 
 from src.dataset_tools.risk_assessment_data.user_data import UserData
@@ -81,6 +82,8 @@ class GaitAnalyzer:
             h = max(step_v_disp) - min(step_v_disp)
             # Formula for step length derived from inverted pendulum model
             step_length = 1.25 * 2 * (((2 * leg_length - h) * h) ** 0.5)
+            if math.isnan(step_length):
+                print('issue')
             # Apply correction for mediolateral component of step length
             if ((step_length ** 2) > ((0.094*leg_length) ** 2)):
                 step_length = ((step_length ** 2) - ((0.094*leg_length) ** 2)) ** 0.5

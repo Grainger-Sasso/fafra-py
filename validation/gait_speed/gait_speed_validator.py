@@ -1,5 +1,6 @@
 import numpy as np
 
+from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_assessments.fall_risk_assessment import FallRiskAssessment
 from src.motion_analysis.gait_analysis.gait_analyzer import GaitAnalyzer
 from src.dataset_tools.dataset_builders.builder_instances.uiuc_gait_dataset_builder import DatasetBuilder
@@ -7,6 +8,7 @@ from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
 class GaitSpeedValidator:
@@ -17,7 +19,7 @@ class GaitSpeedValidator:
         root folder -> Fixed speed data_Instrumented Treadmill
         """
         self.subj_gs_truth = {
-            '101 ': {'CWT': 1.25, 'BS': 1.25},
+            '101': {'CWT': 1.25, 'BS': 1.25},
             '102': {'CWT': 1.3, 'BS': 1.3},
             '103': {'CWT': 1.1, 'BS': 1.1},
             '104': {'CWT': 1.3, 'BS': 1.3},
@@ -73,6 +75,7 @@ class GaitSpeedValidator:
             '311': {'CWT': 1.3, 'BS': 1.2}
 
         }
+        self.filter = MotionFilters()
 
     def validate_gait_speed_estimator(self, dataset: Dataset):
         # Instantiate gait analyzer and run the dataset through the gait analyzer
@@ -85,13 +88,49 @@ class GaitSpeedValidator:
         cwt_diffs = []
         bs_diffs = []
         for result in gs_results:
-            cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
-            bs_truth_value = self.subj_gs_truth[result['id']]['BS']
-            cwt_diffs.append(abs(cwt_truth_value - result['gait_speed']))
-            bs_diffs.append(abs(bs_truth_value - result['gait_speed']))
+            if result['id'] in self.subj_gs_truth.keys():
+                cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+                bs_truth_value = self.subj_gs_truth[result['id']]['BS']
+                cwt_diffs.append(abs(cwt_truth_value - result['gait_speed']))
+                bs_diffs.append(abs(bs_truth_value - result['gait_speed']))
         cwt_diffs = np.array(cwt_diffs)
         bs_diffs = np.array(bs_diffs)
         return cwt_diffs, bs_diffs
+
+    def apply_lpf(self, user_data):
+        imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
+        samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        act_code = imu_data.get_activity_code()
+        act_des = imu_data.get_activity_description()
+        raw_acc_data = [
+            user_data.get_imu_data(IMUDataFilterType.RAW).get_acc_axis_data('vertical'),
+            user_data.get_imu_data(IMUDataFilterType.RAW).get_acc_axis_data('mediolateral'),
+            user_data.get_imu_data(IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
+        ]
+        lpf_data_all_axis = []
+        for data in raw_acc_data:
+            lpf_data_all_axis.append(
+                self.filter.apply_lpass_filter(data, 2, samp_freq))
+        lpf_data_all_axis.extend([
+            user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('yaw'),
+            user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('pitch'),
+            user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('roll')
+        ])
+        lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
+                                                        samp_freq, act_code, act_des)
+        user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
+
+    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
+        v_acc_data = np.array(data[0])
+        ml_acc_data = np.array(data[1])
+        ap_acc_data = np.array(data[2])
+        yaw_gyr_data = np.array(data[3])
+        pitch_gyr_data = np.array(data[4])
+        roll_gyr_data = np.array(data[5])
+        time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
+                           len(v_acc_data))
+        return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
+                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
 
 
@@ -108,9 +147,8 @@ def main():
     dataset = db.build_dataset(dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size)
     # Run dataset through low-pass filter
-    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
     for user_data in dataset.get_dataset():
-        fra.apply_lp_filter(user_data)
+        val.apply_lpf(user_data)
     # Run the validation
     cwt_diffs, bs_diffs = val.validate_gait_speed_estimator(dataset)
     print(min(cwt_diffs))
@@ -120,6 +158,8 @@ def main():
     print(min(bs_diffs))
     print(max(bs_diffs))
     print(bs_diffs.mean())
+
+    print('a')
 
 
 if __name__ == '__main__':
