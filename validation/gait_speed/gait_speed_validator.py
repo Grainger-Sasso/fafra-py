@@ -91,8 +91,8 @@ class GaitSpeedValidator:
             if result['id'] in self.subj_gs_truth.keys():
                 cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
                 bs_truth_value = self.subj_gs_truth[result['id']]['BS']
-                cwt_diffs.append(abs(cwt_truth_value - result['gait_speed']))
-                bs_diffs.append(abs(bs_truth_value - result['gait_speed']))
+                cwt_diffs.append(cwt_truth_value - result['gait_speed'])
+                bs_diffs.append(bs_truth_value - result['gait_speed'])
         cwt_diffs = np.array(cwt_diffs)
         bs_diffs = np.array(bs_diffs)
         return cwt_diffs, bs_diffs

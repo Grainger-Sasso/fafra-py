@@ -49,7 +49,7 @@ class GaitAnalyzer:
             v_acc_data, samp_freq, ap_peak_indexes, user_height)
         total_distance = step_lengths.sum()
         gait_speed = (total_distance/tot_time)
-        self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
+        # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
         # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
         #                               ap_peak_indexes, v_displacement)
         return gait_speed
@@ -60,8 +60,8 @@ class GaitAnalyzer:
         plt.plot(time, v_disp)
         plt.plot(np.array(time)[valid_ix].tolist(), np.array(v_disp)[valid_ix].tolist(), 'b^')
         plt.plot(np.array(time)[invalid_ix].tolist(), np.array(v_disp)[invalid_ix].tolist(), 'rv')
-        plt.show()
-        print('a')
+        # plt.show()
+        # print('a')
 
     def _detect_peaks(self, acc_data):
         strike_indexes = PeakDetector().detect_peaks(acc_data)
