@@ -45,7 +45,7 @@ class GaitAnalyzer:
         # Detect the peaks (heel strikes) in the walking data
         v_peak_indexes = self._detect_peaks(v_acc_data)
         ap_peak_indexes = self._detect_peaks(ap_acc_data)
-        step_lengths, v_displacement, valid_strike_ixs, invalid_strike_ixs, tot_time = self._estimate_step_lengths(
+        step_lengths, v_displacement, valid_strike_ixs, invalid_strike_ixs, tot_time, v_disps = self._estimate_step_lengths(
             v_acc_data, samp_freq, ap_peak_indexes, user_height)
         total_distance = step_lengths.sum()
         gait_speed = (total_distance/tot_time)
@@ -73,6 +73,7 @@ class GaitAnalyzer:
         # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
         valid_strike_ixs = []
         invalid_strike_ixs = []
+        v_disps = []
         tot_time = 0.0
         leg_length = 0.48 * user_height
         # Initialize list of step lengths in walking bout
@@ -91,13 +92,14 @@ class GaitAnalyzer:
             v_displacement.extend(step_v_disp)
             # Compute the difference between the largest and smallest vertical
             # displacement of CoM
-            h = max(step_v_disp) - min(step_v_disp)
+            v_disp = max(step_v_disp) - min(step_v_disp)
+            v_disps.append(v_disp)
             # Introduce a check to make sure that COM displacement is less than
             # an acceptable max value: https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
             # (filters out erroneous COM displacement values)
-            if h < 0.3:
+            if v_disp < 0.3:
                 # Formula for step length derived from inverted pendulum model
-                step_lengths.append(self._calc_step_length(h, leg_length))
+                step_lengths.append(self._calc_step_length(v_disp, leg_length))
                 # Consider step indices valid
                 valid_strike_ixs.append(len(v_displacement)-1)
                 # Increment the total time up
@@ -108,12 +110,13 @@ class GaitAnalyzer:
         # Remove duplicates from strike indices
         valid_strike_ixs = list(set(valid_strike_ixs))
         invalid_strike_ixs = list(set(invalid_strike_ixs))
+        v_disps = np.array(v_disps)
         if np.isnan(step_lengths).any():
             print('AAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHH')
-        return np.array(step_lengths), v_displacement, valid_strike_ixs, invalid_strike_ixs, tot_time
+        return np.array(step_lengths), v_displacement, valid_strike_ixs, invalid_strike_ixs, tot_time, v_disps
 
-    def _calc_step_length(self, h, leg_length):
-        g = ((2 * leg_length - h) * h)
+    def _calc_step_length(self, v_disp, leg_length):
+        g = ((2 * leg_length - v_disp) * v_disp)
         step_length = 1.25 * 2 * (g ** 0.5)
         # Apply correction for mediolateral component of step length
         if ((step_length ** 2) > ((0.094 * leg_length) ** 2)):
