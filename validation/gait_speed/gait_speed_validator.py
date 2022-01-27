@@ -77,14 +77,14 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def validate_gait_speed_estimator(self, dataset: Dataset):
+    def calculate_gait_speeds(self, dataset: Dataset):
         # Instantiate gait analyzer and run the dataset through the gait analyzer
         ga = GaitAnalyzer()
         # Compare the results of the gait analyzer with truth values
-        gs_results = [{
-            'id': user_data.get_clinical_demo_data().get_id(),
-            'gait_speed': ga.estimate_gait_speed(user_data)
-                       } for user_data in dataset.get_dataset()]
+        gs_results = [{'id': user_data.get_clinical_demo_data().get_id(), 'gait_speed': ga.estimate_gait_speed(user_data)} for user_data in dataset.get_dataset()]
+        return gs_results
+
+    def compare_results_to_truth(self, gs_results):
         cwt_diffs = []
         bs_diffs = []
         for result in gs_results:
@@ -110,7 +110,7 @@ class GaitSpeedValidator:
         lpf_data_all_axis = []
         for data in raw_acc_data:
             lpf_data_all_axis.append(
-                self.filter.apply_lpass_filter(data, 2, samp_freq))
+                self.filter.apply_lpass_filter(data, 4.2, samp_freq))
         lpf_data_all_axis.extend([
             user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('yaw'),
             user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('pitch'),
@@ -150,11 +150,13 @@ def main():
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data)
     # Run the validation
-    cwt_diffs, bs_diffs = val.validate_gait_speed_estimator(dataset)
+    gs_results = val.calculate_gait_speeds(dataset)
+    gs = np.array([r['gait_speed'] for r in gs_results])
+    cwt_diffs, bs_diffs = val.compare_results_to_truth(gs_results)
     print(min(cwt_diffs))
     print(max(cwt_diffs))
     print(cwt_diffs.mean())
-    print('\n\n\n')
+    print('\n')
     print(min(bs_diffs))
     print(max(bs_diffs))
     print(bs_diffs.mean())

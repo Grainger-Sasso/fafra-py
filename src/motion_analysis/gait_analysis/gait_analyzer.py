@@ -38,10 +38,15 @@ class GaitAnalyzer:
         lpf_v_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical
         # acc data
-        v_acc_data = lpf_v_data - 9.80665
+        v_acc_data = lpf_v_data - np.mean(lpf_v_data)
         ap_acc_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+
+        raw_data = user_data.get_imu_data(IMUDataFilterType.RAW).get_acc_axis_data('vertical')
+        raw_data = raw_data - np.mean(raw_data)
+        time = np.linspace(0.0, len(v_acc_data) / samp_freq, len(v_acc_data))
+
         # Detect the peaks (heel strikes) in the walking data
         v_peak_indexes = self._detect_peaks(v_acc_data)
         ap_peak_indexes = self._detect_peaks(ap_acc_data)
@@ -95,15 +100,16 @@ class GaitAnalyzer:
             v_disp = max(step_v_disp) - min(step_v_disp)
             v_disps.append(v_disp)
             # Introduce a check to make sure that COM displacement is less than
-            # an acceptable max value: https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
+            # an acceptable max value (0.08m = 8cm):
+            # https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
             # (filters out erroneous COM displacement values)
-            if v_disp < 0.3:
+            if v_disp < 0.08:
                 # Formula for step length derived from inverted pendulum model
                 step_lengths.append(self._calc_step_length(v_disp, leg_length))
                 # Consider step indices valid
                 valid_strike_ixs.append(len(v_displacement)-1)
                 # Increment the total time up
-                tot_time += ((end_ix - start_ix) * samp_freq)
+                tot_time += ((end_ix - start_ix) / samp_freq)
             else:
                 # Consider the step indices invalid
                 invalid_strike_ixs.append(len(v_displacement)-1)
@@ -130,7 +136,7 @@ class GaitAnalyzer:
         # The initial position of the CoM at t=0 is arbitrary, set to 0
         p0 = 0.0
         # Given assumption 3 of estimate_gait_speed(), we assume initial
-        # velocity at each heel strike to be zero
+        # vertical velocity at each heel strike to be zero
         v0 = 0.0
         acc = v_acc[start_ix:(end_ix - 1)]
         vel = self._compute_single_integration(acc, period, v0)
