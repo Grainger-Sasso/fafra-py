@@ -152,7 +152,14 @@ def main():
     # Run the validation
     gs_results = val.calculate_gait_speeds(dataset)
     gs = np.array([r['gait_speed'] for r in gs_results])
+
+    cwt_truth_values = [truth_val[1]['CWT'] for truth_val in val.subj_gs_truth.items()]
+    bs_truth_values = [truth_val[1]['BS'] for truth_val in val.subj_gs_truth.items()]
+
     cwt_diffs, bs_diffs = val.compare_results_to_truth(gs_results)
+
+    percentages = [diff/val for diff, val in zip(cwt_diffs, cwt_truth_values)]
+    pm = np.mean(percentages)
     print(min(cwt_diffs))
     print(max(cwt_diffs))
     print(cwt_diffs.mean())
@@ -160,6 +167,8 @@ def main():
     print(min(bs_diffs))
     print(max(bs_diffs))
     print(bs_diffs.mean())
+    print('\n')
+    print(pm)
 
     print('a')
 
