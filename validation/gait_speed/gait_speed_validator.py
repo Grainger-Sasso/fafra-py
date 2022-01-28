@@ -1,4 +1,6 @@
 import numpy as np
+from scipy.stats import skew
+from scipy.stats import kurtosis
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_assessments.fall_risk_assessment import FallRiskAssessment
@@ -160,18 +162,24 @@ def main():
 
     percentages = [diff/val for diff, val in zip(cwt_diffs, cwt_truth_values)]
     pm = np.mean(percentages)
-    print(min(cwt_diffs))
-    print(max(cwt_diffs))
-    print(cwt_diffs.mean())
-    print('\n')
-    print(min(bs_diffs))
-    print(max(bs_diffs))
-    print(bs_diffs.mean())
-    print('\n')
-    print(pm)
+
+    print_desc_stats(cwt_diffs, 'DIFFS')
+    print_desc_stats(cwt_truth_values, 'TRUTH')
+    print_desc_stats(gs, 'GSE')
 
     print('a')
 
+
+def print_desc_stats(data, name):
+    print(name)
+    print(f'Min: {min(data)}')
+    print(f'Max: {max(data)}')
+    print(f'Mean: {np.mean(data)}')
+    print(f'Median: {np.median(data)}')
+    print(f'STD: {np.std(data)}')
+    print(f'Skewness: {skew(data)}')
+    print(f'Kurtosis {kurtosis(data)}')
+    print('\n')
 
 if __name__ == '__main__':
     main()
