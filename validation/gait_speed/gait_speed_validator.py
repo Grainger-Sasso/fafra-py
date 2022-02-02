@@ -1,4 +1,8 @@
+import json
 import numpy as np
+import uuid
+import os
+import time
 from scipy.stats import skew
 from scipy.stats import kurtosis
 
@@ -79,14 +83,19 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def calculate_gait_speeds(self, dataset: Dataset):
+    def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0'):
         # Instantiate gait analyzer and run the dataset through the gait analyzer
         ga = GaitAnalyzer()
         # Compare the results of the gait analyzer with truth values
         gs_results = [{'id': user_data.get_clinical_demo_data().get_id(), 'gait_speed': ga.estimate_gait_speed(user_data)} for user_data in dataset.get_dataset()]
+        if write_out_results:
+            filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+            output_path = os.path.join(ouput_dir, filename)
+            with open(output_path, 'w') as f:
+                json.dump(gs_results, f)
         return gs_results
 
-    def compare_results_to_truth(self, gs_results):
+    def compare_gs_to_truth(self, gs_results):
         cwt_diffs = []
         bs_diffs = []
         for result in gs_results:
@@ -98,6 +107,28 @@ class GaitSpeedValidator:
         cwt_diffs = np.array(cwt_diffs)
         bs_diffs = np.array(bs_diffs)
         return cwt_diffs, bs_diffs
+
+    def compare_gse_to_baseline(self, dataset: Dataset, baseline_path):
+        # Run the gse on dataset
+        gs_results = self.calculate_gait_speeds(dataset)
+        # Read in the baseline comparisons from baseline path
+        with open(baseline_path, 'r') as f:
+            baseline_data = json.load(f)
+        # Validate that the results of the gse match the baseline resutls
+        erroneous_results = []
+        for baseline_result in zip(baseline_data):
+            id = baseline_result['id']
+            # Find corresponding result in gs results
+            corr_gs_result = [gs for gs in gs_results if gs['id'] == id]
+            if len(corr_gs_result) == 1:
+                corr_gs_val = corr_gs_result[0]['gait_speed']
+                baseline_gs_val = baseline_result['gait_speed']
+                if corr_gs_val != baseline_gs_val:
+                    erroneous_results.append({'id': id, 'gs_result': corr_gs_val, 'baseline_gs_value': baseline_gs_val})
+            else:
+                # Add this result to the list of erroneous results
+                erroneous_results.append(f'No matching gs results for baseline {id}')
+        return erroneous_results
 
     def apply_lpf(self, user_data):
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
@@ -135,7 +166,6 @@ class GaitSpeedValidator:
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
 
-
 def main():
     # Instantiate the Validator
     val = GaitSpeedValidator()
@@ -144,6 +174,8 @@ def main():
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
+    baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
+
     # Instantiate the builder and build the dataset
     db = DatasetBuilder()
     dataset = db.build_dataset(dataset_path, clinical_demo_path,
@@ -152,22 +184,24 @@ def main():
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data)
     # Run the validation
-    gs_results = val.calculate_gait_speeds(dataset)
-    gs = np.array([r['gait_speed'] for r in gs_results])
+    gs_results = val.calculate_gait_speeds(dataset, True, baseline_out_path, version_num='1.0')
 
-    cwt_truth_values = [truth_val[1]['CWT'] for truth_val in val.subj_gs_truth.items()]
-    bs_truth_values = [truth_val[1]['BS'] for truth_val in val.subj_gs_truth.items()]
-
-    cwt_diffs, bs_diffs = val.compare_results_to_truth(gs_results)
-
-    percentages = [diff/val for diff, val in zip(cwt_diffs, cwt_truth_values)]
-    pm = np.mean(percentages)
-
-    print_desc_stats(cwt_diffs, 'DIFFS')
-    print_desc_stats(cwt_truth_values, 'TRUTH')
-    print_desc_stats(gs, 'GSE')
-
-    print('a')
+    # gs_results = val.calculate_gait_speeds(dataset)
+    # gs = np.array([r['gait_speed'] for r in gs_results])
+    #
+    # cwt_truth_values = [truth_val[1]['CWT'] for truth_val in val.subj_gs_truth.items()]
+    # bs_truth_values = [truth_val[1]['BS'] for truth_val in val.subj_gs_truth.items()]
+    #
+    # cwt_diffs, bs_diffs = val.compare_gs_to_truth(gs_results)
+    #
+    # percentages = [diff/val for diff, val in zip(cwt_diffs, cwt_truth_values)]
+    # pm = np.mean(percentages)
+    #
+    # print_desc_stats(cwt_diffs, 'DIFFS')
+    # print_desc_stats(cwt_truth_values, 'TRUTH')
+    # print_desc_stats(gs, 'GSE')
+    #
+    # print('a')
 
 
 def print_desc_stats(data, name):
@@ -180,6 +214,7 @@ def print_desc_stats(data, name):
     print(f'Skewness: {skew(data)}')
     print(f'Kurtosis {kurtosis(data)}')
     print('\n')
+
 
 if __name__ == '__main__':
     main()
