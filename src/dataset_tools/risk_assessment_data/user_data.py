@@ -8,10 +8,10 @@ from src.dataset_tools.risk_assessment_data.clinical_demographic_data import Cli
 
 
 class UserData:
-    def __init__(self, imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+    def __init__(self, imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_file_path,
                  imu_data, imu_metadata, clinical_demo_data):
         self.imu_data_file_path = imu_data_file_path
-        self.imu_data_file_name = os.path.split(os.path.splitext(self.imu_data_file_path)[0])[1]
+        self.imu_data_file_name = imu_data_file_name
         self.imu_metadata_file_path = imu_metadata_file_path
         self.clinical_demo_file_path = clinical_demo_file_path
         self.imu_data: Dict[IMUDataFilterType: IMUData] = imu_data

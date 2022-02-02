@@ -28,7 +28,7 @@ class DatasetBuilder(DatasetBuilder):
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
-        # Adults were not screened for fall risk, therefor none of them are assumed to be fallers
+        # Adults were not screened for fall risk, therefore none of them are assumed to be fallers
         self.subject_data = {
             'SA01': {'id': 'SA01', 'age': 26, 'height': 165, 'weight': 53, 'sex': 'F'},
             'SA02': {'id': 'SA02', 'age': 23, 'height': 176, 'weight': 58.5, 'sex': 'M'},
@@ -115,10 +115,11 @@ class DatasetBuilder(DatasetBuilder):
             for file_path in data_file_paths:
                 data = self._read_data_file(file_path)
                 # Convert accelerometer data from g to m/s^2
-                data[:, 0:3] = data[:, 0:3] * 9.81
+                data[:, 0:3] = data[:, 0:3] * 9.80665
                 imu_data_file_path: str = file_path
+                imu_data_file_name: str = \
+                os.path.split(os.path.splitext(imu_data_file_path)[0])[1]
                 imu_metadata_file_path: str = 'N/A'
-                clinical_demo_path: str = 'N/A'
                 imu_metadata = IMUMetadata(None,
                                            self.sampling_frequency, self.units)
                 subj_clin_data = self._get_subj_clin_data(subj_id)
@@ -132,6 +133,7 @@ class DatasetBuilder(DatasetBuilder):
                         imu_data = self._generate_imu_data_instance(file_path, segment,
                                                                     self.sampling_frequency)
                         dataset.append(UserData(imu_data_file_path,
+                                                imu_data_file_name,
                                                 imu_metadata_file_path,
                                                 clinical_demo_path,
                                                 {
@@ -143,7 +145,9 @@ class DatasetBuilder(DatasetBuilder):
                     imu_data = self._generate_imu_data_instance(file_path, data,
                                                                 self.sampling_frequency)
                     dataset.append(
-                        UserData(imu_data_file_path, imu_metadata_file_path,
+                        UserData(imu_data_file_path,
+                                 imu_data_file_name,
+                                 imu_metadata_file_path,
                                  clinical_demo_path,
                                  {IMUDataFilterType.RAW: imu_data},
                                  imu_metadata, subj_clin_data))
@@ -196,7 +200,8 @@ class DatasetBuilder(DatasetBuilder):
 
     def _get_subj_clin_data(self, subj_id):
         subj_data = self.subject_data[subj_id]
-        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, float(subj_data['height']))
+        trial = ''
+        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, float(subj_data['height']), trial)
 
     def _generate_imu_data_instance(self, file_path, data, samp_freq):
         # Positive x: right, mediolateral
@@ -302,7 +307,7 @@ def main():
     path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\SisFall_csv\SisFall_dataset_csv'
     t0 = time.time()
     db = DatasetBuilder()
-    dataset = db.build_dataset(path, '', True, 8.0)
+    dataset = db.build_dataset(path, 'N/A', True, 8.0)
     print(str(time.time() - t0))
     print(dataset)
 
