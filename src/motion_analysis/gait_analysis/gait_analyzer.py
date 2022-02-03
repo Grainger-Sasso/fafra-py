@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import math
 from matplotlib import pyplot as plt
 
@@ -14,7 +15,7 @@ class GaitAnalyzer:
     def __init__(self):
         self.gse_viz = GSEViz()
 
-    def estimate_gait_speed(self, user_data: UserData):
+    def estimate_gait_speed(self, user_data: UserData, max_com_v_delta=0.08, plot_gait_cycles=False):
         """
         Several assumptions are made in this version of the gait speed
         estimator:
@@ -35,23 +36,25 @@ class GaitAnalyzer:
         #  segmented walking bouts, this function should assume to have
         #  walking bouts readily available
         # Access data required for gait speed estimation from keyword arguments
-        lpf_v_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('vertical')
+        # Get acceleration values, user height, and sampling frequency.
+        lpf_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+        lpf_v_data = lpf_data.get_acc_axis_data('vertical')
         # Given assumption 1, remove the effects of gravity from the vertical
         # acc data
         v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-        ap_acc_data = user_data.get_imu_data(IMUDataFilterType.LPF).get_acc_axis_data('anteroposterior')
+        ap_acc_data = lpf_data.get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
+        # See Frisancho et al. 2007 for leg length estimation
+        # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
+        leg_length = 0.48 * user_height
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
-
-        raw_data = user_data.get_imu_data(IMUDataFilterType.RAW).get_acc_axis_data('vertical')
-        raw_data = raw_data - np.mean(raw_data)
-        time = np.linspace(0.0, len(v_acc_data) / samp_freq, len(v_acc_data))
-
-        # Detect the peaks (heel strikes) in the walking data
-        v_peak_indexes = self._detect_peaks(v_acc_data)
-        ap_peak_indexes = self._detect_peaks(ap_acc_data)
-        step_lengths, v_displacement, valid_strike_ixs, invalid_strike_ixs, tot_time, v_disps = self._estimate_step_lengths(
-            v_acc_data, samp_freq, ap_peak_indexes, user_height)
+        # Detect the peaks (heel strikes) in the walking data, defined as peaks in the anteroposterior axis
+        heel_strike_indexes = self._detect_peaks(ap_acc_data)
+        step_start_ixs = heel_strike_indexes[:-1]
+        step_end_ixs = heel_strike_indexes[1:]
+        step_lengths, tot_time = self._estimate_step_lengths(
+            v_acc_data, samp_freq, step_start_ixs,
+            step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles)
         total_distance = step_lengths.sum()
         gait_speed = (total_distance/tot_time)
         # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
@@ -59,35 +62,22 @@ class GaitAnalyzer:
         #                               ap_peak_indexes, v_displacement)
         return gait_speed
 
-    def plot_gait_cycles(self, v_disp, valid_ix, invalid_ix, samp_freq):
-        # Create time axis
-        time = np.linspace(0.0, len(v_disp)/samp_freq, len(v_disp))
-        plt.plot(time, v_disp)
-        plt.plot(np.array(time)[valid_ix].tolist(), np.array(v_disp)[valid_ix].tolist(), 'b^')
-        plt.plot(np.array(time)[invalid_ix].tolist(), np.array(v_disp)[invalid_ix].tolist(), 'rv')
-        # plt.show()
-        # print('a')
-
     def _detect_peaks(self, acc_data):
         strike_indexes = PeakDetector().detect_peaks(acc_data)
         return strike_indexes
 
     def _estimate_step_lengths(self, v_acc, samp_freq,
-                              strike_indexes, user_height):
-        # See Frisancho et al. 2007 for leg length estimation
-        # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
+                               step_start_ixs, step_end_ixs, leg_length,
+                               max_com_v_delta, plot_walking_bout):
+        # Initialize plotting variables
         valid_strike_ixs = []
         invalid_strike_ixs = []
-        v_disps = []
-        tot_time = 0.0
-        leg_length = 0.48 * user_height
-        # Initialize list of step lengths in walking bout
-        step_lengths = []
-        # Initialize vertical displacement for whole walking bout
+        com_v_deltas = []
         v_displacement = []
+        # Initialize step lengths in walking bout and total time spent walking
+        tot_time = 0.0
+        step_lengths = []
         # For every step (interval between ap peak)
-        step_start_ixs = strike_indexes[:-1]
-        step_end_ixs = strike_indexes[1:]
         for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
             # Calculate the vertical displacement of that step
             step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
@@ -97,15 +87,15 @@ class GaitAnalyzer:
             v_displacement.extend(step_v_disp)
             # Compute the difference between the largest and smallest vertical
             # displacement of CoM
-            v_disp = max(step_v_disp) - min(step_v_disp)
-            v_disps.append(v_disp)
+            com_v_delta = max(step_v_disp) - min(step_v_disp)
+            com_v_deltas.append(com_v_delta)
             # Introduce a check to make sure that COM displacement is less than
             # an acceptable max value (0.08m = 8cm):
             # https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
             # (filters out erroneous COM displacement values)
-            if v_disp < 0.08:
+            if com_v_delta < max_com_v_delta:
                 # Formula for step length derived from inverted pendulum model
-                step_lengths.append(self._calc_step_length(v_disp, leg_length))
+                step_lengths.append(self._calc_step_length(com_v_delta, leg_length))
                 # Consider step indices valid
                 valid_strike_ixs.append(len(v_displacement)-1)
                 # Increment the total time up
@@ -113,13 +103,32 @@ class GaitAnalyzer:
             else:
                 # Consider the step indices invalid
                 invalid_strike_ixs.append(len(v_displacement)-1)
-        # Remove duplicates from strike indices
-        valid_strike_ixs = list(set(valid_strike_ixs))
-        invalid_strike_ixs = list(set(invalid_strike_ixs))
-        v_disps = np.array(v_disps)
-        if np.isnan(step_lengths).any():
-            print('AAAAAAAAAAHHHHHHHHHHHHHHHHHHHHHHH')
-        return np.array(step_lengths), v_displacement, valid_strike_ixs, invalid_strike_ixs, tot_time, v_disps
+        com_v_deltas = np.array(com_v_deltas)
+        if plot_walking_bout:
+            self.plot_gait_cycles(v_displacement, valid_strike_ixs,
+                                  invalid_strike_ixs, samp_freq, com_v_deltas)
+        self._check_step_lengths(step_lengths)
+        return np.array(step_lengths), tot_time
+
+    def plot_gait_cycles(self, v_disp, valid_ix, invalid_ix, samp_freq, com_v_deltas):
+        # Create time axis
+        time = np.linspace(0.0, len(v_disp)/samp_freq, len(v_disp))
+        # Create axes for plotting
+        fig, axs = plt.subplots(2)
+        # Plot the vertical displacement of the COM over time
+        axs[0].plot(time, v_disp)
+        # Plot the strike indexes for valid steps
+        axs[0].plot(np.array(time)[valid_ix].tolist(),
+                    np.array(v_disp)[valid_ix].tolist(), 'b^')
+        # Plot the strike indexes for invalid steps
+        axs[0].plot(np.array(time)[invalid_ix].tolist(),
+                    np.array(v_disp)[invalid_ix].tolist(), 'rv')
+        # Plot the distribition of the changes in vertical height for COM
+        axs[1].hist(com_v_deltas, bins=1000)
+        # Add legend w/ descriptive stats of changes in vertical height for COM
+        axs[1].text(0.5, 0.5,
+                       pd.DataFrame(com_v_deltas).describe().to_string())
+        plt.show()
 
     def _calc_step_length(self, v_disp, leg_length):
         g = ((2 * leg_length - v_disp) * v_disp)
@@ -129,6 +138,10 @@ class GaitAnalyzer:
             step_length = ((step_length ** 2) - ((0.094 * leg_length) ** 2)) ** 0.5
         return step_length
 
+
+    def _check_step_lengths(self, step_lengths):
+        if np.isnan(step_lengths).any():
+            raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
     def estimate_v_displacement(self, v_acc, start_ix,
                                       end_ix, samp_freq):
