@@ -111,8 +111,6 @@ class GaitSpeedValidator:
         return cwt_diffs, bs_diffs
 
     def compare_gse_to_baseline(self, gs_results, baseline_path):
-        # Run the gse on dataset
-
         # Read in the baseline comparisons from baseline path
         with open(baseline_path, 'r') as f:
             baseline_data = json.load(f)
@@ -127,7 +125,8 @@ class GaitSpeedValidator:
                 corr_gs_val = corr_gs_result[0]['gait_speed']
                 baseline_gs_val = baseline_result['gait_speed']
                 if corr_gs_val != baseline_gs_val:
-                    erroneous_results.append({'id': id, 'gs_result': corr_gs_val, 'baseline_gs_value': baseline_gs_val})
+                    erroneous_results.append({'id': id, 'trial': trial, 'gs_result': corr_gs_val,
+                                              'baseline_gs_value': baseline_gs_val})
             else:
                 # Add this result to the list of erroneous results
                 erroneous_results.append(f'No matching gs results for baseline {id}')
