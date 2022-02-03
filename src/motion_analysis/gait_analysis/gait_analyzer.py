@@ -105,29 +105,45 @@ class GaitAnalyzer:
                 invalid_strike_ixs.append(len(v_displacement)-1)
         com_v_deltas = np.array(com_v_deltas)
         if plot_walking_bout:
-            self.plot_gait_cycles(v_displacement, valid_strike_ixs,
+            self.plot_gait_cycles(v_acc, v_displacement, valid_strike_ixs,
                                   invalid_strike_ixs, samp_freq, com_v_deltas)
         self._check_step_lengths(step_lengths)
         return np.array(step_lengths), tot_time
 
-    def plot_gait_cycles(self, v_disp, valid_ix, invalid_ix, samp_freq, com_v_deltas):
+    def plot_gait_cycles(self, v_acc, v_disp, valid_ix, invalid_ix,
+                         samp_freq, com_v_deltas):
         # Create time axis
-        time = np.linspace(0.0, len(v_disp)/samp_freq, len(v_disp))
+        v_acc_time = np.linspace(0.0, len(v_acc)/samp_freq, len(v_acc))
+        v_disp_time = np.linspace(0.0, len(v_disp)/samp_freq, len(v_disp))
         # Create axes for plotting
-        fig, axs = plt.subplots(2)
+        fig, axs = plt.subplots(3)
+        fig.tight_layout()
+        axs[0].title.set_text(
+            'Vertical Acceleration of COM During Walking Bout')
+        axs[0].set_xlabel('Time (s)')
+        axs[0].set_ylabel('Vertical Acceleration of COM (m/s^2)')
+        # Plot the vertical acceleration signal
+        axs[0].plot(v_acc_time, v_acc)
         # Plot the vertical displacement of the COM over time
-        axs[0].plot(time, v_disp)
+        axs[1].plot(v_disp_time, v_disp)
         # Plot the strike indexes for valid steps
-        axs[0].plot(np.array(time)[valid_ix].tolist(),
+        axs[1].plot(np.array(v_disp_time)[valid_ix].tolist(),
                     np.array(v_disp)[valid_ix].tolist(), 'b^')
         # Plot the strike indexes for invalid steps
-        axs[0].plot(np.array(time)[invalid_ix].tolist(),
+        axs[1].plot(np.array(v_disp_time)[invalid_ix].tolist(),
                     np.array(v_disp)[invalid_ix].tolist(), 'rv')
+        axs[1].title.set_text('Vertical Displacement of COM During Walking Bout')
+        axs[1].set_xlabel('Time (s)')
+        axs[1].set_ylabel('Vertical Displacement of COM (m)')
         # Plot the distribition of the changes in vertical height for COM
-        axs[1].hist(com_v_deltas, bins=1000)
+        y, x, _ = axs[2].hist(com_v_deltas, bins=1000)
         # Add legend w/ descriptive stats of changes in vertical height for COM
-        axs[1].text(0.5, 0.5,
+        axs[2].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
                        pd.DataFrame(com_v_deltas).describe().to_string())
+        axs[2].title.set_text(
+            'Distribution of Vertical Changes of COM Per Step')
+        axs[2].set_xlabel('Vertical Changes of COM Per Step (m)')
+        axs[2].set_ylabel('Number of Occurrences')
         plt.show()
 
     def _calc_step_length(self, v_disp, leg_length):
