@@ -38,10 +38,6 @@ class GaitAnalyzer:
         # Access data required for gait speed estimation from keyword arguments
         # Get acceleration values, user height, and sampling frequency.
         lpf_data = user_data.get_imu_data(IMUDataFilterType.LPF)
-        lpf_v_data = lpf_data.get_acc_axis_data('vertical')
-        # Given assumption 1, remove the effects of gravity from the vertical
-        # acc data
-        v_acc_data = lpf_v_data - np.mean(lpf_v_data)
         ap_acc_data = lpf_data.get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
         # See Frisancho et al. 2007 for leg length estimation
@@ -52,6 +48,10 @@ class GaitAnalyzer:
         heel_strike_indexes = self._detect_peaks(ap_acc_data)
         step_start_ixs = heel_strike_indexes[:-1]
         step_end_ixs = heel_strike_indexes[1:]
+        # Given assumption 1, remove the effects of gravity from the vertical
+        # acc data
+        lpf_v_data = lpf_data.get_acc_axis_data('vertical')
+        v_acc_data = lpf_v_data - np.mean(lpf_v_data)
         step_lengths, tot_time = self._estimate_step_lengths(
             v_acc_data, samp_freq, step_start_ixs,
             step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles)
