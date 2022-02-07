@@ -52,7 +52,7 @@ class GaitAnalyzer:
         # acc data
         lpf_v_data = lpf_data.get_acc_axis_data('vertical')
         v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-        step_lengths, tot_time = self._estimate_step_lengths(
+        step_lengths, tot_time = self.estimate_step_lengths(
             v_acc_data, samp_freq, step_start_ixs,
             step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles)
         total_distance = step_lengths.sum()
@@ -66,7 +66,7 @@ class GaitAnalyzer:
         peaks = PeakDetector().detect_peaks(acc_data)
         return peaks
 
-    def _estimate_step_lengths(self, v_acc, samp_freq,
+    def estimate_step_lengths(self, v_acc, samp_freq,
                                step_start_ixs, step_end_ixs, leg_length,
                                max_com_v_delta, plot_walking_bout):
         # Initialize plotting variables
@@ -160,7 +160,7 @@ class GaitAnalyzer:
             raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
     def estimate_v_displacement(self, v_acc, start_ix,
-                                      end_ix, samp_freq):
+                                      end_ix, samp_freq, hpf=False):
         period = 1 / samp_freq
         # The initial position of the CoM at t=0 is arbitrary, set to 0
         p0 = 0.0
@@ -170,11 +170,13 @@ class GaitAnalyzer:
         acc = v_acc[start_ix:(end_ix - 1)]
         vel = self._compute_single_integration(acc, period, v0)
         # TODO: investigate a more appropriate cut-off frequency for the high-pass filter, atm the filter is confounding the results/is not usefult for preventing integration drift
-        # vel = MotionFilters().apply_lpass_filter(vel, 0.5,
-        #                                          samp_freq, 'high')
+        if hpf:
+            vel = MotionFilters().apply_lpass_filter(vel, 0.5,
+                                                     samp_freq, 'high')
         pos = self._compute_single_integration(vel[:-1], period, p0)
-        # pos = MotionFilters().apply_lpass_filter(pos, 0.5,
-        #                                          samp_freq, 'high')
+        if hpf:
+            pos = MotionFilters().apply_lpass_filter(pos, 0.5,
+                                                     samp_freq, 'high')
         return pos
 
     def _compute_single_integration(self, data, period, x0):
