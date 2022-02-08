@@ -249,27 +249,26 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     print(
         f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(cwt_percent_diffs2)}')
     print('\n')
-    # print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
-    # print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
+    print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
+    print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
     print_desc_stats(gs2, 'GSE2')
 
-    bins = np.linspace(0.0, 2.0, 30)
-
-    fig, axes = plt.subplots(3)
-    axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    axes[0].legend(loc='upper right')
-    axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
-    axes[1].legend(loc='upper right')
-    axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
-    axes[2].legend(loc='upper right')
-
-    # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    # plt.hist(gs1, bins, alpha=0.33, label='gs1')
-    # plt.hist(gs2, bins, alpha=0.33, label='gs2')
-    # plt.legend(loc='upper right')
-    plt.show()
+    # bins = np.linspace(0.0, 2.0, 30)
+    # fig, axes = plt.subplots(3)
+    # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+    # axes[0].legend(loc='upper right')
+    # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
+    # axes[1].legend(loc='upper right')
+    # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
+    # axes[2].legend(loc='upper right')
+    #
+    # # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+    # # plt.hist(gs1, bins, alpha=0.33, label='gs1')
+    # # plt.hist(gs2, bins, alpha=0.33, label='gs2')
+    # # plt.legend(loc='upper right')
+    # plt.show()
 
 def run_baseline(val, gs_results):
     full_baseline_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0\gait_speed_estimator_results_v1.0_20220204-124523.json'
