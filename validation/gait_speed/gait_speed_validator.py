@@ -222,42 +222,53 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
                         val.subj_gs_truth.items()]
 
     cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
-    good_count1 = 0
+    good_count_5_1 = 0
+    good_count_10_1 = 0
     for diff1 in cwt_percent_diffs1:
         if diff1 < 5.0:
-            good_count1 += 1
+            good_count_5_1 += 1
+        if diff1 < 10.0:
+            good_count_10_1 += 1
 
     cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
-    good_count2 = 0
+    good_count_5_2 = 0
+    good_count_10_2 = 0
     for diff2 in cwt_percent_diffs2:
         if diff2 < 5.0:
-            good_count2 += 1
+            good_count_5_2 += 1
+        if diff2 < 10.0:
+            good_count_10_2 += 1
 
     print('\n')
-    print(f'Percent of GSEV1 within 5% truth: {good_count1/len(cwt_percent_diffs1)}')
+    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(cwt_percent_diffs1)}')
     print(
-        f'Percent of GSEV2 within 5% truth: {good_count2 / len(cwt_percent_diffs2)}')
+        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(cwt_percent_diffs1)}')
     print('\n')
-    print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
-    print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
+    print(
+        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(cwt_percent_diffs2)}')
+    print(
+        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(cwt_percent_diffs2)}')
+    print('\n')
+    # print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
+    # print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
     print_desc_stats(gs2, 'GSE2')
 
     bins = np.linspace(0.0, 2.0, 30)
 
-    # fig, axes = plt.subplots(3)
-    # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    # axes[0].legend(loc='upper right')
-    # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
-    # axes[1].legend(loc='upper right')
-    # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
-    # axes[2].legend(loc='upper right')
+    fig, axes = plt.subplots(3)
+    axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+    axes[0].legend(loc='upper right')
+    axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
+    axes[1].legend(loc='upper right')
+    axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
+    axes[2].legend(loc='upper right')
 
-    plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    plt.hist(gs1, bins, alpha=0.33, label='gs1')
-    plt.hist(gs2, bins, alpha=0.33, label='gs2')
-    plt.legend(loc='upper right')
+    # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+    # plt.hist(gs1, bins, alpha=0.33, label='gs1')
+    # plt.hist(gs2, bins, alpha=0.33, label='gs2')
+    # plt.legend(loc='upper right')
     plt.show()
 
 def run_baseline(val, gs_results):
@@ -288,7 +299,15 @@ def print_desc_stats(data, name):
     print(f'Median: {np.median(data)}')
     print(f'STD: {np.std(data)}')
     print(f'Skewness: {skew(data)}')
+    if skew(data) > 0.0:
+        print('Data skews to lower values')
+    else:
+        print('Data skews to higher values')
     print(f'Kurtosis {kurtosis(data)}')
+    if skew(data) > 0.0:
+        print('Tightly distributed')
+    else:
+        print('Widely distributed')
     print('\n')
 
 

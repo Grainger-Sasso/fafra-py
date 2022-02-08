@@ -6,9 +6,9 @@ class PeakDetector:
     def __init__(self):
         pass
 
-    def detect_peaks(self, x):
+    def detect_peaks(self, x, **kwargs):
         """Returns peak indices"""
-        return signal.find_peaks(x)[0]
+        return signal.find_peaks(x, **kwargs)[0]
 
     def get_peak_locations(self, x, peak_ixs):
         x = np.array(x)
