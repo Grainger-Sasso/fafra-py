@@ -115,8 +115,8 @@ class GaitSpeedValidator:
             if result['id'] in self.subj_gs_truth.keys():
                 cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
                 bs_truth_value = self.subj_gs_truth[result['id']]['BS']
-                cwt_diffs.append(cwt_truth_value - result['gait_speed'])
-                bs_diffs.append(bs_truth_value - result['gait_speed'])
+                cwt_diffs.append(abs(cwt_truth_value - result['gait_speed'])/cwt_truth_value * 100.0)
+                bs_diffs.append(abs(bs_truth_value - result['gait_speed'])/bs_truth_value * 100.0)
         cwt_diffs = np.array(cwt_diffs)
         bs_diffs = np.array(bs_diffs)
         return cwt_diffs, bs_diffs
@@ -221,25 +221,44 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
                         val.subj_gs_truth.items()]
 
-    cwt_diffs1, bs_diffs1 = val.compare_gs_to_truth(gs_results_1)
-    cwt_diffs2, bs_diffs2 = val.compare_gs_to_truth(gs_results_2)
+    cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
+    good_count1 = 0
+    for diff1 in cwt_percent_diffs1:
+        if diff1 < 5.0:
+            good_count1 += 1
 
-    percentages1 = [(abs(diff) / abs(val)) * 100.0 for diff, val in
-                    zip(cwt_diffs1, cwt_truth_values)]
-    percentages2 = [(abs(diff) / abs(val)) * 100.0 for diff, val in
-                    zip(cwt_diffs2, cwt_truth_values)]
-    pm1 = np.mean(percentages1)
-    pm2 = np.mean(percentages2)
-    print(f'Mean percentage difference (1): {pm1}')
-    print(f'Mean percentage difference (2): {pm2}')
+    cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
+    good_count2 = 0
+    for diff2 in cwt_percent_diffs2:
+        if diff2 < 5.0:
+            good_count2 += 1
+
     print('\n')
-    print_desc_stats(cwt_diffs1, 'DIFFS1')
-    print_desc_stats(cwt_diffs2, 'DIFFS2')
+    print(f'Percent of GSEV1 within 5% truth: {good_count1/len(cwt_percent_diffs1)}')
+    print(
+        f'Percent of GSEV2 within 5% truth: {good_count2 / len(cwt_percent_diffs2)}')
+    print('\n')
+    print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
+    print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
     print_desc_stats(gs2, 'GSE2')
-    pass
 
+    bins = np.linspace(0.0, 2.0, 30)
+
+    # fig, axes = plt.subplots(3)
+    # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+    # axes[0].legend(loc='upper right')
+    # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
+    # axes[1].legend(loc='upper right')
+    # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
+    # axes[2].legend(loc='upper right')
+
+    plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+    plt.hist(gs1, bins, alpha=0.33, label='gs1')
+    plt.hist(gs2, bins, alpha=0.33, label='gs2')
+    plt.legend(loc='upper right')
+    plt.show()
 
 def run_baseline(val, gs_results):
     full_baseline_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0\gait_speed_estimator_results_v1.0_20220204-124523.json'
