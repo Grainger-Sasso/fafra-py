@@ -10,7 +10,7 @@ from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.motion_analysis.filters.motion_filters import MotionFilters
 
 
-class GaitAnalyzer:
+class GaitAnalyzerV2:
 
     def __init__(self):
         self.gse_viz = GSEViz()
