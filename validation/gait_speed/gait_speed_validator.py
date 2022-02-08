@@ -10,6 +10,7 @@ from matplotlib import pyplot as plt
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_assessments.fall_risk_assessment import FallRiskAssessment
 from src.motion_analysis.gait_analysis.gait_analyzer import GaitAnalyzer
+from src.motion_analysis.gait_analysis.gait_analyzer_v2 import GaitAnalyzerV2
 from src.dataset_tools.dataset_builders.builder_instances.uiuc_gait_dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
@@ -85,12 +86,21 @@ class GaitSpeedValidator:
         self.filter = MotionFilters()
 
     def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0'):
-        # Instantiate gait analyzer and run the dataset through the gait analyzer
-        ga = GaitAnalyzer()
         # Compare the results of the gait analyzer with truth values
-        gs_results = [dict({'id': user_data.get_clinical_demo_data().get_id(),
-                            'trial': user_data.get_clinical_demo_data().get_trial(),
-                            'gait_speed': ga.estimate_gait_speed(user_data)}) for user_data in dataset.get_dataset()]
+        if version_num == '1.0':
+            ga = GaitAnalyzer()
+            gs_results = [dict({'id': user_data.get_clinical_demo_data().get_id(),
+                                'trial': user_data.get_clinical_demo_data().get_trial(),
+                                'gait_speed': ga.estimate_gait_speed(user_data)}) for user_data in dataset.get_dataset()]
+        elif version_num == '2.0':
+            ga = GaitAnalyzerV2()
+            gs_results = [
+                dict({'id': user_data.get_clinical_demo_data().get_id(),
+                      'trial': user_data.get_clinical_demo_data().get_trial(),
+                      'gait_speed': ga.estimate_gait_speed(user_data)}) for
+                user_data in dataset.get_dataset()]
+        else:
+            raise ValueError(f'Invalid gait analyzer version number: {version_num}')
         if write_out_results:
             filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
             output_path = os.path.join(ouput_dir, filename)
@@ -193,12 +203,42 @@ def main():
     # Run dataset through low-pass filter
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data, plot=False)
-    gs_results = val.calculate_gait_speeds(dataset)
+    gs_results = val.calculate_gait_speeds(dataset, version_num='1.0')
+    gs_results2 = val.calculate_gait_speeds(dataset, version_num='2.0')
+
     # Perform validation
     # run_comparison(val, gs_results)
     # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
     # gs_results = val.calculate_gait_speeds(dataset, True, baseline_out_path, version_num='1.0')
-    run_baseline(val, gs_results)
+    # run_baseline(val, gs_results)
+    run_analyzer_comparison(val, gs_results, gs_results2)
+
+
+def run_analyzer_comparison(val, gs_results_1, gs_results_2):
+    # Run the validation
+    gs1 = np.array([r['gait_speed'] for r in gs_results_1])
+    gs2 = np.array([r['gait_speed'] for r in gs_results_2])
+    cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
+                        val.subj_gs_truth.items()]
+
+    cwt_diffs1, bs_diffs1 = val.compare_gs_to_truth(gs_results_1)
+    cwt_diffs2, bs_diffs2 = val.compare_gs_to_truth(gs_results_2)
+
+    percentages1 = [(abs(diff) / abs(val)) * 100.0 for diff, val in
+                    zip(cwt_diffs1, cwt_truth_values)]
+    percentages2 = [(abs(diff) / abs(val)) * 100.0 for diff, val in
+                    zip(cwt_diffs2, cwt_truth_values)]
+    pm1 = np.mean(percentages1)
+    pm2 = np.mean(percentages2)
+    print(f'Mean percentage difference (1): {pm1}')
+    print(f'Mean percentage difference (2): {pm2}')
+    print('\n')
+    print_desc_stats(cwt_diffs1, 'DIFFS1')
+    print_desc_stats(cwt_diffs2, 'DIFFS2')
+    print_desc_stats(cwt_truth_values, 'TRUTH')
+    print_desc_stats(gs1, 'GSE1')
+    print_desc_stats(gs2, 'GSE2')
+    pass
 
 
 def run_baseline(val, gs_results):

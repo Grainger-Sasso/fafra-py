@@ -26,17 +26,17 @@ class GaitAnalyzer:
         2. The heel strike is defined by the peak anteroposterior acceleration
             of the stride cycle (Ziljstra 2003)
         3. The vertical velocity upon each heel strike is approximately zero
-        See Rispens et. al. 2021 for more information on the design of this
-        gait speed estimator.
+
+        See Ziljstra et. al. 2003 and Rispens et. al. 2021 for more information
+        on the design of this gait speed estimator.
+        https://pure.rug.nl/ws/portalfiles/portal/6673749/Zijlstra_2003_Gait_Posture.pdf
         https://www.mdpi.com/1424-8220/21/5/1854/htm#B13-sensors-21-01854
         :param user_data:
         :return:
         """
-        # TODO: refactor this function and the user_data object to have
-        #  segmented walking bouts, this function should assume to have
-        #  walking bouts readily available
         # Access data required for gait speed estimation from keyword arguments
-        # Get acceleration values, user height, and sampling frequency.
+        # Get acceleration values, user height, and sampling frequency. Data
+        # already put through lpf
         lpf_data = user_data.get_imu_data(IMUDataFilterType.LPF)
         ap_acc_data = lpf_data.get_acc_axis_data('anteroposterior')
         user_height = user_data.get_clinical_demo_data().get_height()
@@ -93,16 +93,12 @@ class GaitAnalyzer:
             # an acceptable max value (0.08m = 8cm):
             # https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
             # (filters out erroneous COM displacement values)
-            if com_v_delta < max_com_v_delta:
-                # Formula for step length derived from inverted pendulum model
-                step_lengths.append(self._calc_step_length(com_v_delta, leg_length))
-                # Consider step indices valid
-                valid_strike_ixs.append(len(v_displacement)-1)
-                # Increment the total time up
-                tot_time += ((end_ix - start_ix) / samp_freq)
-            else:
-                # Consider the step indices invalid
-                invalid_strike_ixs.append(len(v_displacement)-1)
+            # Formula for step length derived from inverted pendulum model
+            step_lengths.append(self._calc_step_length(com_v_delta, leg_length))
+            # Consider step indices valid
+            valid_strike_ixs.append(len(v_displacement)-1)
+            # Increment the total time up
+            tot_time += ((end_ix - start_ix) / samp_freq)
         com_v_deltas = np.array(com_v_deltas)
         if plot_walking_bout:
             self.plot_gait_cycles(v_acc, v_displacement, valid_strike_ixs,
@@ -147,11 +143,9 @@ class GaitAnalyzer:
         plt.show()
 
     def _calc_step_length(self, v_disp, leg_length):
+        # Estimate of step length same as Ziljstra 2003, no empirical correction factor
         g = ((2 * leg_length - v_disp) * v_disp)
-        step_length = 1.25 * 2 * (g ** 0.5)
-        # Apply correction for mediolateral component of step length
-        if ((step_length ** 2) > ((0.094 * leg_length) ** 2)):
-            step_length = ((step_length ** 2) - ((0.094 * leg_length) ** 2)) ** 0.5
+        step_length = 2 * (g ** 0.5)
         return step_length
 
 
