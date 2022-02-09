@@ -6,9 +6,16 @@ class PeakDetector:
     def __init__(self):
         pass
 
-    def detect_peaks(self, x, **kwargs):
+    def detect_peaks(self, x, height=None,
+                threshold=None, distance=None,prominence=None,
+                width=None, wlen=None, rel_height=0.5,
+                     plateau_size=None):
         """Returns peak indices"""
-        return signal.find_peaks(x, **kwargs)[0]
+        peaks = signal.find_peaks(x, height=height,
+                threshold=threshold, distance=distance,prominence=prominence,
+                width=width, wlen=wlen, rel_height=rel_height,
+                                  plateau_size=plateau_size)
+        return peaks
 
     def get_peak_locations(self, x, peak_ixs):
         x = np.array(x)

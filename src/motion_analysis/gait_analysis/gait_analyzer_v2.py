@@ -66,7 +66,7 @@ class GaitAnalyzerV2:
         height = None
         threshold = None
         distance = None
-        prominence = None
+        prominence = 1
         width = None
         wlen = None
         rel_height = 0.5
