@@ -63,7 +63,7 @@ class GaitAnalyzer:
         return gait_speed
 
     def _detect_peaks(self, acc_data):
-        peaks = PeakDetector().detect_peaks(acc_data)
+        peaks = PeakDetector().detect_peaks(acc_data)[0]
         return peaks
 
     def estimate_step_lengths(self, v_acc, samp_freq,
