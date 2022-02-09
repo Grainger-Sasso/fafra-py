@@ -221,9 +221,15 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
 
     cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
     print(f'Number of diffs evaluats for 1: {len(cwt_percent_diffs1)}')
+    good_count_1_1 = 0
+    good_count_3_1 = 0
     good_count_5_1 = 0
     good_count_10_1 = 0
     for diff1 in cwt_percent_diffs1:
+        if diff1 < 1.0:
+            good_count_1_1 += 1
+        if diff1 < 3.0:
+            good_count_3_1 += 1
         if diff1 < 5.0:
             good_count_5_1 += 1
         if diff1 < 10.0:
@@ -231,23 +237,37 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
 
     cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
     print(f'Number of diffs evaluats for 2: {len(cwt_percent_diffs2)}')
+    good_count_1_2 = 0
+    good_count_3_2 = 0
     good_count_5_2 = 0
     good_count_10_2 = 0
     for diff2 in cwt_percent_diffs2:
+        if diff2 < 1.0:
+            good_count_1_2 += 1
+        if diff2 < 3.0:
+            good_count_3_2 += 1
         if diff2 < 5.0:
             good_count_5_2 += 1
         if diff2 < 10.0:
             good_count_10_2 += 1
 
     print('\n')
-    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(cwt_percent_diffs1)}')
     print(
-        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(cwt_percent_diffs1)}')
+        f'Percent of GSEV1 within 1% truth: {(good_count_1_1 / len(cwt_percent_diffs1)) * 100}')
+    print(
+        f'Percent of GSEV1 within 3% truth: {good_count_3_1 / len(cwt_percent_diffs1) * 100}')
+    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(cwt_percent_diffs1) * 100}')
+    print(
+        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(cwt_percent_diffs1) * 100}')
     print('\n')
     print(
-        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(cwt_percent_diffs2)}')
+        f'Percent of GSEV2 within 1% truth: {good_count_1_2 / len(cwt_percent_diffs1) * 100}')
     print(
-        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(cwt_percent_diffs2)}')
+        f'Percent of GSEV2 within 3% truth: {good_count_3_2 / len(cwt_percent_diffs1) * 100}')
+    print(
+        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(cwt_percent_diffs2) * 100}')
+    print(
+        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(cwt_percent_diffs2) * 100}')
     print('\n')
     print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
     print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
