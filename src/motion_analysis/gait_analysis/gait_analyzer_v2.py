@@ -8,6 +8,7 @@ from src.visualization_tools.gse_viz import GSEViz
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.motion_analysis.peak_detection.peak_detector import PeakDetector
 from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.risk_classification.input_metrics.metric_instances.fft_peak_metric import Metric
 
 
 class GaitAnalyzerV2:
@@ -39,27 +40,32 @@ class GaitAnalyzerV2:
         # already put through lpf
         lpf_data = user_data.get_imu_data(IMUDataFilterType.LPF)
         ap_acc_data = lpf_data.get_acc_axis_data('anteroposterior')
-        user_height = user_data.get_clinical_demo_data().get_height()
-        # See Frisancho et al. 2007 for leg length estimation
-        # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
-        leg_length = 0.48 * user_height
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
-        # Detect the peaks (heel strikes) in the walking data, defined as peaks in the anteroposterior axis
-        heel_strike_indexes = self._detect_peaks(ap_acc_data)
-        step_start_ixs = heel_strike_indexes[:-1]
-        step_end_ixs = heel_strike_indexes[1:]
-        # Given assumption 1, remove the effects of gravity from the vertical
-        # acc data
-        lpf_v_data = lpf_data.get_acc_axis_data('vertical')
-        v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-        step_lengths, tot_time = self.estimate_step_lengths(
-            v_acc_data, samp_freq, step_start_ixs,
-            step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
-        total_distance = step_lengths.sum()
-        gait_speed = (total_distance/tot_time)
-        # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
-        # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
-        #                               ap_peak_indexes, v_displacement)
+        ap_signal_fft = Metric().generate_metric(data=ap_acc_data, sampling_frequency=samp_freq)
+        # Filter out any walking bouts with cadence less than 0.115 Hz
+        if ap_signal_fft > 0.115:
+            user_height = user_data.get_clinical_demo_data().get_height()
+            # See Frisancho et al. 2007 for leg length estimation
+            # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
+            leg_length = 0.48 * user_height
+            # Detect the peaks (heel strikes) in the walking data, defined as peaks in the anteroposterior axis
+            heel_strike_indexes = self._detect_peaks(ap_acc_data)
+            step_start_ixs = heel_strike_indexes[:-1]
+            step_end_ixs = heel_strike_indexes[1:]
+            # Given assumption 1, remove the effects of gravity from the vertical
+            # acc data
+            lpf_v_data = lpf_data.get_acc_axis_data('vertical')
+            v_acc_data = lpf_v_data - np.mean(lpf_v_data)
+            step_lengths, tot_time = self.estimate_step_lengths(
+                v_acc_data, samp_freq, step_start_ixs,
+                step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
+            total_distance = step_lengths.sum()
+            gait_speed = (total_distance/tot_time)
+            # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
+            # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
+            #                               ap_peak_indexes, v_displacement)
+        else:
+            gait_speed = np.nan
         return gait_speed
 
     def _detect_peaks(self, acc_data):
