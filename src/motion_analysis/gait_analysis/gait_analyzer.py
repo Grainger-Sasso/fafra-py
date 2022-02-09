@@ -15,7 +15,7 @@ class GaitAnalyzer:
     def __init__(self):
         self.gse_viz = GSEViz()
 
-    def estimate_gait_speed(self, user_data: UserData, max_com_v_delta=0.08, plot_gait_cycles=False):
+    def estimate_gait_speed(self, user_data: UserData, hpf, max_com_v_delta, plot_gait_cycles):
         """
         Several assumptions are made in this version of the gait speed
         estimator:
@@ -54,7 +54,7 @@ class GaitAnalyzer:
         v_acc_data = lpf_v_data - np.mean(lpf_v_data)
         step_lengths, tot_time = self.estimate_step_lengths(
             v_acc_data, samp_freq, step_start_ixs,
-            step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles)
+            step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
         total_distance = step_lengths.sum()
         gait_speed = (total_distance/tot_time)
         # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
@@ -68,7 +68,7 @@ class GaitAnalyzer:
 
     def estimate_step_lengths(self, v_acc, samp_freq,
                                step_start_ixs, step_end_ixs, leg_length,
-                               max_com_v_delta, plot_walking_bout):
+                               max_com_v_delta, plot_walking_bout, hpf):
         # Initialize plotting variables
         valid_strike_ixs = []
         invalid_strike_ixs = []
@@ -81,7 +81,7 @@ class GaitAnalyzer:
         for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
             # Calculate the vertical displacement of that step
             step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
-                                                  end_ix, samp_freq)
+                                                  end_ix, samp_freq, hpf)
             # Add step vertical displacement to the walking bout
             # vertical displacment
             v_displacement.extend(step_v_disp)
@@ -94,9 +94,10 @@ class GaitAnalyzer:
             # https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
             # (filters out erroneous COM displacement values)
             # Formula for step length derived from inverted pendulum model
-            step_lengths.append(self._calc_step_length(com_v_delta, leg_length))
+            step_lengths.append(
+                self._calc_step_length(com_v_delta, leg_length))
             # Consider step indices valid
-            valid_strike_ixs.append(len(v_displacement)-1)
+            valid_strike_ixs.append(len(v_displacement) - 1)
             # Increment the total time up
             tot_time += ((end_ix - start_ix) / samp_freq)
         com_v_deltas = np.array(com_v_deltas)
@@ -154,7 +155,7 @@ class GaitAnalyzer:
             raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
     def estimate_v_displacement(self, v_acc, start_ix,
-                                      end_ix, samp_freq, hpf=False):
+                                      end_ix, samp_freq, hpf):
         period = 1 / samp_freq
         # The initial position of the CoM at t=0 is arbitrary, set to 0
         p0 = 0.0
@@ -166,11 +167,11 @@ class GaitAnalyzer:
         # TODO: investigate a more appropriate cut-off frequency for the high-pass filter, atm the filter is confounding the results/is not usefult for preventing integration drift
         if hpf:
             vel = MotionFilters().apply_lpass_filter(vel, 0.1,
-                                                     samp_freq, 'high')
+                                                     samp_freq, 'highpass')
         pos = self._compute_single_integration(vel[:-1], period, p0)
         if hpf:
             pos = MotionFilters().apply_lpass_filter(pos, 0.1,
-                                                     samp_freq, 'high')
+                                                     samp_freq, 'highpass')
         return pos
 
     def _compute_single_integration(self, data, period, x0):

@@ -85,19 +85,19 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0'):
+    def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.08, plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
         if version_num == '1.0':
             ga = GaitAnalyzer()
             gs_results = [dict({'id': user_data.get_clinical_demo_data().get_id(),
                                 'trial': user_data.get_clinical_demo_data().get_trial(),
-                                'gait_speed': ga.estimate_gait_speed(user_data)}) for user_data in dataset.get_dataset()]
+                                'gait_speed': ga.estimate_gait_speed(user_data, hpf, max_com_v_delta, plot_gait_cycles)}) for user_data in dataset.get_dataset()]
         elif version_num == '2.0':
             ga = GaitAnalyzerV2()
             gs_results = [
                 dict({'id': user_data.get_clinical_demo_data().get_id(),
                       'trial': user_data.get_clinical_demo_data().get_trial(),
-                      'gait_speed': ga.estimate_gait_speed(user_data)}) for
+                      'gait_speed': ga.estimate_gait_speed(user_data, hpf, max_com_v_delta, plot_gait_cycles)}) for
                 user_data in dataset.get_dataset()]
         else:
             raise ValueError(f'Invalid gait analyzer version number: {version_num}')
@@ -174,7 +174,6 @@ class GaitSpeedValidator:
             plt.plot(time, filt_v)
             plt.show()
 
-
     def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
@@ -203,8 +202,8 @@ def main():
     # Run dataset through low-pass filter
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data, plot=False)
-    gs_results = val.calculate_gait_speeds(dataset, version_num='1.0')
-    gs_results2 = val.calculate_gait_speeds(dataset, version_num='2.0')
+    gs_results = val.calculate_gait_speeds(dataset, version_num='1.0', hpf=False)
+    gs_results2 = val.calculate_gait_speeds(dataset, version_num='2.0', hpf=False)
 
     # Perform validation
     # run_comparison(val, gs_results)
