@@ -87,20 +87,19 @@ class GaitSpeedValidator:
 
     def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.08, plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
+        gs_results = []
         if version_num == '1.0':
             ga = GaitAnalyzer()
-            gs_results = [dict({'id': user_data.get_clinical_demo_data().get_id(),
-                                'trial': user_data.get_clinical_demo_data().get_trial(),
-                                'gait_speed': ga.estimate_gait_speed(user_data, hpf, max_com_v_delta, plot_gait_cycles)}) for user_data in dataset.get_dataset()]
         elif version_num == '2.0':
             ga = GaitAnalyzerV2()
-            gs_results = [
-                dict({'id': user_data.get_clinical_demo_data().get_id(),
-                      'trial': user_data.get_clinical_demo_data().get_trial(),
-                      'gait_speed': ga.estimate_gait_speed(user_data, hpf, max_com_v_delta, plot_gait_cycles)}) for
-                user_data in dataset.get_dataset()]
         else:
             raise ValueError(f'Invalid gait analyzer version number: {version_num}')
+        for user_data in dataset.get_dataset():
+            gs_results.append(dict({'id': user_data.get_clinical_demo_data().get_id(),
+                  'trial': user_data.get_clinical_demo_data().get_trial(),
+                  'gait_speed': ga.estimate_gait_speed(user_data, hpf,
+                                                       max_com_v_delta,
+                                                       plot_gait_cycles)}))
         if write_out_results:
             filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
             output_path = os.path.join(ouput_dir, filename)
@@ -112,7 +111,7 @@ class GaitSpeedValidator:
         cwt_diffs = []
         bs_diffs = []
         for result in gs_results:
-            if result['id'] in self.subj_gs_truth.keys():
+            if result['id'] in self.subj_gs_truth.keys() and not np.isnan(result['gait_speed']):
                 cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
                 bs_truth_value = self.subj_gs_truth[result['id']]['BS']
                 cwt_diffs.append(abs(cwt_truth_value - result['gait_speed'])/cwt_truth_value * 100.0)
@@ -221,6 +220,7 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
                         val.subj_gs_truth.items()]
 
     cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
+    print(f'Number of diffs evaluats for 1: {len(cwt_percent_diffs1)}')
     good_count_5_1 = 0
     good_count_10_1 = 0
     for diff1 in cwt_percent_diffs1:
@@ -230,6 +230,7 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
             good_count_10_1 += 1
 
     cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
+    print(f'Number of diffs evaluats for 2: {len(cwt_percent_diffs2)}')
     good_count_5_2 = 0
     good_count_10_2 = 0
     for diff2 in cwt_percent_diffs2:

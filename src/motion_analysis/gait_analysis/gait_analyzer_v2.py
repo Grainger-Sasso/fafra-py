@@ -66,7 +66,7 @@ class GaitAnalyzerV2:
         height = None
         threshold = None
         distance = None
-        prominence = 1
+        prominence = None
         width = None
         wlen = None
         rel_height = 0.5
@@ -75,7 +75,7 @@ class GaitAnalyzerV2:
                 threshold=threshold, distance=distance,prominence=prominence,
                 width=width, wlen=wlen, rel_height=rel_height,
                                             plateau_size=plateau_size)
-        return peaks
+        return peaks[0]
 
     def estimate_step_lengths(self, v_acc, samp_freq,
                                step_start_ixs, step_end_ixs, leg_length,
