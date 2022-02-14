@@ -115,7 +115,7 @@ class GaitAnalyzerV2:
                 step_clusters.append(step_cluster)
                 step_cluster = []
         step_clusters.append(step_cluster)
-        # Check that
+        # Check that the clusters contain more the n steps
         valid_step_clusters = [cluster for cluster in step_clusters if
                                len(cluster) > 5]
         return valid_step_clusters
