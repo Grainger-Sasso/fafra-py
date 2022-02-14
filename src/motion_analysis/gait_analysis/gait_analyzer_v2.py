@@ -50,29 +50,82 @@ class GaitAnalyzerV2:
             leg_length = 0.48 * user_height
             # Detect the peaks (heel strikes) in the walking data, defined as peaks in the anteroposterior axis
             heel_strike_indexes = self._detect_peaks(ap_acc_data)
-            step_start_ixs = heel_strike_indexes[:-1]
-            step_end_ixs = heel_strike_indexes[1:]
-            # Given assumption 1, remove the effects of gravity from the vertical
-            # acc data
-            lpf_v_data = lpf_data.get_acc_axis_data('vertical')
-            v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-            step_lengths, tot_time = self.estimate_step_lengths(
-                v_acc_data, samp_freq, step_start_ixs,
-                step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
-            total_distance = step_lengths.sum()
-            gait_speed = (total_distance/tot_time)
-            # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
-            # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
-            #                               ap_peak_indexes, v_displacement)
+            heel_strike_ix_clusters = self._validate_strike_ixs(
+                heel_strike_indexes, ap_acc_data, ap_signal_fft, samp_freq)
+            cluster_gait_speeds = []
+            for cluster in heel_strike_ix_clusters:
+                step_start_ixs = cluster[:-1]
+                step_end_ixs = cluster[1:]
+                # Given assumption 1, remove the effects of gravity from the vertical
+                # acc data
+                lpf_v_data = lpf_data.get_acc_axis_data('vertical')
+                v_acc_data = lpf_v_data - np.mean(lpf_v_data)
+                step_lengths, tot_time = self.estimate_step_lengths(
+                    v_acc_data, samp_freq, step_start_ixs,
+                    step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
+                total_distance = step_lengths.sum()
+                cluster_gait_speeds.append(total_distance/tot_time)
+                # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
+                # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
+                #                               ap_peak_indexes, v_displacement)
+            gait_speed = np.array(cluster_gait_speeds).mean()
         else:
             gait_speed = np.nan
         return gait_speed
+
+    def _validate_strike_ixs(self, heel_strike_ixs, ap_acc_data, ap_fft_peak, samp_freq):
+        # Initialize variables
+        valid_strike_ixs = []
+        valid_step_interval = 1 / ap_fft_peak
+        step_interval_tolerance = valid_step_interval * 0.90
+        min_step_interval = valid_step_interval - step_interval_tolerance
+        max_step_interval = valid_step_interval + step_interval_tolerance
+        step_start_ixs = heel_strike_ixs[:-1]
+        step_end_ixs = heel_strike_ixs[1:]
+        # Check that the peaks detected fall in interval provided by FFT
+        for start_ix, stop_ix in zip(step_start_ixs, step_end_ixs):
+            step_interval = (stop_ix - start_ix) / samp_freq
+            if min_step_interval < step_interval < max_step_interval:
+                valid_strike_ixs.append(start_ix)
+        # Check that the steps are consecutive as defined by the number of times
+        # the gradient changes sign between strike ixs
+        end_cluster_ixs = []
+        count = 0
+        for start_ix, stop_ix in zip(valid_strike_ixs[:-1], valid_strike_ixs[1:]):
+            # Compute the gradient of the AP signal between start and stop ix
+            ap_data = ap_acc_data[start_ix:stop_ix]
+            ap_data_gradient = np.gradient(ap_data)
+            # Count zero crossings between them
+            zero_crossings = np.where(np.diff(np.sign(ap_data_gradient)))[0]
+            num_zero_crossings = len(zero_crossings)
+            # If count is 3 or more
+            if num_zero_crossings >= 3:
+                # Add the count to the end cluster ixs
+                end_cluster_ixs.append(count)
+            # Increment count
+            count += 1
+        # Initialize stepping clusters variable
+        step_clusters = []
+        step_cluster = []
+        # Clusters are defined as all valid strike ixs where the end index of the
+        # indexes defines the end of the cluster
+        for idx, value in enumerate(valid_strike_ixs):
+            step_cluster.append(value)
+            if idx in end_cluster_ixs:
+                step_clusters.append(step_cluster)
+                step_cluster = []
+        step_clusters.append(step_cluster)
+        # Check that
+        valid_step_clusters = [cluster for cluster in step_clusters if
+                               len(cluster) > 5]
+        return valid_step_clusters
+
 
     def _detect_peaks(self, acc_data):
         height = None
         threshold = None
         distance = None
-        prominence = None
+        prominence = 1.2
         width = None
         wlen = None
         rel_height = 0.5
