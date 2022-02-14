@@ -220,7 +220,7 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
                         val.subj_gs_truth.items()]
 
     cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
-    print(f'Number of diffs evaluats for 1: {len(cwt_percent_diffs1)}')
+    print(f'Number of diffs evaluated for 1: {len(cwt_percent_diffs1)}')
     good_count_1_1 = 0
     good_count_3_1 = 0
     good_count_5_1 = 0
@@ -236,7 +236,7 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
             good_count_10_1 += 1
 
     cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
-    print(f'Number of diffs evaluats for 2: {len(cwt_percent_diffs2)}')
+    print(f'Number of diffs evaluated for 2: {len(cwt_percent_diffs2)}')
     good_count_1_2 = 0
     good_count_3_2 = 0
     good_count_5_2 = 0
@@ -273,6 +273,8 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
+    # Remove nan's from the results before calculating and printing descriptive statistics
+    gs2 = [result for result in gs2 if result == result]
     print_desc_stats(gs2, 'GSE2')
 
     # bins = np.linspace(0.0, 2.0, 30)
