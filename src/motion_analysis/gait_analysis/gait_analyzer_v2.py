@@ -68,6 +68,8 @@ class GaitAnalyzerV2:
                 # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
                 # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
                 #                               ap_peak_indexes, v_displacement)
+            # Averages gait speed for all walking clusters, returns nan if
+            # no step clusters were found
             gait_speed = np.array(cluster_gait_speeds).mean()
         else:
             gait_speed = np.nan
