@@ -50,6 +50,8 @@ class GaitAnalyzerV2:
             leg_length = 0.48 * user_height
             # Detect the peaks (heel strikes) in the walking data, defined as peaks in the anteroposterior axis
             heel_strike_indexes = self._detect_peaks(ap_acc_data)
+            # Validate that the peaks detected are valid based on criteria for
+            # spacing of steps
             heel_strike_ix_clusters = self._validate_strike_ixs(
                 heel_strike_indexes, ap_acc_data, ap_signal_fft, samp_freq)
             cluster_gait_speeds = []
@@ -121,7 +123,6 @@ class GaitAnalyzerV2:
         valid_step_clusters = [cluster for cluster in step_clusters if
                                len(cluster) > 5]
         return valid_step_clusters
-
 
     def _detect_peaks(self, acc_data):
         height = None
