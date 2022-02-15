@@ -54,25 +54,37 @@ class GaitAnalyzerV2:
             # spacing of steps
             heel_strike_ix_clusters = self._validate_strike_ixs(
                 heel_strike_indexes, ap_acc_data, ap_signal_fft, samp_freq)
+            lpf_v_data = lpf_data.get_acc_axis_data('vertical')
+            v_acc_data = lpf_v_data - np.mean(lpf_v_data)
             cluster_gait_speeds = []
+            whole_v_disp = []
+            no_v_disp_ix = 0
+            all_com_v_deltas = []
             for cluster in heel_strike_ix_clusters:
                 step_start_ixs = cluster[:-1]
                 step_end_ixs = cluster[1:]
                 # Given assumption 1, remove the effects of gravity from the vertical
                 # acc data
-                lpf_v_data = lpf_data.get_acc_axis_data('vertical')
-                v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-                step_lengths, tot_time = self.estimate_step_lengths(
+                step_lengths, tot_time, v_displacement, com_v_deltas = self.estimate_step_lengths(
                     v_acc_data, samp_freq, step_start_ixs,
                     step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
                 total_distance = step_lengths.sum()
                 cluster_gait_speeds.append(total_distance/tot_time)
+                no_v_disp_data = np.zeros((step_start_ixs[0] - no_v_disp_ix))
+                whole_v_disp.extend(no_v_disp_data)
+                whole_v_disp.extend(v_displacement)
+                no_v_disp_ix = step_end_ixs[-1]
+                all_com_v_deltas.extend(com_v_deltas)
                 # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
-                # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
-                #                               ap_peak_indexes, v_displacement)
             # Averages gait speed for all walking clusters, returns nan if
             # no step clusters were found
+            no_v_disp_data = np.zeros((len(v_acc_data) - no_v_disp_ix))
+            whole_v_disp.extend(no_v_disp_data)
             gait_speed = np.array(cluster_gait_speeds).mean()
+            valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
+            invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
+            self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs, invalid_strike_ixs,
+            samp_freq, all_com_v_deltas)
         else:
             gait_speed = np.nan
         return gait_speed
@@ -178,7 +190,7 @@ class GaitAnalyzerV2:
             self.plot_gait_cycles(v_acc, v_displacement, valid_strike_ixs,
                                   invalid_strike_ixs, samp_freq, com_v_deltas)
         self._check_step_lengths(step_lengths)
-        return np.array(step_lengths), tot_time
+        return np.array(step_lengths), tot_time, v_displacement, com_v_deltas.tolist()
 
     def plot_gait_cycles(self, v_acc, v_disp, valid_ix, invalid_ix,
                          samp_freq, com_v_deltas):
@@ -194,14 +206,21 @@ class GaitAnalyzerV2:
         axs[0].set_ylabel('Vertical Acceleration of COM (m/s^2)')
         # Plot the vertical acceleration signal
         axs[0].plot(v_acc_time, v_acc)
+        for i in valid_ix:
+            axs[0].axvline(x=v_acc_time[i], color='black', alpha=0.1, ls='--')
+        for i in invalid_ix:
+            axs[0].axvline(x=v_acc_time[i], color='red', alpha=0.1, ls='--')
+        # axs[0].plot(np.array(v_acc_time)[valid_ix].tolist(),
+        #             np.array(v_acc)[valid_ix].tolist(), 'b^')
+        # axs[0].plot(np.array(v_acc_time)[invalid_ix].tolist(),
+        #             np.array(v_acc)[invalid_ix].tolist(), 'rv')
         # Plot the vertical displacement of the COM over time
         axs[1].plot(v_disp_time, v_disp)
         # Plot the strike indexes for valid steps
-        axs[1].plot(np.array(v_disp_time)[valid_ix].tolist(),
-                    np.array(v_disp)[valid_ix].tolist(), 'b^')
-        # Plot the strike indexes for invalid steps
-        axs[1].plot(np.array(v_disp_time)[invalid_ix].tolist(),
-                    np.array(v_disp)[invalid_ix].tolist(), 'rv')
+        for i in valid_ix:
+            axs[1].axvline(x=v_acc_time[i], color='black', alpha=0.1, ls='--')
+        for i in invalid_ix:
+            axs[1].axvline(x=v_acc_time[i], color='red', alpha=0.1, ls='--')
         axs[1].title.set_text('Vertical Displacement of COM During Walking Bout')
         axs[1].set_xlabel('Time (s)')
         axs[1].set_ylabel('Vertical Displacement of COM (m)')
