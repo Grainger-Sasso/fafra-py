@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import math
 from matplotlib import pyplot as plt
+from scipy.signal import savgol_filter
+
 
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.visualization_tools.gse_viz import GSEViz
@@ -56,35 +58,43 @@ class GaitAnalyzerV2:
                 heel_strike_indexes, ap_acc_data, ap_signal_fft, samp_freq)
             lpf_v_data = lpf_data.get_acc_axis_data('vertical')
             v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-            cluster_gait_speeds = []
+            # Calculates the vertical displacement of the COM
             whole_v_disp = []
             no_v_disp_ix = 0
-            all_com_v_deltas = []
             for cluster in heel_strike_ix_clusters:
                 step_start_ixs = cluster[:-1]
                 step_end_ixs = cluster[1:]
                 # Given assumption 1, remove the effects of gravity from the vertical
                 # acc data
-                step_lengths, tot_time, v_displacement, com_v_deltas = self.estimate_step_lengths(
-                    v_acc_data, samp_freq, step_start_ixs,
-                    step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
-                total_distance = step_lengths.sum()
-                cluster_gait_speeds.append(total_distance/tot_time)
+                v_displacement = self.estimate_v_disps(
+                    v_acc_data, samp_freq, step_start_ixs, step_end_ixs, hpf)
                 no_v_disp_data = np.zeros((step_start_ixs[0] - no_v_disp_ix))
                 whole_v_disp.extend(no_v_disp_data)
                 whole_v_disp.extend(v_displacement)
                 no_v_disp_ix = step_end_ixs[-1]
-                all_com_v_deltas.extend(com_v_deltas)
                 # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
             # Averages gait speed for all walking clusters, returns nan if
             # no step clusters were found
             no_v_disp_data = np.zeros((len(v_acc_data) - no_v_disp_ix))
             whole_v_disp.extend(no_v_disp_data)
+            # whole_v_disp = savgol_filter(whole_v_disp, 5, 3)
+            # Initialize the gait speed estimation variable
+            cluster_gait_speeds = []
+            all_com_v_deltas = []
+            for cluster in heel_strike_ix_clusters:
+                step_start_ixs = cluster[:-1]
+                step_end_ixs = cluster[1:]
+                step_lengths, tot_time, com_v_deltas = self.estimate_step_lengths(whole_v_disp, samp_freq, step_start_ixs, step_end_ixs, leg_length, max_com_v_delta)
+                distance = step_lengths.sum()
+                gs = distance/tot_time
+                cluster_gait_speeds.append(gs)
+                all_com_v_deltas.extend(com_v_deltas)
             gait_speed = np.array(cluster_gait_speeds).mean()
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
-            # self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs, invalid_strike_ixs,
-            # samp_freq, all_com_v_deltas)
+            # self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs,
+            #                       invalid_strike_ixs,
+            #                       samp_freq, all_com_v_deltas)
         else:
             gait_speed = np.nan
         return gait_speed
@@ -151,17 +161,9 @@ class GaitAnalyzerV2:
                                             plateau_size=plateau_size)
         return peaks[0]
 
-    def estimate_step_lengths(self, v_acc, samp_freq,
-                               step_start_ixs, step_end_ixs, leg_length,
-                               max_com_v_delta, plot_walking_bout, hpf):
-        # Initialize plotting variables
-        valid_strike_ixs = []
-        invalid_strike_ixs = []
-        com_v_deltas = []
+    def estimate_v_disps(self, v_acc, samp_freq,
+                               step_start_ixs, step_end_ixs, hpf):
         v_displacement = []
-        # Initialize step lengths in walking bout and total time spent walking
-        tot_time = 0.0
-        step_lengths = []
         # For every step (interval between ap peak)
         for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
             # Calculate the vertical displacement of that step
@@ -170,6 +172,22 @@ class GaitAnalyzerV2:
             # Add step vertical displacement to the walking bout
             # vertical displacment
             v_displacement.extend(step_v_disp)
+        return v_displacement
+
+    def estimate_step_lengths(self, v_displacement, samp_freq,
+                               step_start_ixs, step_end_ixs, leg_length,
+                               max_com_v_delta):
+        # Initialize plotting variables
+        valid_strike_ixs = []
+        invalid_strike_ixs = []
+        com_v_deltas = []
+        # Initialize step lengths in walking bout and total time spent walking
+        tot_time = 0.0
+        step_lengths = []
+        # For every step (interval between ap peak)
+        # Trying new method to calculate v_disps after smoothing the v disp data
+        for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
+            step_v_disp = v_displacement[start_ix: end_ix]
             # Compute the difference between the largest and smallest vertical
             # displacement of CoM
             com_v_delta = max(step_v_disp) - min(step_v_disp)
@@ -189,11 +207,8 @@ class GaitAnalyzerV2:
             else:
                 invalid_strike_ixs.append(len(v_displacement)-1)
         com_v_deltas = np.array(com_v_deltas)
-        if plot_walking_bout:
-            self.plot_gait_cycles(v_acc, v_displacement, valid_strike_ixs,
-                                  invalid_strike_ixs, samp_freq, com_v_deltas)
         self._check_step_lengths(step_lengths)
-        return np.array(step_lengths), tot_time, v_displacement, com_v_deltas.tolist()
+        return np.array(step_lengths), tot_time, com_v_deltas.tolist()
 
     def plot_gait_cycles(self, v_acc, v_disp, valid_ix, invalid_ix,
                          samp_freq, com_v_deltas):
