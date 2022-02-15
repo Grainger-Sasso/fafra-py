@@ -85,7 +85,7 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.08, plot_gait_cycles=False):
+    def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
         gs_results = []
         if version_num == '1.0':

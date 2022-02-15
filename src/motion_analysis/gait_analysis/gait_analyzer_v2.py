@@ -83,8 +83,8 @@ class GaitAnalyzerV2:
             gait_speed = np.array(cluster_gait_speeds).mean()
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
-            self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs, invalid_strike_ixs,
-            samp_freq, all_com_v_deltas)
+            # self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs, invalid_strike_ixs,
+            # samp_freq, all_com_v_deltas)
         else:
             gait_speed = np.nan
         return gait_speed
@@ -179,12 +179,15 @@ class GaitAnalyzerV2:
             # https://journals.physiology.org/doi/full/10.1152/japplphysiol.00103.2005#:~:text=The%20average%20vertical%20displacement%20of,speeds%20(P%20%3D%200.0001).
             # (filters out erroneous COM displacement values)
             # Formula for step length derived from inverted pendulum model
-            step_lengths.append(
-                self._calc_step_length(com_v_delta, leg_length))
-            # Consider step indices valid
-            valid_strike_ixs.append(len(v_displacement) - 1)
-            # Increment the total time up
-            tot_time += ((end_ix - start_ix) / samp_freq)
+            if com_v_delta < max_com_v_delta:
+                step_lengths.append(
+                    self._calc_step_length(com_v_delta, leg_length))
+                # Consider step indices valid
+                valid_strike_ixs.append(len(v_displacement) - 1)
+                # Increment the total time up
+                tot_time += ((end_ix - start_ix) / samp_freq)
+            else:
+                invalid_strike_ixs.append(len(v_displacement)-1)
         com_v_deltas = np.array(com_v_deltas)
         if plot_walking_bout:
             self.plot_gait_cycles(v_acc, v_displacement, valid_strike_ixs,
