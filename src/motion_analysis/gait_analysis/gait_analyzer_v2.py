@@ -37,59 +37,33 @@ class GaitAnalyzerV2:
         :param user_data:
         :return:
         """
-        # Access data required for gait speed estimation from keyword arguments
-        # Get acceleration values, user height, and sampling frequency. Data
-        # already put through lpf
+        # Access data required for gait speed estimation
         lpf_data = user_data.get_imu_data(IMUDataFilterType.LPF)
         ap_acc_data = lpf_data.get_acc_axis_data('anteroposterior')
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        # Apply FFT to ap signal to evaluate periodicity of data
         ap_signal_fft = Metric().generate_metric(data=ap_acc_data, sampling_frequency=samp_freq)
         # Filter out any walking bouts with cadence less than 0.115 Hz
         if ap_signal_fft > 0.115:
-            user_height = user_data.get_clinical_demo_data().get_height()
             # See Frisancho et al. 2007 for leg length estimation
             # https://journals.sagepub.com/doi/pdf/10.1177/1545968314532031
+            user_height = user_data.get_clinical_demo_data().get_height()
             leg_length = 0.48 * user_height
-            # Detect the peaks (heel strikes) in the walking data, defined as peaks in the anteroposterior axis
+            # Detect the heel strikes in the walking data from peaks in ap axis
             heel_strike_indexes = self._detect_peaks(ap_acc_data)
             # Validate that the peaks detected are valid based on criteria for
             # spacing of steps
             heel_strike_ix_clusters = self._validate_strike_ixs(
                 heel_strike_indexes, ap_acc_data, ap_signal_fft, samp_freq)
+            # Given assumption 1, remove the effects of gravity from the
+            # vertical acc data
             lpf_v_data = lpf_data.get_acc_axis_data('vertical')
             v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-            # Calculates the vertical displacement of the COM
-            whole_v_disp = []
-            no_v_disp_ix = 0
-            for cluster in heel_strike_ix_clusters:
-                step_start_ixs = cluster[:-1]
-                step_end_ixs = cluster[1:]
-                # Given assumption 1, remove the effects of gravity from the vertical
-                # acc data
-                v_displacement = self.estimate_v_disps(
-                    v_acc_data, samp_freq, step_start_ixs, step_end_ixs, hpf)
-                no_v_disp_data = np.zeros((step_start_ixs[0] - no_v_disp_ix))
-                whole_v_disp.extend(no_v_disp_data)
-                whole_v_disp.extend(v_displacement)
-                no_v_disp_ix = step_end_ixs[-1]
-                # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
-            # Averages gait speed for all walking clusters, returns nan if
-            # no step clusters were found
-            no_v_disp_data = np.zeros((len(v_acc_data) - no_v_disp_ix))
-            whole_v_disp.extend(no_v_disp_data)
-            # whole_v_disp = savgol_filter(whole_v_disp, 5, 3)
-            # Initialize the gait speed estimation variable
-            cluster_gait_speeds = []
-            all_com_v_deltas = []
-            for cluster in heel_strike_ix_clusters:
-                step_start_ixs = cluster[:-1]
-                step_end_ixs = cluster[1:]
-                step_lengths, tot_time, com_v_deltas = self.estimate_step_lengths(whole_v_disp, samp_freq, step_start_ixs, step_end_ixs, leg_length, max_com_v_delta)
-                distance = step_lengths.sum()
-                gs = distance/tot_time
-                cluster_gait_speeds.append(gs)
-                all_com_v_deltas.extend(com_v_deltas)
-            gait_speed = np.array(cluster_gait_speeds).mean()
+            # Calculate the vertical displacement of the COM
+            whole_v_disp = self.estimate_all_v_displacement(
+                heel_strike_ix_clusters, v_acc_data, samp_freq, hpf)
+            gait_speed, all_com_v_deltas = self.estimate_all_step_lengths(
+                heel_strike_ix_clusters, whole_v_disp, samp_freq, leg_length, max_com_v_delta)
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
             # self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs,
@@ -98,6 +72,21 @@ class GaitAnalyzerV2:
         else:
             gait_speed = np.nan
         return gait_speed
+
+    def _detect_peaks(self, acc_data):
+        height = None
+        threshold = None
+        distance = None
+        prominence = 1.2
+        width = None
+        wlen = None
+        rel_height = 0.5
+        plateau_size = None
+        peaks = PeakDetector().detect_peaks(acc_data, height=height,
+                threshold=threshold, distance=distance,prominence=prominence,
+                width=width, wlen=wlen, rel_height=rel_height,
+                                            plateau_size=plateau_size)
+        return peaks[0]
 
     def _validate_strike_ixs(self, heel_strike_ixs, ap_acc_data, ap_fft_peak, samp_freq):
         # Initialize variables
@@ -146,33 +135,81 @@ class GaitAnalyzerV2:
                                len(cluster) > 5]
         return valid_step_clusters
 
-    def _detect_peaks(self, acc_data):
-        height = None
-        threshold = None
-        distance = None
-        prominence = 1.2
-        width = None
-        wlen = None
-        rel_height = 0.5
-        plateau_size = None
-        peaks = PeakDetector().detect_peaks(acc_data, height=height,
-                threshold=threshold, distance=distance,prominence=prominence,
-                width=width, wlen=wlen, rel_height=rel_height,
-                                            plateau_size=plateau_size)
-        return peaks[0]
+    def estimate_all_v_displacement(self, heel_strike_ix_clusters, v_acc, samp_freq, hpf):
+        whole_v_disp = []
+        no_v_disp_ix = 0
+        for cluster in heel_strike_ix_clusters:
+            step_start_ixs = cluster[:-1]
+            step_end_ixs = cluster[1:]
+            v_displacement = []
+            # For every step (interval between ap peak)
+            for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
+                # Calculate the vertical displacement of that step
+                step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
+                                                           end_ix, samp_freq,
+                                                           hpf)
+                # Add step vertical displacement to the walking bout
+                # vertical displacment
+                v_displacement.extend(step_v_disp)
+            no_v_disp_data = np.zeros((step_start_ixs[0] - no_v_disp_ix))
+            whole_v_disp.extend(no_v_disp_data)
+            whole_v_disp.extend(v_displacement)
+            no_v_disp_ix = step_end_ixs[-1]
+        no_v_disp_data = np.zeros((len(v_acc) - no_v_disp_ix))
+        whole_v_disp.extend(no_v_disp_data)
+        # whole_v_disp = savgol_filter(whole_v_disp, 5, 3)
+        return whole_v_disp
 
-    def estimate_v_disps(self, v_acc, samp_freq,
-                               step_start_ixs, step_end_ixs, hpf):
-        v_displacement = []
-        # For every step (interval between ap peak)
-        for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
-            # Calculate the vertical displacement of that step
-            step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
-                                                  end_ix, samp_freq, hpf)
-            # Add step vertical displacement to the walking bout
-            # vertical displacment
-            v_displacement.extend(step_v_disp)
-        return v_displacement
+    def estimate_v_displacement(self, v_acc, start_ix,
+                                      end_ix, samp_freq, hpf):
+        period = 1 / samp_freq
+        # The initial position of the CoM at t=0 is arbitrary, set to 0
+        p0 = 0.0
+        # Given assumption 3 of estimate_gait_speed(), we assume initial
+        # vertical velocity at each heel strike to be zero
+        v0 = 0.0
+        acc = v_acc[start_ix:(end_ix - 1)]
+        vel = self._compute_single_integration(acc, period, v0)
+        # TODO: investigate a more appropriate cut-off frequency for the high-pass filter, atm the filter is confounding the results/is not usefult for preventing integration drift
+        if hpf:
+            vel = MotionFilters().apply_lpass_filter(vel, 0.1,
+                                                     samp_freq, 'highpass')
+        pos = self._compute_single_integration(vel[:-1], period, p0)
+        if hpf:
+            pos = MotionFilters().apply_lpass_filter(pos, 0.1,
+                                                     samp_freq, 'highpass')
+        return pos
+
+    def _compute_single_integration(self, data, period, x0):
+        # single integration for time series data is the sum of (the
+        # product of the signal at time t and the sample period) and
+        # (the current integrated value at time t)
+        x = [x0]
+        x_i = x0
+        for i in data:
+            x_t = i * period + x_i
+            x.append(x_t)
+            x_i = x_t
+        return x
+
+    def estimate_all_step_lengths(self, heel_strike_ix_clusters, whole_v_disp, samp_freq, leg_length, max_com_v_delta):
+        # Initialize the gait speed estimation variable
+        cluster_gait_speeds = []
+        all_com_v_deltas = []
+        for cluster in heel_strike_ix_clusters:
+            step_start_ixs = cluster[:-1]
+            step_end_ixs = cluster[1:]
+            step_lengths, tot_time, com_v_deltas = self.estimate_step_lengths(
+                whole_v_disp, samp_freq, step_start_ixs, step_end_ixs,
+                leg_length, max_com_v_delta)
+            distance = step_lengths.sum()
+            gs = distance / tot_time
+            cluster_gait_speeds.append(gs)
+            all_com_v_deltas.extend(com_v_deltas)
+        # Averages gait speed for all walking clusters, returns nan if
+        # no step clusters were found
+        gait_speed = np.array(cluster_gait_speeds).mean()
+        return gait_speed, all_com_v_deltas
 
     def estimate_step_lengths(self, v_displacement, samp_freq,
                                step_start_ixs, step_end_ixs, leg_length,
@@ -209,6 +246,16 @@ class GaitAnalyzerV2:
         com_v_deltas = np.array(com_v_deltas)
         self._check_step_lengths(step_lengths)
         return np.array(step_lengths), tot_time, com_v_deltas.tolist()
+
+    def _calc_step_length(self, v_disp, leg_length):
+        # Estimate of step length same as Ziljstra 2003, no empirical correction factor
+        g = ((2 * leg_length - v_disp) * v_disp)
+        step_length = 2 * (g ** 0.5)
+        return step_length
+
+    def _check_step_lengths(self, step_lengths):
+        if np.isnan(step_lengths).any():
+            raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
     def plot_gait_cycles(self, v_acc, v_disp, valid_ix, invalid_ix,
                          samp_freq, com_v_deltas):
@@ -252,61 +299,6 @@ class GaitAnalyzerV2:
         axs[2].set_xlabel('Vertical Changes of COM Per Step (m)')
         axs[2].set_ylabel('Number of Occurrences')
         plt.show()
-
-    def _calc_step_length(self, v_disp, leg_length):
-        # Estimate of step length same as Ziljstra 2003, no empirical correction factor
-        g = ((2 * leg_length - v_disp) * v_disp)
-        step_length = 2 * (g ** 0.5)
-        return step_length
-
-
-    def _check_step_lengths(self, step_lengths):
-        if np.isnan(step_lengths).any():
-            raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
-
-    def estimate_v_displacement(self, v_acc, start_ix,
-                                      end_ix, samp_freq, hpf):
-        period = 1 / samp_freq
-        # The initial position of the CoM at t=0 is arbitrary, set to 0
-        p0 = 0.0
-        # Given assumption 3 of estimate_gait_speed(), we assume initial
-        # vertical velocity at each heel strike to be zero
-        v0 = 0.0
-        acc = v_acc[start_ix:(end_ix - 1)]
-        vel = self._compute_single_integration(acc, period, v0)
-        # TODO: investigate a more appropriate cut-off frequency for the high-pass filter, atm the filter is confounding the results/is not usefult for preventing integration drift
-        if hpf:
-            vel = MotionFilters().apply_lpass_filter(vel, 0.1,
-                                                     samp_freq, 'highpass')
-        pos = self._compute_single_integration(vel[:-1], period, p0)
-        if hpf:
-            pos = MotionFilters().apply_lpass_filter(pos, 0.1,
-                                                     samp_freq, 'highpass')
-        return pos
-
-    def _compute_single_integration(self, data, period, x0):
-        # single integration for time series data is the sum of (the
-        # product of the signal at time t and the sample period) and
-        # (the current integrated value at time t)
-        x = [x0]
-        x_i = x0
-        for i in data:
-            x_t = i * period + x_i
-            x.append(x_t)
-            x_i = x_t
-        return x
-
-    def detect_gait(self, data):
-        """
-        http://www.l3s.de/~anand/tir14/lectures/ws14-tir-foundations-2.pdf
-        :param data:
-        :return:
-        """
-        # Run kamlan filter on the data
-        # Take unbiased vertical acceleration
-        # Perform discrete fourier transform to detect possible periodic data
-        # Run auto-correlation to remove false-positives
-        pass
 
 
 # class GaitAnalyzerV2:
