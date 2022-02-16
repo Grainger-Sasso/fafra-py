@@ -149,6 +149,17 @@ class GaitAnalyzerV2:
                 step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
                                                            end_ix, samp_freq,
                                                            hpf)
+                # Smooth the vertical displacement signal
+                v_disp_mean = np.array(step_v_disp).mean()
+                filter_size = 21
+                polyorder = 3
+                if filter_size-1 <= polyorder:
+                    filter_size = polyorder + 2
+                if (filter_size % 2) == 0:
+                    filter_size -= 1
+                step_v_disp = savgol_filter(step_v_disp, filter_size, polyorder)
+                new_v_disp_mean = np.array(step_v_disp).mean()
+                step_v_disp = step_v_disp * (v_disp_mean / new_v_disp_mean)
                 # Add step vertical displacement to the walking bout
                 # vertical displacment
                 v_displacement.extend(step_v_disp)
@@ -158,7 +169,6 @@ class GaitAnalyzerV2:
             no_v_disp_ix = step_end_ixs[-1]
         no_v_disp_data = np.zeros((len(v_acc) - no_v_disp_ix))
         whole_v_disp.extend(no_v_disp_data)
-        # whole_v_disp = savgol_filter(whole_v_disp, 5, 3)
         return whole_v_disp
 
     def estimate_v_displacement(self, v_acc, start_ix,

@@ -202,8 +202,7 @@ def main():
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data, plot=False)
     gs_results = val.calculate_gait_speeds(dataset, version_num='1.0', hpf=False)
-    gs_results2 = val.calculate_gait_speeds(dataset, version_num='2.0', hpf=False, plot_gait_cycles=False)
-
+    gs_results2 = val.calculate_gait_speeds(dataset, version_num='2.0', hpf=False, plot_gait_cycles=True)
     # Perform validation
     # run_comparison(val, gs_results)
     # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
@@ -291,6 +290,7 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     # # plt.hist(gs2, bins, alpha=0.33, label='gs2')
     # # plt.legend(loc='upper right')
     # plt.show()
+
 
 def run_baseline(val, gs_results):
     full_baseline_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0\gait_speed_estimator_results_v1.0_20220204-124523.json'
