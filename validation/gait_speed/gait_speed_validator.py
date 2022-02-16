@@ -142,7 +142,7 @@ class GaitSpeedValidator:
                 erroneous_results.append(f'No matching gs results for baseline {id}')
         return erroneous_results
 
-    def apply_lpf(self, user_data, plot=False):
+    def apply_lpf(self, user_data, cutoff_freq=2.33, plot=False):
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         act_code = imu_data.get_activity_code()
@@ -155,7 +155,7 @@ class GaitSpeedValidator:
         lpf_data_all_axis = []
         for data in raw_acc_data:
             lpf_data_all_axis.append(
-                self.filter.apply_lpass_filter(data, 2.33, samp_freq))
+                self.filter.apply_lpass_filter(data, cutoff_freq, samp_freq))
         lpf_data_all_axis.extend([
             user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('yaw'),
             user_data.get_imu_data(IMUDataFilterType.RAW).get_gyr_axis_data('pitch'),

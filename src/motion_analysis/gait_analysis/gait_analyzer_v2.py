@@ -18,7 +18,7 @@ class GaitAnalyzerV2:
     def __init__(self):
         self.gse_viz = GSEViz()
 
-    def estimate_gait_speed(self, user_data: UserData, hpf, max_com_v_delta, plot_gait_cycles):
+    def estimate_gait_speed(self, user_data: UserData, hpf, max_com_v_delta, plot_gait_cycles=False):
         """
         Several assumptions are made in this version of the gait speed
         estimator:
@@ -66,9 +66,10 @@ class GaitAnalyzerV2:
                 heel_strike_ix_clusters, whole_v_disp, samp_freq, leg_length, max_com_v_delta)
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
-            # self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs,
-            #                       invalid_strike_ixs,
-            #                       samp_freq, all_com_v_deltas)
+            if plot_gait_cycles:
+                self.plot_gait_cycles(ap_acc_data, whole_v_disp, valid_strike_ixs,
+                                      invalid_strike_ixs,
+                                      samp_freq, all_com_v_deltas)
         else:
             gait_speed = np.nan
         return gait_speed
