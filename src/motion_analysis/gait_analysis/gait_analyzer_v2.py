@@ -72,7 +72,7 @@ class GaitAnalyzerV2:
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
             if plot_gait_cycles:
-                self.plot_gait_cycles(v_acc_data, whole_v_disp, valid_strike_ixs,
+                self.plot_gait_cycles(v_acc_data, ap_acc_data, whole_v_disp, valid_strike_ixs,
                                       invalid_strike_ixs,
                                       samp_freq, all_com_v_deltas, heel_strike_ix_clusters)
         else:
@@ -121,19 +121,28 @@ class GaitAnalyzerV2:
             ap_data = ap_acc_data[start_ix:stop_ix]
             ap_data_gradient = np.gradient(ap_data)
             # Count zero crossings between them
-            zero_crossings = np.where(np.diff(np.sign(ap_data_gradient)))[0]
-            num_zero_crossings = len(zero_crossings)
+            ap_zero_crossings = np.where(np.diff(np.sign(ap_data_gradient)))[0]
+            ap_num_zero_crossings = len(ap_zero_crossings)
+            # Compute the gradient of the V signal between start and stop ix
+            v_data = v_acc_data[start_ix:stop_ix]
+            v_data_gradient = np.gradient(v_data)
+            # Count zero crossings between them
+            v_zero_crossings = np.where(np.diff(np.sign(v_data_gradient)))[0]
+            v_num_zero_crossings = len(v_zero_crossings)
             # If count is 3 or more
-            if num_zero_crossings >= 3:
+            if ap_num_zero_crossings >= 3:
                 # Add the count to the end cluster ixs
                 end_cluster_ixs.append(count)
+            elif v_num_zero_crossings >= 4:
+                end_cluster_ixs.append(count)
+            # Add another gradient check for V signal
             # Increment count
             count += 1
         # Initialize stepping clusters variable
         step_clusters = []
         step_cluster = []
-        # Clusters are defined as all valid strike ixs where the end index of the
-        # indexes defines the end of the cluster
+        # Clusters are defined as all valid strike ixs where the end index of
+        # the indexes defines the end of the cluster
         for idx, value in enumerate(valid_strike_ixs):
             step_cluster.append(value)
             if idx in end_cluster_ixs:
@@ -277,13 +286,13 @@ class GaitAnalyzerV2:
         if np.isnan(step_lengths).any():
             raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
-    def plot_gait_cycles(self, v_acc, v_disp, valid_ix, invalid_ix,
+    def plot_gait_cycles(self, v_acc, ap_acc, v_disp, valid_ix, invalid_ix,
                          samp_freq, com_v_deltas, heel_strike_ix_clusters):
         # Create time axis
         v_acc_time = np.linspace(0.0, len(v_acc)/samp_freq, len(v_acc))
         v_disp_time = np.linspace(0.0, len(v_disp)/samp_freq, len(v_disp))
         # Create axes for plotting
-        fig, axs = plt.subplots(3)
+        fig, axs = plt.subplots(4)
         fig.tight_layout()
         axs[0].title.set_text(
             'Vertical Acceleration of COM During Walking Bout')
@@ -299,34 +308,46 @@ class GaitAnalyzerV2:
                 axs[0].axvline(x=v_acc_time[ix], color=color, alpha=0.1, ls='--')
         for i in invalid_ix:
             axs[0].axvline(x=v_acc_time[i], color='red', alpha=0.1, ls='--')
-        # axs[0].plot(np.array(v_acc_time)[valid_ix].tolist(),
-        #             np.array(v_acc)[valid_ix].tolist(), 'b^')
-        # axs[0].plot(np.array(v_acc_time)[invalid_ix].tolist(),
-        #             np.array(v_acc)[invalid_ix].tolist(), 'rv')
-        # Plot the vertical displacement of the COM over time
-        v_disp = np.array(v_disp)
-        axs[1].plot(v_disp_time, v_disp)
+        axs[1].title.set_text(
+            'AP Acceleration of COM During Walking Bout')
+        axs[1].set_xlabel('Time (s)')
+        axs[1].set_ylabel('AP Acceleration of COM (m/s^2)')
+        # Plot the vertical acceleration signal
+        axs[1].plot(v_acc_time, ap_acc)
         for i in range(len(heel_strike_ix_clusters)):
             v_cluster = heel_strike_ix_clusters[i]
             v_cluster = np.array(v_cluster)
             color = (0, i / 20.0, 0, 1)
             for ix in v_cluster:
-                axs[1].axvline(x=v_disp_time[ix], color=color, alpha=0.1,
+                axs[1].axvline(x=v_acc_time[ix], color=color, alpha=0.1,
                                ls='--')
         for i in invalid_ix:
-            axs[1].axvline(x=v_disp_time[i], color='red', alpha=0.1, ls='--')
-        axs[1].title.set_text('Vertical Displacement of COM During Walking Bout')
-        axs[1].set_xlabel('Time (s)')
-        axs[1].set_ylabel('Vertical Displacement of COM (m)')
-        # Plot the distribition of the changes in vertical height for COM
-        y, x, _ = axs[2].hist(com_v_deltas, bins=1000)
-        # Add legend w/ descriptive stats of changes in vertical height for COM
-        axs[2].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
-                       pd.DataFrame(com_v_deltas).describe().to_string())
+            axs[1].axvline(x=v_acc_time[i], color='red', alpha=0.1, ls='--')
+        # Plot the vertical displacement of the COM over time
         axs[2].title.set_text(
+            'Vertical Displacement of COM During Walking Bout')
+        axs[2].set_xlabel('Time (s)')
+        axs[2].set_ylabel('Vertical Displacement of COM (m)')
+        v_disp = np.array(v_disp)
+        axs[2].plot(v_disp_time, v_disp)
+        for i in range(len(heel_strike_ix_clusters)):
+            v_cluster = heel_strike_ix_clusters[i]
+            v_cluster = np.array(v_cluster)
+            color = (0, i / 20.0, 0, 1)
+            for ix in v_cluster:
+                axs[2].axvline(x=v_disp_time[ix], color=color, alpha=0.1,
+                               ls='--')
+        for i in invalid_ix:
+            axs[2].axvline(x=v_disp_time[i], color='red', alpha=0.1, ls='--')
+        # Plot the distribition of the changes in vertical height for COM
+        axs[3].title.set_text(
             'Distribution of Vertical Changes of COM Per Step')
-        axs[2].set_xlabel('Vertical Changes of COM Per Step (m)')
-        axs[2].set_ylabel('Number of Occurrences')
+        axs[3].set_xlabel('Vertical Changes of COM Per Step (m)')
+        axs[3].set_ylabel('Number of Occurrences')
+        y, x, _ = axs[3].hist(com_v_deltas, bins=1000)
+        # Add legend w/ descriptive stats of changes in vertical height for COM
+        axs[3].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
+                       pd.DataFrame(com_v_deltas).describe().to_string())
         plt.show()
 
 
