@@ -63,7 +63,6 @@ class GaitAnalyzerV2:
                 samp_freq)
             # Given assumption 1, remove the effects of gravity from the
             # vertical acc data
-
             # Calculate the vertical displacement of the COM
             whole_v_disp = self.estimate_all_v_displacement(
                 heel_strike_ix_clusters, v_acc_data, samp_freq, hpf)
