@@ -60,7 +60,7 @@ class GaitAnalyzerV2:
             # spacing of steps
             heel_strike_ix_clusters = self._validate_strike_ixs(
                 heel_strike_indexes, ap_acc_data, ap_signal_fft,
-                samp_freq, v_acc_data)
+                samp_freq)
             # Given assumption 1, remove the effects of gravity from the
             # vertical acc data
 
@@ -95,7 +95,7 @@ class GaitAnalyzerV2:
         return peaks[0]
 
     def _validate_strike_ixs(self, heel_strike_ixs, ap_acc_data, ap_fft_peak,
-                             samp_freq, v_acc_data):
+                             samp_freq):
         # Initialize variables
         valid_strike_ixs = []
         valid_step_interval = 1 / ap_fft_peak
@@ -123,19 +123,10 @@ class GaitAnalyzerV2:
             # Count zero crossings between them
             ap_zero_crossings = np.where(np.diff(np.sign(ap_data_gradient)))[0]
             ap_num_zero_crossings = len(ap_zero_crossings)
-            # Compute the gradient of the V signal between start and stop ix
-            v_data = v_acc_data[start_ix:stop_ix]
-            v_data_gradient = np.gradient(v_data)
-            # Count zero crossings between them
-            v_zero_crossings = np.where(np.diff(np.sign(v_data_gradient)))[0]
-            v_num_zero_crossings = len(v_zero_crossings)
             # If count is 3 or more
             if ap_num_zero_crossings >= 3:
                 # Add the count to the end cluster ixs
                 end_cluster_ixs.append(count)
-            elif v_num_zero_crossings >= 4:
-                end_cluster_ixs.append(count)
-            # Add another gradient check for V signal
             # Increment count
             count += 1
         # Initialize stepping clusters variable
