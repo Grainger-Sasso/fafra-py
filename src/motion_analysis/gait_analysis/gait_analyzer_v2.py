@@ -41,6 +41,7 @@ class GaitAnalyzerV2:
         """
         # Access data required for gait speed estimation
         lpf_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+        ml_acc_data = lpf_data.get_acc_axis_data('mediolateral')
         ap_acc_data = lpf_data.get_acc_axis_data('anteroposterior')
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         # Apply FFT to ap signal to evaluate periodicity of data
@@ -71,9 +72,7 @@ class GaitAnalyzerV2:
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
             if plot_gait_cycles:
-                self.plot_gait_cycles(v_acc_data, ap_acc_data, whole_v_disp, valid_strike_ixs,
-                                      invalid_strike_ixs,
-                                      samp_freq, all_com_v_deltas, heel_strike_ix_clusters)
+                self.plot_gait_cycles(v_acc_data, ml_acc_data, ap_acc_data, whole_v_disp, valid_strike_ixs, invalid_strike_ixs, samp_freq, all_com_v_deltas, heel_strike_ix_clusters)
         else:
             gait_speed = np.nan
         return gait_speed
@@ -276,69 +275,53 @@ class GaitAnalyzerV2:
         if np.isnan(step_lengths).any():
             raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
-    def plot_gait_cycles(self, v_acc, ap_acc, v_disp, valid_ix, invalid_ix,
+    def plot_gait_cycles(self, v_acc, ml_acc, ap_acc, v_disp, valid_ix, invalid_ix,
                          samp_freq, com_v_deltas, heel_strike_ix_clusters):
         # Create time axis
         v_acc_time = np.linspace(0.0, len(v_acc)/samp_freq, len(v_acc))
         v_disp_time = np.linspace(0.0, len(v_disp)/samp_freq, len(v_disp))
         # Create axes for plotting
-        fig, axs = plt.subplots(4)
+        fig, axs = plt.subplots(5)
         fig.tight_layout()
-        axs[0].title.set_text(
-            'Vertical Acceleration of COM During Walking Bout')
-        axs[0].set_xlabel('Time (s)')
-        axs[0].set_ylabel('Vertical Acceleration of COM (m/s^2)')
-        # Plot the vertical acceleration signal
-        axs[0].plot(v_acc_time, v_acc)
-        for i in range(len(heel_strike_ix_clusters)):
-            v_cluster = heel_strike_ix_clusters[i]
-            v_cluster = np.array(v_cluster)
-            color = (0, i / 20.0, 0, 1)
-            for ix in v_cluster:
-                axs[0].axvline(x=v_acc_time[ix], color=color, alpha=0.1, ls='--')
-        for i in invalid_ix:
-            axs[0].axvline(x=v_acc_time[i], color='red', alpha=0.1, ls='--')
-        axs[1].title.set_text(
-            'AP Acceleration of COM During Walking Bout')
-        axs[1].set_xlabel('Time (s)')
-        axs[1].set_ylabel('AP Acceleration of COM (m/s^2)')
-        # Plot the vertical acceleration signal
-        axs[1].plot(v_acc_time, ap_acc)
-        for i in range(len(heel_strike_ix_clusters)):
-            v_cluster = heel_strike_ix_clusters[i]
-            v_cluster = np.array(v_cluster)
-            color = (0, i / 20.0, 0, 1)
-            for ix in v_cluster:
-                axs[1].axvline(x=v_acc_time[ix], color=color, alpha=0.1,
-                               ls='--')
-        for i in invalid_ix:
-            axs[1].axvline(x=v_acc_time[i], color='red', alpha=0.1, ls='--')
-        # Plot the vertical displacement of the COM over time
-        axs[2].title.set_text(
-            'Vertical Displacement of COM During Walking Bout')
-        axs[2].set_xlabel('Time (s)')
-        axs[2].set_ylabel('Vertical Displacement of COM (m)')
-        v_disp = np.array(v_disp)
-        axs[2].plot(v_disp_time, v_disp)
-        for i in range(len(heel_strike_ix_clusters)):
-            v_cluster = heel_strike_ix_clusters[i]
-            v_cluster = np.array(v_cluster)
-            color = (0, i / 20.0, 0, 1)
-            for ix in v_cluster:
-                axs[2].axvline(x=v_disp_time[ix], color=color, alpha=0.1,
-                               ls='--')
-        for i in invalid_ix:
-            axs[2].axvline(x=v_disp_time[i], color='red', alpha=0.1, ls='--')
+        # Plot vertical, ML, AP acceleration data
+        self.plot_acc_data(v_acc, v_acc_time, 'Vertical Acceleration',
+                           heel_strike_ix_clusters, invalid_ix, axs[0])
+        self.plot_acc_data(ml_acc, v_acc_time, 'Mediolateral Acceleration',
+                           heel_strike_ix_clusters, invalid_ix, axs[1])
+        self.plot_acc_data(ap_acc, v_acc_time, 'Anteroposterior Acceleration',
+                           heel_strike_ix_clusters, invalid_ix, axs[2])
+        # Plot vertical displacement data
+        self.plot_acc_data(v_disp, v_disp_time,
+                           'Vertical Displacement',
+                           heel_strike_ix_clusters, invalid_ix, axs[3])
         # Plot the distribition of the changes in vertical height for COM
-        axs[3].title.set_text(
+        axs[4].title.set_text(
             'Distribution of Vertical Changes of COM Per Step')
-        axs[3].set_xlabel('Vertical Changes of COM Per Step (m)')
-        axs[3].set_ylabel('Number of Occurrences')
-        y, x, _ = axs[3].hist(com_v_deltas, bins=1000)
+        axs[4].set_xlabel('Vertical Changes of COM Per Step (m)')
+        axs[4].set_ylabel('Number of Occurrences')
+        y, x, _ = axs[4].hist(com_v_deltas, bins=1000)
         # Add legend w/ descriptive stats of changes in vertical height for COM
-        axs[3].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
+        axs[4].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
                        pd.DataFrame(com_v_deltas).describe().to_string())
         plt.show()
+
+    def plot_acc_data(self, acc_data, time, title, heel_ixs, invalid_ixs, ax):
+        # Plot vertical acceleration data
+        ax.title.set_text(
+            f'{title} of COM During Walking Bout')
+        ax.set_xlabel('Time (s)')
+        ax.set_ylabel(f'{title} of COM (m/s^2)')
+        # Plot the vertical acceleration signal
+        ax.plot(time, acc_data)
+        for i in range(len(heel_ixs)):
+            v_cluster = heel_ixs[i]
+            v_cluster = np.array(v_cluster)
+            color = (0, i / 20.0, 0, 1)
+            for ix in v_cluster:
+                ax.axvline(x=time[ix], color=color, alpha=0.1,
+                               ls='--')
+        for i in invalid_ixs:
+            ax.axvline(x=time[i], color='red', alpha=0.1, ls='--')
 
 
 # class GaitAnalyzerV2:
