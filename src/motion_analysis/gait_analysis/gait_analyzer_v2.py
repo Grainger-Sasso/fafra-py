@@ -59,23 +59,26 @@ class GaitAnalyzerV2:
             heel_strike_indexes = self._detect_peaks(ap_acc_data)
             # Validate that the peaks detected are valid based on criteria for
             # spacing of steps
-            heel_strike_ix_clusters = self._validate_strike_ixs(
+            valid_strike_ix_clusters = self._validate_strike_ixs(
                 heel_strike_indexes, ap_acc_data, ap_signal_fft,
                 samp_freq, v_acc_data)
+            valid_strike_ixs = list(
+                set([cluster for clusters in valid_strike_ix_clusters for cluster
+                     in clusters]))
             # Given assumption 1, remove the effects of gravity from the
             # vertical acc data
             # Calculate the vertical displacement of the COM
             whole_v_disp = self.estimate_all_v_displacement(
-                heel_strike_ix_clusters, v_acc_data, samp_freq, hpf)
-            gait_speed, all_com_v_deltas = self.estimate_all_step_lengths(
-                heel_strike_ix_clusters, whole_v_disp, samp_freq, leg_length, max_com_v_delta)
-            valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
-            invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
+                valid_strike_ix_clusters, v_acc_data, samp_freq, hpf)
+            gait_speed, all_com_v_deltas, invalid_strike_indexes = self.estimate_all_step_lengths(
+                valid_strike_ix_clusters, whole_v_disp, samp_freq, leg_length, max_com_v_delta)
+
+            additional_invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
+            invalid_strike_indexes = list(set(invalid_strike_indexes + additional_invalid_strike_ixs))
             if plot_gait_cycles:
                 fig = self.plot_gait_cycles(
-                    v_acc_data, ml_acc_data, ap_acc_data, whole_v_disp,
-                    valid_strike_ixs, invalid_strike_ixs, samp_freq,
-                    all_com_v_deltas, heel_strike_ix_clusters)
+                    v_acc_data, ml_acc_data, ap_acc_data, whole_v_disp, invalid_strike_indexes, samp_freq,
+                    all_com_v_deltas, valid_strike_ix_clusters)
             else:
                 fig = None
         else:
@@ -228,20 +231,23 @@ class GaitAnalyzerV2:
         # Initialize the gait speed estimation variable
         cluster_gait_speeds = []
         all_com_v_deltas = []
+        invalid_step_indexes = []
         for cluster in heel_strike_ix_clusters:
             step_start_ixs = cluster[:-1]
             step_end_ixs = cluster[1:]
-            step_lengths, tot_time, com_v_deltas = self.estimate_step_lengths(
+            step_lengths, tot_time, com_v_deltas, invalid_strike_ixs = self.estimate_step_lengths(
                 whole_v_disp, samp_freq, step_start_ixs, step_end_ixs,
                 leg_length, max_com_v_delta)
+            invalid_step_indexes.extend(invalid_strike_ixs)
             distance = step_lengths.sum()
             gs = distance / tot_time
             cluster_gait_speeds.append(gs)
             all_com_v_deltas.extend(com_v_deltas)
+        invalid_step_indexes = list(set(invalid_step_indexes))
         # Averages gait speed for all walking clusters, returns nan if
         # no step clusters were found
         gait_speed = np.array(cluster_gait_speeds).mean()
-        return gait_speed, all_com_v_deltas
+        return gait_speed, all_com_v_deltas, invalid_step_indexes
 
     def estimate_step_lengths(self, v_displacement, samp_freq,
                                step_start_ixs, step_end_ixs, leg_length,
@@ -269,15 +275,14 @@ class GaitAnalyzerV2:
             if com_v_delta < max_com_v_delta:
                 step_lengths.append(
                     self._calc_step_length(com_v_delta, leg_length))
-                # Consider step indices valid
-                valid_strike_ixs.append(len(v_displacement) - 1)
                 # Increment the total time up
                 tot_time += ((end_ix - start_ix) / samp_freq)
             else:
-                invalid_strike_ixs.append(len(v_displacement)-1)
+                print('YEP')
+                invalid_strike_ixs.append(start_ix)
         com_v_deltas = np.array(com_v_deltas)
         self._check_step_lengths(step_lengths)
-        return np.array(step_lengths), tot_time, com_v_deltas.tolist()
+        return np.array(step_lengths), tot_time, com_v_deltas.tolist(), invalid_strike_ixs
 
     def _calc_step_length(self, v_disp, leg_length):
         # Estimate of step length same as Ziljstra 2003, no empirical correction factor
@@ -289,7 +294,7 @@ class GaitAnalyzerV2:
         if np.isnan(step_lengths).any():
             raise ValueError(f'Computed step lengths contain erroneous value {str(step_lengths)}')
 
-    def plot_gait_cycles(self, v_acc, ml_acc, ap_acc, v_disp, valid_ix, invalid_ix,
+    def plot_gait_cycles(self, v_acc, ml_acc, ap_acc, v_disp, invalid_ix,
                          samp_freq, com_v_deltas, heel_strike_ix_clusters):
         # Create time axis
         v_acc_time = np.linspace(0.0, len(v_acc)/samp_freq, len(v_acc))
@@ -335,7 +340,7 @@ class GaitAnalyzerV2:
                 ax.axvline(x=time[ix], color=color, alpha=0.1,
                                ls='--')
         for i in invalid_ixs:
-            ax.axvline(x=time[i], color='red', alpha=0.1, ls='--')
+            ax.axvline(x=time[i], color='red', alpha=0.7, ls='--')
 
 
 # class GaitAnalyzerV2:
