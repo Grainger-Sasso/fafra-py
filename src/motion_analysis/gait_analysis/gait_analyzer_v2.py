@@ -72,10 +72,16 @@ class GaitAnalyzerV2:
             valid_strike_ixs = list(set([cluster for clusters in heel_strike_ix_clusters for cluster in clusters]))
             invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
             if plot_gait_cycles:
-                self.plot_gait_cycles(v_acc_data, ml_acc_data, ap_acc_data, whole_v_disp, valid_strike_ixs, invalid_strike_ixs, samp_freq, all_com_v_deltas, heel_strike_ix_clusters)
+                fig = self.plot_gait_cycles(
+                    v_acc_data, ml_acc_data, ap_acc_data, whole_v_disp,
+                    valid_strike_ixs, invalid_strike_ixs, samp_freq,
+                    all_com_v_deltas, heel_strike_ix_clusters)
+            else:
+                fig = None
         else:
             gait_speed = np.nan
-        return gait_speed
+            fig = None
+        return gait_speed, fig
 
     def _detect_peaks(self, acc_data):
         height = None
@@ -303,7 +309,7 @@ class GaitAnalyzerV2:
         # Add legend w/ descriptive stats of changes in vertical height for COM
         axs[4].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
                        pd.DataFrame(com_v_deltas).describe().to_string())
-        plt.show()
+        return fig
 
     def plot_acc_data(self, acc_data, time, title, heel_ixs, invalid_ixs, ax):
         # Plot vertical acceleration data

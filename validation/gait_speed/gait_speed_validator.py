@@ -85,21 +85,60 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def calculate_gait_speeds(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, plot_gait_cycles=False):
+    def calculate_gait_speeds_v1(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, check_against_truth=False, plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
         gs_results = []
-        if version_num == '1.0':
-            ga = GaitAnalyzer()
-        elif version_num == '2.0':
-            ga = GaitAnalyzerV2()
-        else:
-            raise ValueError(f'Invalid gait analyzer version number: {version_num}')
+        ga = GaitAnalyzer()
         for user_data in dataset.get_dataset():
-            gs_results.append(dict({'id': user_data.get_clinical_demo_data().get_id(),
-                  'trial': user_data.get_clinical_demo_data().get_trial(),
-                  'gait_speed': ga.estimate_gait_speed(user_data, hpf,
-                                                       max_com_v_delta,
-                                                       plot_gait_cycles)}))
+            user_id = user_data.get_clinical_demo_data().get_id()
+            trial = user_data.get_clinical_demo_data().get_trial()
+            gait_speed = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+                                                plot_gait_cycles)
+            gs_results.append(dict({'id': user_id, 'trial': trial,
+                                    'gait_speed': gait_speed}))
+        if write_out_results:
+            filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+            output_path = os.path.join(ouput_dir, filename)
+            with open(output_path, 'w') as f:
+                json.dump(gs_results, f)
+        return gs_results
+
+    def calculate_gait_speeds_v2(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, check_against_truth=False, plot_gait_cycles=False):
+        # Compare the results of the gait analyzer with truth values
+        gs_results = []
+        ga = GaitAnalyzerV2()
+        for user_data in dataset.get_dataset():
+            user_id = user_data.get_clinical_demo_data().get_id()
+            trial = user_data.get_clinical_demo_data().get_trial()
+            gait_speed, fig = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+                                                plot_gait_cycles)
+            gs_results.append(dict({'id': user_id, 'trial': trial,
+                                    'gait_speed': gait_speed}))
+            if check_against_truth:
+                cwt_truth_value = self.subj_gs_truth[user_id]['CWT']
+                if user_id in self.subj_gs_truth.keys() and not np.isnan(gait_speed):
+                    # If the difference between estimate and truth exceeds 10%
+                    diff = (abs(cwt_truth_value - gait_speed)/cwt_truth_value) * 100.0
+                    if diff > 10.0:
+                        # Show figure and print out the diff, ID, and trial
+                        print('Function returned Valid Results')
+                        print(f'ID: {user_id}')
+                        print(f'Trial: {trial}')
+                        print(f'Diff: {diff}')
+                        print(f'Truth: {cwt_truth_value}')
+                        print(f'Estimate: {gait_speed}')
+                        print('\n')
+                        plt.show()
+                        print('\n')
+                else:
+                    # Print off the ID and trial
+                    print('Function returned NAN')
+                    print(f'ID: {user_id}')
+                    print(f'Diff: {trial}')
+                    print(f'Truth: {cwt_truth_value}')
+                    print('\n')
+            plt.close()
+
         if write_out_results:
             filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
             output_path = os.path.join(ouput_dir, filename)
@@ -201,14 +240,14 @@ def main():
     # Run dataset through low-pass filter
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data, plot=False)
-    gs_results = val.calculate_gait_speeds(dataset, version_num='1.0', hpf=False)
-    gs_results2 = val.calculate_gait_speeds(dataset, version_num='2.0', hpf=False, plot_gait_cycles=True)
+    gs_results_v1 = val.calculate_gait_speeds_v1(dataset, version_num='1.0', hpf=False)
+    gs_results_v2 = val.calculate_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=True, plot_gait_cycles=True)
     # Perform validation
     # run_comparison(val, gs_results)
     # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
     # gs_results = val.calculate_gait_speeds(dataset, True, baseline_out_path, version_num='1.0')
     # run_baseline(val, gs_results)
-    run_analyzer_comparison(val, gs_results, gs_results2)
+    run_analyzer_comparison(val, gs_results_v1, gs_results_v2)
 
 
 def run_analyzer_comparison(val, gs_results_1, gs_results_2):
