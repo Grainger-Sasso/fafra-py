@@ -278,7 +278,6 @@ class GaitAnalyzerV2:
                 # Increment the total time up
                 tot_time += ((end_ix - start_ix) / samp_freq)
             else:
-                print('YEP')
                 invalid_strike_ixs.append(start_ix)
         com_v_deltas = np.array(com_v_deltas)
         self._check_step_lengths(step_lengths)
