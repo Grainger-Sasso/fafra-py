@@ -317,10 +317,11 @@ class GaitAnalyzerV2:
             'Distribution of Vertical Changes of COM Per Step')
         axs[4].set_xlabel('Vertical Changes of COM Per Step (m)')
         axs[4].set_ylabel('Number of Occurrences')
-        y, x, _ = axs[4].hist(com_v_deltas, bins=1000)
-        # Add legend w/ descriptive stats of changes in vertical height for COM
-        axs[4].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
-                       pd.DataFrame(com_v_deltas).describe().to_string())
+        if pd.DataFrame(com_v_deltas).columns.size > 0:
+            y, x, _ = axs[4].hist(com_v_deltas, bins=1000)
+            # Add legend w/ descriptive stats of changes in vertical height for COM
+            axs[4].text((x.max() - 0.2*x.max()), (y.max() - 0.6*y.max()),
+                           pd.DataFrame(com_v_deltas).describe().to_string())
         return fig
 
     def plot_acc_data(self, acc_data, time, title, heel_ixs, invalid_ixs, ax):

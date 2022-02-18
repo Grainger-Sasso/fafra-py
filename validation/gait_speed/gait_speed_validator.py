@@ -119,7 +119,7 @@ class GaitSpeedValidator:
                 if user_id in self.subj_gs_truth.keys() and not np.isnan(gait_speed):
                     # If the difference between estimate and truth exceeds 10%
                     diff = (abs(cwt_truth_value - gait_speed)/cwt_truth_value) * 100.0
-                    if diff > 10.0:
+                    if 10.0 < diff < 15.0:
                         # Show figure and print out the diff, ID, and trial
                         print('Function returned Valid Results')
                         print(f'ID: {user_id}')
@@ -241,7 +241,7 @@ def main():
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data, plot=False)
     gs_results_v1 = val.calculate_gait_speeds_v1(dataset, version_num='1.0', hpf=False)
-    gs_results_v2 = val.calculate_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=True, plot_gait_cycles=True)
+    gs_results_v2 = val.calculate_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=False , plot_gait_cycles=False)
     # Perform validation
     # run_comparison(val, gs_results)
     # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
@@ -312,8 +312,13 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
     # Remove nan's from the results before calculating and printing descriptive statistics
-    gs2 = [result for result in gs2 if result == result]
+    gs1 = [result['gait_speed'] for result in gs_results_1 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
+    gs2 = [result['gait_speed'] for result in gs_results_2 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
     print_desc_stats(gs2, 'GSE2')
+    # plt.plot(gs1, cwt_percent_diffs1, 'bo')
+    plt.plot(gs2, cwt_percent_diffs2, 'rv')
+    plt.show()
+
 
     # bins = np.linspace(0.0, 2.0, 30)
     # fig, axes = plt.subplots(3)
