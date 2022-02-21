@@ -25,6 +25,7 @@ from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
+from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
 
@@ -76,8 +77,8 @@ class FallRiskAssessment:
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
-        input_validator= InputMetricValidator()
-        input_validator.perform_partial_dependence_plot_lightGBM(self.rc,input_metrics,y)
+        # input_validator= InputMetricValidator()
+        # input_validator.perform_partial_dependence_plot_lightGBM(self.rc,input_metrics,y)
         #input_validator.perform_partial_dependence_plot_sklearn(self.rc,input_metrics,y)
         #input_validator.perform_shap_values(self.rc,input_metrics)
         #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
@@ -85,6 +86,7 @@ class FallRiskAssessment:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
         print(cv_results)
+        print(class_report)
 
     def _build_datasets(self, dataset_info):
         # Read in all builder modules
@@ -281,13 +283,20 @@ def main():
     # dataset_info: [{dataset_name: DatasetName, dataset_path: path, clin: clin_path, segment_data: bool, epoch: float, mod: MOD}]
     st = time.time()
     # ltmm_dataset_name = 'LTMM'
+
+    # Desktop paths
+    ltmm_dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0\LabWalks'
+    # ltmm_dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0'
+    clinical_demo_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0\ClinicalDemogData_COFL.xlsx'
+
+    # Laptop paths
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
-    
-    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
-    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    # clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
-    output_dir = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
+
+    output_dir = r'C:\Users\gsass\Documents\fafra\testing\ltmm\results'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -304,8 +313,11 @@ def main():
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
     #fra = FallRiskAssessment(KNNRiskClassifier())
-    fra = FallRiskAssessment(LightGBMRiskClassifier({}))
-    print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
+    light_gbm_classifier = LightGBMRiskClassifier({})
+    knn_classifier = KNNRiskClassifier()
+    svm_classifier = SVMRiskClassifier()
+    fra = FallRiskAssessment(knn_classifier)
+    fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir)
 
 
     # cv_results = ltmm_ra.cross_validate_model()

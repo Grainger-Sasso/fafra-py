@@ -43,6 +43,7 @@ class DatasetBuilder(DatasetBuilder):
             header_path = os.path.splitext(header_file_path)[0]
             wfdb_record = wfdb.rdrecord(data_path)
             id = wfdb_record.record_name
+            print(id)
             data = np.array(wfdb_record.p_signal)
             data = np.float16(data)
             # Convert acceleration data from g to m/s^2
