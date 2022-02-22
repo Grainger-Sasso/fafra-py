@@ -316,6 +316,10 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
+    for result in gs_results_2:
+        id = result['ID']
+        trial = result['trial']
+        gs = result['gait_speed']
     # Remove nan's from the results before calculating and printing descriptive statistics
     # gs1 = [result['gait_speed'] for result in gs_results_1 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
     # gs2 = [result['gait_speed'] for result in gs_results_2 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
