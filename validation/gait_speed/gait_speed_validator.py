@@ -85,7 +85,10 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def calculate_gait_speeds_v1(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, check_against_truth=False, plot_gait_cycles=False):
+    def calc_gait_speeds_v1(self, dataset: Dataset, write_out_results=False,
+                            ouput_dir='', version_num='1.0', hpf=False,
+                            max_com_v_delta=0.14, check_against_truth=False,
+                            plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
         gs_results = []
         ga = GaitAnalyzer()
@@ -103,10 +106,14 @@ class GaitSpeedValidator:
                 json.dump(gs_results, f)
         return gs_results
 
-    def calculate_gait_speeds_v2(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, check_against_truth=False, plot_gait_cycles=False):
+    def calc_gait_speeds_v2(self, dataset: Dataset, write_out_results=False,
+                            ouput_dir='', version_num='1.0', hpf=False,
+                            max_com_v_delta=0.14, check_against_truth=False,
+                            plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
         gs_results = []
         ga = GaitAnalyzerV2()
+        count = 0
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
@@ -114,11 +121,11 @@ class GaitSpeedValidator:
                                                 plot_gait_cycles)
             gs_results.append(dict({'id': user_id, 'trial': trial,
                                     'gait_speed': gait_speed}))
-            if check_against_truth:
+            if user_id in self.subj_gs_truth.keys() and not np.isnan(gait_speed):
                 cwt_truth_value = self.subj_gs_truth[user_id]['CWT']
-                if user_id in self.subj_gs_truth.keys() and not np.isnan(gait_speed):
-                    # If the difference between estimate and truth exceeds 10%
-                    diff = (abs(cwt_truth_value - gait_speed)/cwt_truth_value) * 100.0
+                # If the difference between estimate and truth exceeds 10%
+                diff = (abs(cwt_truth_value - gait_speed)/cwt_truth_value) * 100.0
+                if check_against_truth:
                     if 10.0 < diff < 15.0:
                         # Show figure and print out the diff, ID, and trial
                         print('Function returned Valid Results')
@@ -130,15 +137,14 @@ class GaitSpeedValidator:
                         print('\n')
                         plt.show()
                         print('\n')
-                else:
-                    # Print off the ID and trial
-                    print('Function returned NAN')
-                    print(f'ID: {user_id}')
-                    print(f'Diff: {trial}')
-                    print(f'Truth: {cwt_truth_value}')
-                    print('\n')
+            else:
+                # Print off the ID and trial
+                print('Function returned NAN or unknown UUID')
+                print(f'ID: {user_id}')
+                print(f'Trial: {trial}')
+                print(f'Estimate: {gait_speed}')
+                print('\n')
             plt.close()
-
         if write_out_results:
             filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
             output_path = os.path.join(ouput_dir, filename)
@@ -240,8 +246,8 @@ def main():
     # Run dataset through low-pass filter
     for user_data in dataset.get_dataset():
         val.apply_lpf(user_data, plot=False)
-    gs_results_v1 = val.calculate_gait_speeds_v1(dataset, version_num='1.0', hpf=False)
-    gs_results_v2 = val.calculate_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=False , plot_gait_cycles=False)
+    gs_results_v1 = val.calc_gait_speeds_v1(dataset, version_num='1.0', hpf=False)
+    gs_results_v2 = val.calc_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=False, plot_gait_cycles=False)
     # Perform validation
     # run_comparison(val, gs_results)
     # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
@@ -272,7 +278,6 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
             good_count_5_1 += 1
         if diff1 < 10.0:
             good_count_10_1 += 1
-
     cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
     print(f'Number of diffs evaluated for 2: {len(cwt_percent_diffs2)}')
     good_count_1_2 = 0
@@ -312,12 +317,12 @@ def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
     # Remove nan's from the results before calculating and printing descriptive statistics
-    gs1 = [result['gait_speed'] for result in gs_results_1 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
-    gs2 = [result['gait_speed'] for result in gs_results_2 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
-    print_desc_stats(gs2, 'GSE2')
+    # gs1 = [result['gait_speed'] for result in gs_results_1 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
+    # gs2 = [result['gait_speed'] for result in gs_results_2 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
+    # print_desc_stats(gs2, 'GSE2')
     # plt.plot(gs1, cwt_percent_diffs1, 'bo')
-    plt.plot(gs2, cwt_percent_diffs2, 'rv')
-    plt.show()
+    # plt.plot(gs2, cwt_percent_diffs2, 'rv')
+    # plt.show()
 
 
     # bins = np.linspace(0.0, 2.0, 30)
