@@ -2,10 +2,12 @@ import numpy as np
 
 
 class IMUData:
-    def __init__(self, activity_code, v_acc_data, ml_acc_data, ap_acc_data,
-                 yaw_gyr_data, pitch_gyr_data, roll_gyr_data,
-                 time):
+    def __init__(self, activity_code, activity_description, v_acc_data,
+                 ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                 roll_gyr_data, time):
+        # Activity code and activity code description
         self.activity_code: str = activity_code
+        self.activity_description: str = activity_description
         # Vertical axis accelerometer data
         self.v_acc_data = np.array(v_acc_data)
         # Mediolateral axis accelerometer data
@@ -23,6 +25,9 @@ class IMUData:
 
     def get_activity_code(self):
         return self.activity_code
+
+    def get_activity_description(self):
+        return self.activity_description
 
     def get_acc_axis_data(self, axis):
         if axis == 'vertical':
@@ -62,3 +67,23 @@ class IMUData:
 
     def get_time(self):
         return self.time
+
+    def set_acc_axis_data(self, axis, data):
+        if axis == 'vertical':
+            self.v_acc_data = data
+        elif axis == 'mediolateral':
+            self.ml_acc_data = data
+        elif axis == 'anteroposterior':
+            self.ap_acc_data = data
+        else:
+            raise ValueError(f'{axis} is not a valid axis')
+
+    def set_gyr_axis_data(self, axis, data):
+        if axis == 'yaw':
+            self.yaw_gyr_data = data
+        elif axis == 'pitch':
+            self.pitch_gyr_data = data
+        elif axis == 'roll':
+            self.roll_gyr_data = data
+        else:
+            raise ValueError(f'{axis} is not a valid axis')

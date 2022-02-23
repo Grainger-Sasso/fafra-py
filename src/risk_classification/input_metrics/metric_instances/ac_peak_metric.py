@@ -40,7 +40,7 @@ class Metric(RiskClassificationInputMetric):
 
     def _find_largest_peak(self, x, y):
         peak_detector = PeakDetector()
-        peak_ixs = peak_detector.detect_peaks(y)
+        peak_ixs = peak_detector.detect_peaks(y)[0]
         # Find the largest peak given there are peaks detected, otherwise get the max value from the FFT data
         if len(peak_ixs) > 0:
             max_peak_ix = peak_detector.get_largest_peak_ix(y, peak_ixs)

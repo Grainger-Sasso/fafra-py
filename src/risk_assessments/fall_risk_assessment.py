@@ -13,8 +13,9 @@ from matplotlib import pyplot as plt
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
-from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+
 from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.risk_classification.validation.cross_validator import CrossValidator
 from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
@@ -24,12 +25,13 @@ from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.risk_classification.risk_classifiers.classifier import Classifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
+from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
 
 
 class FallRiskAssessment:
-    def __init__(self, risk_classifier):
+    def __init__(self, risk_classifier: Classifier):
         # Required input parameters
         self.dataset_builders: Dict[str: DatasetBuilder] = {}
         self.datasets: Dict[DatasetNames: Dataset] = {}
@@ -75,13 +77,16 @@ class FallRiskAssessment:
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
-        input_validator= InputMetricValidator()
+        # input_validator= InputMetricValidator()
+        # input_validator.perform_partial_dependence_plot_lightGBM(self.rc,input_metrics,y)
+        #input_validator.perform_partial_dependence_plot_sklearn(self.rc,input_metrics,y)
         #input_validator.perform_shap_values(self.rc,input_metrics)
         #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
         print(cv_results)
+        print(class_report)
 
     def _build_datasets(self, dataset_info):
         # Read in all builder modules
@@ -113,48 +118,27 @@ class FallRiskAssessment:
         for name, dataset in self.datasets.items():
             for user_data in dataset.get_dataset():
                 # Filter the data
-                self._apply_lp_filter(user_data)
-                self.att_est.estimate_attitude(user_data)
+                self.apply_lp_filter(user_data)
+                #self.att_est.estimate_attitude(user_data)
                 # self.apply_kalman_filter()
                 # Remove effects of gravity in vertical axis
                 # self._unbias_axes(user_data)
 
-    def _apply_lp_filter(self, user_data):
-        imu_data = user_data.get_imu_data()[IMUDataFilterType.RAW]
-        v_acc_data = imu_data.get_acc_axis_data('vertical')
-        ml_acc_data = imu_data.get_acc_axis_data('mediolateral')
-        ap_acc_data = imu_data.get_acc_axis_data('anteroposterior')
-        yaw_acc_data = imu_data.get_gyr_axis_data('yaw')
-        pitch_acc_data = imu_data.get_gyr_axis_data('pitch')
-        roll_acc_data = imu_data.get_gyr_axis_data('roll')
-        gyr_data = [yaw_acc_data, pitch_acc_data, roll_acc_data]
+    def apply_lp_filter(self, user_data):
+        imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        act_code = imu_data.get_activity_code()
+        act_des = imu_data.get_activity_description()
+        all_raw_data = imu_data.get_all_data()
         lpf_data_all_axis = []
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(v_acc_data, 0.045))
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(v_acc_data, 0.1, samp_freq))
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(ml_acc_data, 0.035, samp_freq))
-        # lpf_data_all_axis.append(
-        #     self.filter.apply_lpass_filter(ap_acc_data, 0.07, samp_freq))
-        # for ax in gyr_data:
-        #     lpf_data_all_axis.append(
-        #         self.filter.apply_lpass_filter(ax, 0.05, samp_freq))
-        lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(v_acc_data, 2, samp_freq))
-        lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(ml_acc_data, 2, samp_freq))
-        lpf_data_all_axis.append(
-            self.filter.apply_lpass_filter(ap_acc_data, 2, samp_freq))
-        for ax in gyr_data:
+        for data in all_raw_data:
             lpf_data_all_axis.append(
-                self.filter.apply_lpass_filter(ax, 2, samp_freq))
+                self.filter.apply_lpass_filter(data, 2, samp_freq))
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
-                                                        samp_freq)
+                                                        samp_freq, act_code, act_des)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
 
-    def _generate_imu_data_instance(self, data, sampling_freq):
+    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
         ap_acc_data = np.array(data[2])
@@ -163,7 +147,7 @@ class FallRiskAssessment:
         roll_gyr_data = np.array(data[5])
         time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
                            len(v_acc_data))
-        return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
+        return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
     def _unbias_axes(self, user_data):
@@ -299,13 +283,20 @@ def main():
     # dataset_info: [{dataset_name: DatasetName, dataset_path: path, clin: clin_path, segment_data: bool, epoch: float, mod: MOD}]
     st = time.time()
     # ltmm_dataset_name = 'LTMM'
+
+    # Desktop paths
+    ltmm_dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0\LabWalks'
+    # ltmm_dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0'
+    clinical_demo_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0\ClinicalDemogData_COFL.xlsx'
+
+    # Laptop paths
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\small_LTMMD'
-    
-    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
-    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    # clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
-    output_dir = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
+
+    output_dir = r'C:\Users\gsass\Documents\fafra\testing\ltmm\results'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -321,9 +312,12 @@ def main():
                      'clinical_demo_path': clinical_demo_path,
                      'segment_dataset': True,
                      'epoch_size': 8.0}]
-    fra = FallRiskAssessment(KNNRiskClassifier())
-    #fra = FallRiskAssessment(LightGBMRiskClassifier({}))
-    print(fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir))
+    #fra = FallRiskAssessment(KNNRiskClassifier())
+    light_gbm_classifier = LightGBMRiskClassifier({})
+    knn_classifier = KNNRiskClassifier()
+    svm_classifier = SVMRiskClassifier()
+    fra = FallRiskAssessment(knn_classifier)
+    fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir)
 
 
     # cv_results = ltmm_ra.cross_validate_model()

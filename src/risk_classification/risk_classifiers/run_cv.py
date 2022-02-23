@@ -2,7 +2,12 @@ import time
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
+from sklearn.datasets import make_hastie_10_2
+from sklearn.inspection import partial_dependence
+from sklearn.inspection import PartialDependenceDisplay
+from sklearn.ensemble import GradientBoostingClassifier
 
+from pdpbox import pdp, get_dataset, info_plots
 
 from src.risk_classification.validation.data_generator import DataGenerator
 from src.visualization_tools.classification_visualizer import ClassificationVisualizer
@@ -13,6 +18,22 @@ from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_class
 from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.risk_classification.validation.input_metric_validator import InputMetricValidator
+
+
+def newMain():
+    X, y = make_hastie_10_2(random_state=0)
+    est =GradientBoostingClassifier(n_estimators=100, learning_rate=1.0, max_depth=1, random_state=0).fit(X, y)
+    features = ['0', '1','2','3','4','5','6','7','8','9']
+    plt.rcParams['figure.figsize'] = 16, 9
+    dataframe = pd.DataFrame(X, columns = features)
+    pdp_sex = pdp.pdp_isolate(
+                model=est, dataset=dataframe, model_features=features, feature='0'
+            )
+    print(pdp_sex)
+    fig, axes = pdp.pdp_plot(pdp_sex, '0', plot_lines=True, frac_to_plot=0.5, plot_pts_dist=True)
+    
+    #fig, axes = pdp.pdp_plot(pdp_sex, '0')
+    #fig.show()
 
 def main():
     start = time.time()
@@ -82,4 +103,5 @@ def cross_validate(model, input_metrics):
 
 
 if __name__ == '__main__':
-    main()
+    #main()
+    newMain()

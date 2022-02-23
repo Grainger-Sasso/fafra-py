@@ -57,7 +57,7 @@ class LightGBMRiskClassifier(Classifier):
         trial = study.best_trial
         lgbdata = lgb.Dataset(x, label=y)
         self.params = trial.params
-        model = lgb.train(trial.params, lgbdata)
+        model = lgb.train(trial.params, lgbdata, verbose_eval=False)
         self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
 
