@@ -153,17 +153,15 @@ class GaitSpeedValidator:
         return gs_results
 
     def compare_gs_to_truth(self, gs_results):
-        cwt_diffs = []
-        bs_diffs = []
         for result in gs_results:
             if result['id'] in self.subj_gs_truth.keys() and not np.isnan(result['gait_speed']):
                 cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
-                bs_truth_value = self.subj_gs_truth[result['id']]['BS']
-                cwt_diffs.append(abs(cwt_truth_value - result['gait_speed'])/cwt_truth_value * 100.0)
-                bs_diffs.append(abs(bs_truth_value - result['gait_speed'])/bs_truth_value * 100.0)
-        cwt_diffs = np.array(cwt_diffs)
-        bs_diffs = np.array(bs_diffs)
-        return cwt_diffs, bs_diffs
+                result['truth'] = cwt_truth_value
+                result['diff'] = (abs(cwt_truth_value - result['gait_speed'])/cwt_truth_value * 100.0)
+            else:
+                result['truth'] = np.nan
+                result['diff'] = np.nan
+        return gs_results
 
     def compare_gse_to_baseline(self, gs_results, baseline_path):
         # Read in the baseline comparisons from baseline path
@@ -259,75 +257,85 @@ def main():
 def run_analyzer_comparison(val, gs_results_1, gs_results_2):
     # Run the validation
     gs1 = np.array([r['gait_speed'] for r in gs_results_1])
+    gs1_not_nan = [i['gait_speed'] for i in gs_results_1 if not np.isnan(i['gait_speed']) and i['id'] in val.subj_gs_truth.keys()]
     gs2 = np.array([r['gait_speed'] for r in gs_results_2])
+    gs2_not_nan = [i['gait_speed'] for i in gs_results_2 if not np.isnan(i['gait_speed']) and i['id'] in val.subj_gs_truth.keys()]
     cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
                         val.subj_gs_truth.items()]
+    gs_results_1 = val.compare_gs_to_truth(gs_results_1)
+    gs_results_2 = val.compare_gs_to_truth(gs_results_2)
 
-    cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
-    print(f'Number of diffs evaluated for 1: {len(cwt_percent_diffs1)}')
+    print(f'Number of diffs evaluated for 1: {len(gs1_not_nan)}')
     good_count_1_1 = 0
     good_count_3_1 = 0
     good_count_5_1 = 0
     good_count_10_1 = 0
-    for diff1 in cwt_percent_diffs1:
-        if diff1 < 1.0:
-            good_count_1_1 += 1
-        if diff1 < 3.0:
-            good_count_3_1 += 1
-        if diff1 < 5.0:
-            good_count_5_1 += 1
-        if diff1 < 10.0:
-            good_count_10_1 += 1
-    cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
-    print(f'Number of diffs evaluated for 2: {len(cwt_percent_diffs2)}')
+    for result in gs_results_1:
+        diff = result['diff']
+        if not np.isnan(diff):
+            if diff < 1.0:
+                good_count_1_1 += 1
+            if diff < 3.0:
+                good_count_3_1 += 1
+            if diff < 5.0:
+                good_count_5_1 += 1
+            if diff < 10.0:
+                good_count_10_1 += 1
+
+    print(f'Number of diffs evaluated for 2: {len(gs2_not_nan)}')
     good_count_1_2 = 0
     good_count_3_2 = 0
     good_count_5_2 = 0
     good_count_10_2 = 0
-    for diff2 in cwt_percent_diffs2:
-        if diff2 < 1.0:
-            good_count_1_2 += 1
-        if diff2 < 3.0:
-            good_count_3_2 += 1
-        if diff2 < 5.0:
-            good_count_5_2 += 1
-        if diff2 < 10.0:
-            good_count_10_2 += 1
+    for result in gs_results_2:
+        diff = result['diff']
+        if not np.isnan(diff):
+            if diff < 1.0:
+                good_count_1_1 += 1
+            if diff < 3.0:
+                good_count_3_1 += 1
+            if diff < 5.0:
+                good_count_5_1 += 1
+            if diff < 10.0:
+                good_count_10_1 += 1
 
     print('\n')
     print(
-        f'Percent of GSEV1 within 1% truth: {(good_count_1_1 / len(cwt_percent_diffs1)) * 100}')
+        f'Percent of GSEV1 within 1% truth: {(good_count_1_1 / len(gs_results_1)) * 100}')
     print(
-        f'Percent of GSEV1 within 3% truth: {good_count_3_1 / len(cwt_percent_diffs1) * 100}')
-    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(cwt_percent_diffs1) * 100}')
+        f'Percent of GSEV1 within 3% truth: {good_count_3_1 / len(gs_results_1) * 100}')
+    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(gs_results_1) * 100}')
     print(
-        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(cwt_percent_diffs1) * 100}')
+        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(gs_results_1) * 100}')
     print('\n')
     print(
-        f'Percent of GSEV2 within 1% truth: {good_count_1_2 / len(cwt_percent_diffs1) * 100}')
+        f'Percent of GSEV2 within 1% truth: {good_count_1_2 / len(gs_results_2) * 100}')
     print(
-        f'Percent of GSEV2 within 3% truth: {good_count_3_2 / len(cwt_percent_diffs1) * 100}')
+        f'Percent of GSEV2 within 3% truth: {good_count_3_2 / len(gs_results_2) * 100}')
     print(
-        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(cwt_percent_diffs2) * 100}')
+        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(gs_results_2) * 100}')
     print(
-        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(cwt_percent_diffs2) * 100}')
+        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(gs_results_2) * 100}')
     print('\n')
+    cwt_percent_diffs1 = [result['diff'] for result in gs_results_1 if not np.isnan(result['diff'])]
+    cwt_percent_diffs2 = [result['diff'] for result in gs_results_2 if not np.isnan(result['diff'])]
     print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
     print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs1, 'GSE1')
-    for result in gs_results_2:
-        id = result['ID']
-        trial = result['trial']
-        gs = result['gait_speed']
-    # Remove nan's from the results before calculating and printing descriptive statistics
-    # gs1 = [result['gait_speed'] for result in gs_results_1 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
-    # gs2 = [result['gait_speed'] for result in gs_results_2 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
-    # print_desc_stats(gs2, 'GSE2')
-    # plt.plot(gs1, cwt_percent_diffs1, 'bo')
-    # plt.plot(gs2, cwt_percent_diffs2, 'rv')
-    # plt.show()
 
+    fig, axes = plt.subplots(2)
+
+    t1_not_nan = [i['truth'] for i in gs_results_1 if not np.isnan(i['truth'])]
+    d1_not_nan = [i['diff'] for i in gs_results_1 if not np.isnan(i['diff'])]
+    t2_not_nan = [i['truth'] for i in gs_results_2 if not np.isnan(i['truth'])]
+    d2_not_nan = [i['diff'] for i in gs_results_2 if not np.isnan(i['diff'])]
+    axes[0].plot(t1_not_nan, d1_not_nan, 'bo')
+    axes[0].plot(t1_not_nan, np.zeros(len(t1_not_nan)))
+    axes[1].plot(t2_not_nan, d2_not_nan, 'bo')
+    axes[1].plot(t2_not_nan, np.zeros(len(t2_not_nan)))
+
+    plt.show()
 
     # bins = np.linspace(0.0, 2.0, 30)
     # fig, axes = plt.subplots(3)
