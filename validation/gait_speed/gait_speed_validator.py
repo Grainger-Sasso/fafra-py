@@ -85,6 +85,149 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
+    def analyze_gait_speed_estimators(self, dataset_path, clinical_demo_path,
+                                      segment_dataset, epoch_size):
+        # Build dataset
+        db = DatasetBuilder()
+        dataset = db.build_dataset(dataset_path, clinical_demo_path,
+                                   segment_dataset, epoch_size)
+        # Run dataset through low-pass filter
+        for user_data in dataset.get_dataset():
+            self.apply_lpf(user_data, plot=False)
+        # Run gait speed estimation on the dataset from both of the estimators
+        gs_results_v1 = self.calc_gait_speeds_v1(dataset, version_num='1.0',
+                                                hpf=False)
+        gs_results_v2 = self.calc_gait_speeds_v2(dataset, version_num='2.0',
+                                                hpf=False,
+                                                check_against_truth=False,
+                                                plot_gait_cycles=False)
+        # Compare the results with truth values
+        gs_results_1 = self.compare_gs_to_truth(gs_results_v1)
+        gs_results_2 = self.compare_gs_to_truth(gs_results_v2)
+        # Show performance comparison between the two estimators
+        self.run_analyzer_comparison(gs_results_1, gs_results_2)
+
+    def run_analyzer_comparison(self, gs_results_1, gs_results_2):
+        """
+        Comparison consists of displaying the occurrences of percentage
+        differences for both estimators and some plotting
+        """
+        gs1 = np.array([r['estimate'] for r in gs_results_1])
+        gs1_not_nan = [i['estimate'] for i in gs_results_1 if
+                       not np.isnan(i['estimate'])]
+        gs2 = np.array([r['estimate'] for r in gs_results_2])
+        gs2_not_nan = [i['estimate'] for i in gs_results_2 if
+                       not np.isnan(i['estimate'])]
+        cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
+                            self.subj_gs_truth.items()]
+
+        cwt_percent_diffs1 = [result['diff'] for result in gs_results_1 if
+                              not np.isnan(result['diff'])]
+        cwt_percent_diffs2 = [result['diff'] for result in gs_results_2 if
+                              not np.isnan(result['diff'])]
+
+        # Count the occurrences of percentage differences for both estimators
+        diff_counts_1 = self.count_percent_diff_occurrences(gs_results_1)
+        diff_counts_2 = self.count_percent_diff_occurrences(gs_results_2)
+
+        # Print results to consol, starting with number of not nan results
+        print(f'Number of diffs evaluated for 1 (not nan): {len(gs1_not_nan)}')
+        print(f'Number of diffs evaluated for 2 (not nan): {len(gs2_not_nan)}')
+        # Print the occurrences of percentage differences for both
+        gs1_len = len(gs1)
+        gs2_len = len(gs2)
+        self.print_perc_diff_occurrences(diff_counts_1, gs1_len, '1')
+        self.print_perc_diff_occurrences(diff_counts_2, gs2_len, '2')
+        print('\n')
+        # Print descriptive statistics for the results
+        self.print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
+        self.print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
+        self.print_desc_stats(cwt_truth_values, 'TRUTH')
+        self.print_desc_stats(gs1, 'GSE1')
+
+        # fig, axes = plt.subplots(2)
+        #
+        # t1_not_nan = [i['truth'] for i in gs_results_1 if
+        #               not np.isnan(i['truth'])]
+        # d1_not_nan = [i['diff'] for i in gs_results_1 if
+        #               not np.isnan(i['diff'])]
+        # t2_not_nan = [i['truth'] for i in gs_results_2 if
+        #               not np.isnan(i['truth'])]
+        # d2_not_nan = [i['diff'] for i in gs_results_2 if
+        #               not np.isnan(i['diff'])]
+        # axes[0].plot(t1_not_nan, d1_not_nan, 'bo')
+        # axes[0].plot(t1_not_nan, np.zeros(len(t1_not_nan)))
+        # axes[1].plot(t2_not_nan, d2_not_nan, 'bo')
+        # axes[1].plot(t2_not_nan, np.zeros(len(t2_not_nan)))
+        #
+        # plt.show()
+
+        # bins = np.linspace(0.0, 2.0, 30)
+        # fig, axes = plt.subplots(3)
+        # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+        # axes[0].legend(loc='upper right')
+        # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
+        # axes[1].legend(loc='upper right')
+        # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
+        # axes[2].legend(loc='upper right')
+        #
+        # # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+        # # plt.hist(gs1, bins, alpha=0.33, label='gs1')
+        # # plt.hist(gs2, bins, alpha=0.33, label='gs2')
+        # # plt.legend(loc='upper right')
+        # plt.show()
+
+    def print_perc_diff_occurrences(self, diff_counts, results_len, ver_num):
+        print(
+            f'Percent of GSEV{ver_num} within 1% truth: {(diff_counts[0] / results_len) * 100}')
+        print(
+            f'Percent of GSEV{ver_num} within 3% truth: {diff_counts[1] / results_len * 100}')
+        print(
+            f'Percent of GSEV{ver_num} within 5% truth: {diff_counts[2] / results_len * 100}')
+        print(
+            f'Percent of GSEV{ver_num} within 10% truth: {diff_counts[3] / results_len * 100}')
+        print('\n')
+
+
+    def count_percent_diff_occurrences(self, results):
+        count_1_percent = 0
+        count_3_percent = 0
+        count_5_percent = 0
+        count_10_percent = 0
+        for result in results:
+            diff = result['diff']
+            if not np.isnan(diff):
+                if diff < 1.0:
+                    count_1_percent += 1
+                if diff < 3.0:
+                    count_3_percent += 1
+                if diff < 5.0:
+                    count_5_percent += 1
+                if diff < 10.0:
+                    count_10_percent += 1
+        diff_counts = [count_1_percent, count_3_percent, count_5_percent,
+                         count_10_percent]
+        return diff_counts
+
+    def print_desc_stats(self, data, name):
+        print(name)
+        print(f'Min: {min(data)}')
+        print(f'Max: {max(data)}')
+        print(f'Mean: {np.mean(data)}')
+        print(f'Median: {np.median(data)}')
+        print(f'STD: {np.std(data)}')
+        print(f'Skewness: {skew(data)}')
+        if skew(data) > 0.0:
+            print('Data skews to lower values')
+        else:
+            print('Data skews to higher values')
+        print(f'Kurtosis {kurtosis(data)}')
+        if skew(data) > 0.0:
+            print('Tightly distributed')
+        else:
+            print('Widely distributed')
+        print('\n')
+
     def calc_gait_speeds_v1(self, dataset: Dataset, write_out_results=False,
                             ouput_dir='', version_num='1.0', hpf=False,
                             max_com_v_delta=0.14, check_against_truth=False,
@@ -156,10 +299,13 @@ class GaitSpeedValidator:
         for result in gs_results:
             if result['id'] in self.subj_gs_truth.keys() and not np.isnan(result['gait_speed']):
                 cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+                estimate = result['gait_speed']
                 result['truth'] = cwt_truth_value
-                result['diff'] = (abs(cwt_truth_value - result['gait_speed'])/cwt_truth_value * 100.0)
+                result['estimate'] = estimate
+                result['diff'] = (abs(cwt_truth_value - estimate)/cwt_truth_value * 100.0)
             else:
                 result['truth'] = np.nan
+                result['estimate'] = np.nan
                 result['diff'] = np.nan
         return gs_results
 
@@ -230,133 +376,12 @@ class GaitSpeedValidator:
 
 
 def main():
-    # Instantiate the Validator
     val = GaitSpeedValidator()
-    # Set dataset paths and builder parameters
     dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\GaitSpeedValidation\GaitSpeedValidation\Hexoskin Binary Data files 2\Hexoskin Binary Data files'
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
-    # Build dataset
-    db = DatasetBuilder()
-    dataset = db.build_dataset(dataset_path, clinical_demo_path,
-                               segment_dataset, epoch_size)
-    # Run dataset through low-pass filter
-    for user_data in dataset.get_dataset():
-        val.apply_lpf(user_data, plot=False)
-    gs_results_v1 = val.calc_gait_speeds_v1(dataset, version_num='1.0', hpf=False)
-    gs_results_v2 = val.calc_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=False, plot_gait_cycles=False)
-    # Perform validation
-    # run_comparison(val, gs_results)
-    # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
-    # gs_results = val.calculate_gait_speeds(dataset, True, baseline_out_path, version_num='1.0')
-    # run_baseline(val, gs_results)
-    run_analyzer_comparison(val, gs_results_v1, gs_results_v2)
-
-
-def run_analyzer_comparison(val, gs_results_1, gs_results_2):
-    # Run the validation
-    gs1 = np.array([r['gait_speed'] for r in gs_results_1])
-    gs1_not_nan = [i['gait_speed'] for i in gs_results_1 if not np.isnan(i['gait_speed']) and i['id'] in val.subj_gs_truth.keys()]
-    gs2 = np.array([r['gait_speed'] for r in gs_results_2])
-    gs2_not_nan = [i['gait_speed'] for i in gs_results_2 if not np.isnan(i['gait_speed']) and i['id'] in val.subj_gs_truth.keys()]
-    cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
-                        val.subj_gs_truth.items()]
-    gs_results_1 = val.compare_gs_to_truth(gs_results_1)
-    gs_results_2 = val.compare_gs_to_truth(gs_results_2)
-
-    print(f'Number of diffs evaluated for 1: {len(gs1_not_nan)}')
-    good_count_1_1 = 0
-    good_count_3_1 = 0
-    good_count_5_1 = 0
-    good_count_10_1 = 0
-    for result in gs_results_1:
-        diff = result['diff']
-        if not np.isnan(diff):
-            if diff < 1.0:
-                good_count_1_1 += 1
-            if diff < 3.0:
-                good_count_3_1 += 1
-            if diff < 5.0:
-                good_count_5_1 += 1
-            if diff < 10.0:
-                good_count_10_1 += 1
-
-    print(f'Number of diffs evaluated for 2: {len(gs2_not_nan)}')
-    good_count_1_2 = 0
-    good_count_3_2 = 0
-    good_count_5_2 = 0
-    good_count_10_2 = 0
-    for result in gs_results_2:
-        diff = result['diff']
-        if not np.isnan(diff):
-            if diff < 1.0:
-                good_count_1_1 += 1
-            if diff < 3.0:
-                good_count_3_1 += 1
-            if diff < 5.0:
-                good_count_5_1 += 1
-            if diff < 10.0:
-                good_count_10_1 += 1
-
-    print('\n')
-    print(
-        f'Percent of GSEV1 within 1% truth: {(good_count_1_1 / len(gs_results_1)) * 100}')
-    print(
-        f'Percent of GSEV1 within 3% truth: {good_count_3_1 / len(gs_results_1) * 100}')
-    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(gs_results_1) * 100}')
-    print(
-        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(gs_results_1) * 100}')
-    print('\n')
-    print(
-        f'Percent of GSEV2 within 1% truth: {good_count_1_2 / len(gs_results_2) * 100}')
-    print(
-        f'Percent of GSEV2 within 3% truth: {good_count_3_2 / len(gs_results_2) * 100}')
-    print(
-        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(gs_results_2) * 100}')
-    print(
-        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(gs_results_2) * 100}')
-    print('\n')
-    cwt_percent_diffs1 = [result['diff'] for result in gs_results_1 if not np.isnan(result['diff'])]
-    cwt_percent_diffs2 = [result['diff'] for result in gs_results_2 if not np.isnan(result['diff'])]
-    print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
-    print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
-    print_desc_stats(cwt_truth_values, 'TRUTH')
-    print_desc_stats(gs1, 'GSE1')
-
-    fig, axes = plt.subplots(2)
-
-    t1_not_nan = [i['truth'] for i in gs_results_1 if not np.isnan(i['truth'])]
-    d1_not_nan = [i['diff'] for i in gs_results_1 if not np.isnan(i['diff'])]
-    t2_not_nan = [i['truth'] for i in gs_results_2 if not np.isnan(i['truth'])]
-    d2_not_nan = [i['diff'] for i in gs_results_2 if not np.isnan(i['diff'])]
-    axes[0].plot(t1_not_nan, d1_not_nan, 'bo')
-    axes[0].plot(t1_not_nan, np.zeros(len(t1_not_nan)))
-    axes[1].plot(t2_not_nan, d2_not_nan, 'bo')
-    axes[1].plot(t2_not_nan, np.zeros(len(t2_not_nan)))
-
-    plt.show()
-
-    # bins = np.linspace(0.0, 2.0, 30)
-    # fig, axes = plt.subplots(3)
-    # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    # axes[0].legend(loc='upper right')
-    # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
-    # axes[1].legend(loc='upper right')
-    # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
-    # axes[2].legend(loc='upper right')
-    #
-    # # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    # # plt.hist(gs1, bins, alpha=0.33, label='gs1')
-    # # plt.hist(gs2, bins, alpha=0.33, label='gs2')
-    # # plt.legend(loc='upper right')
-    # plt.show()
-
-
-def run_baseline(val, gs_results):
-    full_baseline_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0\gait_speed_estimator_results_v1.0_20220204-124523.json'
-    errors = val.compare_gse_to_baseline(gs_results, full_baseline_path)
-    print(errors)
+    val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size)
 
 
 def run_comparison(val, gs_results):
@@ -371,26 +396,6 @@ def run_comparison(val, gs_results):
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs, 'GSE')
     print('a')
-
-
-def print_desc_stats(data, name):
-    print(name)
-    print(f'Min: {min(data)}')
-    print(f'Max: {max(data)}')
-    print(f'Mean: {np.mean(data)}')
-    print(f'Median: {np.median(data)}')
-    print(f'STD: {np.std(data)}')
-    print(f'Skewness: {skew(data)}')
-    if skew(data) > 0.0:
-        print('Data skews to lower values')
-    else:
-        print('Data skews to higher values')
-    print(f'Kurtosis {kurtosis(data)}')
-    if skew(data) > 0.0:
-        print('Tightly distributed')
-    else:
-        print('Widely distributed')
-    print('\n')
 
 
 if __name__ == '__main__':
