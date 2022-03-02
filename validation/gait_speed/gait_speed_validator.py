@@ -85,6 +85,13 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
+    def get_cwt_truth_values(self, comparison_results):
+        truth_vals = []
+        for result in comparison_results:
+            if result['id'] in self.subj_gs_truth.keys():
+                truth_vals.append(self.subj_gs_truth[result['id']]['CWT'])
+        return truth_vals
+
     def analyze_gait_speed_estimators(self, dataset_path, clinical_demo_path,
                                       segment_dataset, epoch_size):
         # Build dataset
@@ -101,49 +108,57 @@ class GaitSpeedValidator:
                                                 hpf=False,
                                                 check_against_truth=False,
                                                 plot_gait_cycles=False)
-        # Compare the results with truth values
-        gs_results_1 = self.compare_gs_to_truth(gs_results_v1)
-        gs_results_2 = self.compare_gs_to_truth(gs_results_v2)
+        # Compare the results with truth values, this returns a comparison for
+        # every estimate that has a corresponding truth value (including) est-
+        # imates that are nan
+        truth_comparisons_1 = self.compare_gs_to_truth(gs_results_v1)
+        truth_comparisons_2 = self.compare_gs_to_truth(gs_results_v2)
         # Show performance comparison between the two estimators
-        self.run_analyzer_comparison(gs_results_1, gs_results_2)
+        self.compare_analyzers(truth_comparisons_1, truth_comparisons_2)
 
-    def run_analyzer_comparison(self, gs_results_1, gs_results_2):
+    def compare_analyzers(self, truth_comparisons_1, truth_comparisons_2):
         """
         Comparison consists of displaying the occurrences of percentage
         differences for both estimators and some plotting
         """
-        gs1 = np.array([r['estimate'] for r in gs_results_1])
-        gs1_not_nan = [i['estimate'] for i in gs_results_1 if
-                       not np.isnan(i['estimate'])]
-        gs2 = np.array([r['estimate'] for r in gs_results_2])
-        gs2_not_nan = [i['estimate'] for i in gs_results_2 if
-                       not np.isnan(i['estimate'])]
-        cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
-                            self.subj_gs_truth.items()]
-
-        cwt_percent_diffs1 = [result['diff'] for result in gs_results_1 if
-                              not np.isnan(result['diff'])]
-        cwt_percent_diffs2 = [result['diff'] for result in gs_results_2 if
-                              not np.isnan(result['diff'])]
-
-        # Count the occurrences of percentage differences for both estimators
-        diff_counts_1 = self.count_percent_diff_occurrences(gs_results_1)
-        diff_counts_2 = self.count_percent_diff_occurrences(gs_results_2)
-
-        # Print results to consol, starting with number of not nan results
-        print(f'Number of diffs evaluated for 1 (not nan): {len(gs1_not_nan)}')
-        print(f'Number of diffs evaluated for 2 (not nan): {len(gs2_not_nan)}')
-        # Print the occurrences of percentage differences for both
-        gs1_len = len(gs1)
-        gs2_len = len(gs2)
-        self.print_perc_diff_occurrences(diff_counts_1, gs1_len, '1')
-        self.print_perc_diff_occurrences(diff_counts_2, gs2_len, '2')
+        # Print the number of files that an estimate was made for
+        print(f'[1] Number of estimates (including nan): {len(truth_comparisons_1)}')
+        print(f'[2] Number of estimates (including nan): {len(truth_comparisons_2)}')
         print('\n')
-        # Print descriptive statistics for the results
-        self.print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
-        self.print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
-        self.print_desc_stats(cwt_truth_values, 'TRUTH')
-        self.print_desc_stats(gs1, 'GSE1')
+        # Print the number of files that an estimate was made for where the
+        # result was not nan
+        est_not_nan_1 = [comp for comp in truth_comparisons_1 if
+                         not np.isnan(comp['estimate'])]
+        number_est_not_nan_1 = len(est_not_nan_1)
+        est_not_nan_2 = [comp for comp in truth_comparisons_2 if
+                         not np.isnan(comp['estimate'])]
+        number_est_not_nan_2 = len(est_not_nan_2)
+        print(f'[1] Number of estimates (NOT including nan): {number_est_not_nan_1}')
+        print(f'[2] Number of estimates (NOT including nan): {number_est_not_nan_2}')
+        print('\n')
+        # Print the number of occurrences of percent differences below given values
+        # Count the occurrences of percentage differences for both estimators
+        eval_percentages = [1.0, 3.0, 5.0, 10.0]
+        diff_counts_1 = self.count_percent_diff_occurrences(truth_comparisons_1, eval_percentages)
+        diff_counts_2 = self.count_percent_diff_occurrences(truth_comparisons_2, eval_percentages)
+        self.print_perc_diff_occurrences(diff_counts_1, len(truth_comparisons_1), '1', eval_percentages)
+        self.print_perc_diff_occurrences(diff_counts_2, len(truth_comparisons_2), '2', eval_percentages)
+
+        # Print descriptive statistics for the results where results are not nan
+        percent_diffs_1 = [comp['diff'] for comp in truth_comparisons_1 if
+                           not np.isnan(comp['diff'])]
+        percent_diffs_2 = [comp['diff'] for comp in truth_comparisons_2 if
+                           not np.isnan(comp['diff'])]
+        truth_values = self.get_cwt_truth_values(truth_comparisons_1)
+        estamates_1 = [comp['estimate'] for comp in truth_comparisons_1 if
+                           not np.isnan(comp['estimate'])]
+        estamates_2 = [comp['estimate'] for comp in truth_comparisons_2 if
+                       not np.isnan(comp['estimate'])]
+        self.print_desc_stats(percent_diffs_1, 'DIFFS1')
+        self.print_desc_stats(percent_diffs_2, 'DIFFS2')
+        self.print_desc_stats(truth_values, 'TRUTH')
+        self.print_desc_stats(estamates_1, 'GSE1')
+        self.print_desc_stats(estamates_2, 'GSE2')
 
         # fig, axes = plt.subplots(2)
         #
@@ -177,36 +192,23 @@ class GaitSpeedValidator:
         # # plt.legend(loc='upper right')
         # plt.show()
 
-    def print_perc_diff_occurrences(self, diff_counts, results_len, ver_num):
-        print(
-            f'Percent of GSEV{ver_num} within 1% truth: {(diff_counts[0] / results_len) * 100}')
-        print(
-            f'Percent of GSEV{ver_num} within 3% truth: {diff_counts[1] / results_len * 100}')
-        print(
-            f'Percent of GSEV{ver_num} within 5% truth: {diff_counts[2] / results_len * 100}')
-        print(
-            f'Percent of GSEV{ver_num} within 10% truth: {diff_counts[3] / results_len * 100}')
+
+    def print_perc_diff_occurrences(self, diff_counts, results_len, ver_num, eval_percentages):
+        for percentage, diff_count in zip(eval_percentages, diff_counts):
+            print(
+                f'Percent of GSEV{ver_num} within {str(percentage)}% truth: {(diff_count / results_len) * 100}')
         print('\n')
 
-
-    def count_percent_diff_occurrences(self, results):
-        count_1_percent = 0
-        count_3_percent = 0
-        count_5_percent = 0
-        count_10_percent = 0
-        for result in results:
-            diff = result['diff']
-            if not np.isnan(diff):
-                if diff < 1.0:
-                    count_1_percent += 1
-                if diff < 3.0:
-                    count_3_percent += 1
-                if diff < 5.0:
-                    count_5_percent += 1
-                if diff < 10.0:
-                    count_10_percent += 1
-        diff_counts = [count_1_percent, count_3_percent, count_5_percent,
-                         count_10_percent]
+    def count_percent_diff_occurrences(self, results, eval_percentages):
+        diff_counts = []
+        for percentage in eval_percentages:
+            count = 0
+            for result in results:
+                diff = result['diff']
+                if not np.isnan(diff):
+                    if diff < percentage:
+                        count += 1
+            diff_counts.append(count)
         return diff_counts
 
     def print_desc_stats(self, data, name):
@@ -227,6 +229,29 @@ class GaitSpeedValidator:
         else:
             print('Widely distributed')
         print('\n')
+
+    def compare_gs_to_truth(self, gs_results):
+        truth_comparisons = []
+        for result in gs_results:
+            # If the result has a truth value in the list of truth values
+            if result['id'] in self.subj_gs_truth.keys():
+                # Compare the estimate to the truth value
+                comparison = {}
+                comparison['id'] = result['id']
+                cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+                comparison['truth'] = cwt_truth_value
+                # If the gs estimate is not a nan value, compare it to truth
+                if not np.isnan(result['gait_speed']):
+                    estimate = result['gait_speed']
+                    comparison['estimate'] = estimate
+                    comparison['diff'] = (
+                                abs(cwt_truth_value - estimate) / cwt_truth_value * 100.0)
+                # Otherwise, add nan as the comparison value
+                else:
+                    comparison['estimate'] = np.nan
+                    comparison['diff'] = np.nan
+                truth_comparisons.append(comparison)
+        return truth_comparisons
 
     def calc_gait_speeds_v1(self, dataset: Dataset, write_out_results=False,
                             ouput_dir='', version_num='1.0', hpf=False,
@@ -293,20 +318,6 @@ class GaitSpeedValidator:
             output_path = os.path.join(ouput_dir, filename)
             with open(output_path, 'w') as f:
                 json.dump(gs_results, f)
-        return gs_results
-
-    def compare_gs_to_truth(self, gs_results):
-        for result in gs_results:
-            if result['id'] in self.subj_gs_truth.keys() and not np.isnan(result['gait_speed']):
-                cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
-                estimate = result['gait_speed']
-                result['truth'] = cwt_truth_value
-                result['estimate'] = estimate
-                result['diff'] = (abs(cwt_truth_value - estimate)/cwt_truth_value * 100.0)
-            else:
-                result['truth'] = np.nan
-                result['estimate'] = np.nan
-                result['diff'] = np.nan
         return gs_results
 
     def compare_gse_to_baseline(self, gs_results, baseline_path):
