@@ -95,7 +95,7 @@ class GaitSpeedValidator:
         return truth_vals
 
     def analyze_gait_speed_estimators(self, dataset_path, clinical_demo_path,
-                                      segment_dataset, epoch_size, results_location, eval_percentages):
+                                      segment_dataset, epoch_size, results_location, eval_percentages, write_out_results):
         # Build dataset
         db = DatasetBuilder()
         dataset = db.build_dataset(dataset_path, clinical_demo_path,
@@ -106,17 +106,11 @@ class GaitSpeedValidator:
         # Run gait speed estimation on the dataset from both of the estimators
         gs_results_v1 = self.calc_gait_speeds_v1(dataset, version_num='1.0',
                                                 hpf=False)
-        gs_results_v2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_location, version_num='2.0',
-                                                hpf=False,
-                                                check_against_truth=False,
-                                                plot_gait_cycles=False)
+        gs_results_v2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_location)
         # Compare the results with truth values, this returns a comparison for
         # every estimate that has a corresponding truth value (including) est-
         # imates that are nan
         self.compare_analyzers(gs_results_v1, gs_results_v2, eval_percentages)
-        if results_location:
-            # Export the results for each file in given bands
-            pass
 
     def compare_analyzers(self, truth_comparisons_1, truth_comparisons_2, eval_percentages):
         """
@@ -233,7 +227,7 @@ class GaitSpeedValidator:
 
     def calc_gait_speeds_v1(self, dataset: Dataset, write_out_results=False,
                             ouput_dir='', version_num='1.0', hpf=False,
-                            max_com_v_delta=0.14, check_against_truth=False,
+                            max_com_v_delta=0.14,
                             plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
         gs_results = []
@@ -253,10 +247,11 @@ class GaitSpeedValidator:
                 json.dump(gs_results, f)
         return truth_comparisons
 
-    def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages, results_location, write_out_results=False,
-                            ouput_dir='', version_num='2.0', hpf=False,
-                            max_com_v_delta=0.14, check_against_truth=False,
-                            plot_gait_cycles=False):
+    def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
+                            results_location, write_out_results=False,
+                            hpf=False, max_com_v_delta=0.14,
+                            plot_gait_cycles=True):
+        # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
         # Estimate the gait speed for every user/trial in dataset
         gs_results = []
         ga = GaitAnalyzerV2()
@@ -289,7 +284,7 @@ class GaitSpeedValidator:
             # less than the given evaluation percentage
             for result, comp in zip(gs_results, truth_comparisons):
                 diff = comp['diff']
-                if diff < percentage:
+                if not np.isnan(diff) and diff < percentage:
                     user = comp['id']
                     trial = comp['trial']
                     fig_num = result['fig_num']
@@ -403,9 +398,10 @@ def main():
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
-    results_location = 'path'
+    results_location = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\evaluation_percentages'
     eval_percentages = [1.0, 3.0, 5.0, 10.0]
-    val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_location, eval_percentages)
+    write_out_results = True
+    val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_location, eval_percentages, write_out_results)
 
 
 def run_comparison(val, gs_results):
