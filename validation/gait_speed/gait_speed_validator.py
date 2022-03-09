@@ -187,7 +187,6 @@ class GaitSpeedValidator:
         # # plt.legend(loc='upper right')
         # plt.show()
 
-
     def print_perc_diff_occurrences(self, diff_counts, results_len, ver_num, eval_percentages):
         for percentage, diff_count in zip(eval_percentages, diff_counts):
             print(
@@ -253,7 +252,7 @@ class GaitSpeedValidator:
                             plot_gait_cycles=True):
         # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
         # Estimate the gait speed for every user/trial in dataset
-        gs_results = []
+        truth_comparisons = []
         ga = GaitAnalyzerV2()
         count = 0
         for user_data in dataset.get_dataset():
@@ -261,17 +260,19 @@ class GaitSpeedValidator:
             trial = user_data.get_clinical_demo_data().get_trial()
             gait_speed, fig = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
-            # Get the figure number of the figure
-            fig_num = plt.gcf().number
-            gs_results.append(dict({'id': user_id, 'trial': trial,
-                                    'gait_speed': gait_speed, 'fig': fig_num}))
-        truth_comparisons = self.compare_gs_to_truth_val(gs_results)
-        if write_out_results:
-            self.write_out_gs2_comparison_results(gs_results, truth_comparisons, eval_percentages, results_location)
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed}
+            if user_id in self.subj_gs_truth.keys():
+                comparison = self.compare_gs_to_truth_val(result)
+                truth_comparisons.append(comparison)
+                if write_out_results:
+                    self.write_out_gs2_comparison_results(comparison, fig,
+                                                          eval_percentages,
+                                                          results_location)
+            fig.close()
         return truth_comparisons
 
-    def write_out_gs2_comparison_results(self, gs_results,
-                                        truth_comparisons, eval_percentages, results_location):
+    def write_out_gs2_comparison_results(self, comparison, fig, eval_percentages,
+                                         results_location):
         timestr = time.strftime("%Y%m%d-%H%M%S")
         result_path = os.path.join(results_location, timestr)
         Path(result_path).mkdir(parents=True, exist_ok=True)
@@ -282,49 +283,66 @@ class GaitSpeedValidator:
             Path(perc_dir_path).mkdir(parents=True, exist_ok=True)
             # Write out every figure and JSON file that has a truth difference
             # less than the given evaluation percentage
-            for result, comp in zip(gs_results, truth_comparisons):
-                diff = comp['diff']
-                if not np.isnan(diff) and diff < percentage:
-                    user = comp['id']
-                    trial = comp['trial']
-                    fig_num = result['fig_num']
-                    uuid = str(uuid4())
-                    # Create filename and path for JSON data
-                    json_file_name = f'diff_{diff}_{user}_{trial}_{uuid}.json'
-                    json_file_path = os.path.join(perc_dir_path, json_file_name)
-                    # Create filename and path for figure data
-                    fig_file_name = f'fig_{diff}_{user}_{trial}_{uuid}.png'
-                    fig_file_path = os.path.join(perc_dir_path, fig_file_name)
-                    # Write out data to JSON file
-                    with open(json_file_path, 'w') as jf:
-                        json.dump(comp, jf)
-                    # Write out figure to PNG file
-                    plt.figure(fig_num)
-                    plt.savefig(fig_file_path)
+            diff = comparison['diff']
+            if not np.isnan(diff) and diff < percentage:
+                user = comparison['id']
+                trial = comparison['trial']
+                uuid = str(uuid4())
+                # Create filename and path for JSON data
+                json_file_name = f'diff_{diff}_{user}_{trial}_{uuid}.json'
+                json_file_path = os.path.join(perc_dir_path, json_file_name)
+                # Create filename and path for figure data
+                fig_file_name = f'fig_{diff}_{user}_{trial}_{uuid}.png'
+                fig_file_path = os.path.join(perc_dir_path, fig_file_name)
+                # Write out data to JSON file
+                with open(json_file_path, 'w') as jf:
+                    json.dump(comparison, jf)
+                # Write out figure to PNG file
+                plt.savefig(fig)
 
-    def compare_gs_to_truth_val(self, gs_results):
-        truth_comparisons = []
-        for result in gs_results:
-            # If the result has a truth value in the list of truth values
-            if result['id'] in self.subj_gs_truth.keys():
-                # Compare the estimate to the truth value
-                comparison = {}
-                comparison['id'] = result['id']
-                comparison['trial'] = result['trial']
-                cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
-                comparison['truth'] = cwt_truth_value
-                # If the gs estimate is not a nan value, compare it to truth
-                if not np.isnan(result['gait_speed']):
-                    estimate = result['gait_speed']
-                    comparison['estimate'] = estimate
-                    comparison['diff'] = (
-                            abs(cwt_truth_value - estimate) / cwt_truth_value * 100.0)
-                # Otherwise, add nan as the comparison value
-                else:
-                    comparison['estimate'] = np.nan
-                    comparison['diff'] = np.nan
-                truth_comparisons.append(comparison)
-        return truth_comparisons
+    def compare_gs_to_truth_val(self, result):
+        # Compare the estimate to the truth value
+        comparison = {}
+        comparison['id'] = result['id']
+        comparison['trial'] = result['trial']
+        cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+        comparison['truth'] = cwt_truth_value
+        # If the gs estimate is not a nan value, compare it to truth
+        if not np.isnan(result['gait_speed']):
+            estimate = result['gait_speed']
+            comparison['estimate'] = estimate
+            comparison['diff'] = (
+                    abs(cwt_truth_value - estimate) / cwt_truth_value * 100.0)
+        # Otherwise, add nan as the comparison value
+        else:
+            comparison['estimate'] = np.nan
+            comparison['diff'] = np.nan
+        return comparison
+
+
+    # def compare_gs_to_truth_val(self, gs_results):
+    #     truth_comparisons = []
+    #     for result in gs_results:
+    #         # If the result has a truth value in the list of truth values
+    #         if result['id'] in self.subj_gs_truth.keys():
+    #             # Compare the estimate to the truth value
+    #             comparison = {}
+    #             comparison['id'] = result['id']
+    #             comparison['trial'] = result['trial']
+    #             cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+    #             comparison['truth'] = cwt_truth_value
+    #             # If the gs estimate is not a nan value, compare it to truth
+    #             if not np.isnan(result['gait_speed']):
+    #                 estimate = result['gait_speed']
+    #                 comparison['estimate'] = estimate
+    #                 comparison['diff'] = (
+    #                         abs(cwt_truth_value - estimate) / cwt_truth_value * 100.0)
+    #             # Otherwise, add nan as the comparison value
+    #             else:
+    #                 comparison['estimate'] = np.nan
+    #                 comparison['diff'] = np.nan
+    #             truth_comparisons.append(comparison)
+    #     return truth_comparisons
 
     def compare_gse_to_baseline(self, gs_results, baseline_path):
         # Read in the baseline comparisons from baseline path
