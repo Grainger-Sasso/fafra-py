@@ -106,7 +106,7 @@ class GaitSpeedValidator:
         # Run gait speed estimation on the dataset from both of the estimators
         gs_results_v1 = self.calc_gait_speeds_v1(dataset, version_num='1.0',
                                                 hpf=False)
-        gs_results_v2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_location)
+        gs_results_v2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_location, write_out_results=write_out_results)
         # Compare the results with truth values, this returns a comparison for
         # every estimate that has a corresponding truth value (including) est-
         # imates that are nan
@@ -229,21 +229,22 @@ class GaitSpeedValidator:
                             max_com_v_delta=0.14,
                             plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
-        gs_results = []
         ga = GaitAnalyzer()
+        truth_comparisons = []
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
             gait_speed = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
-            gs_results.append(dict({'id': user_id, 'trial': trial,
-                                    'gait_speed': gait_speed}))
-        truth_comparisons = self.compare_gs_to_truth_val(gs_results)
-        if write_out_results:
-            filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
-            output_path = os.path.join(ouput_dir, filename)
-            with open(output_path, 'w') as f:
-                json.dump(gs_results, f)
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed}
+            if user_id in self.subj_gs_truth.keys():
+                comparison = self.compare_gs_to_truth_val(result)
+                truth_comparisons.append(comparison)
+        # if write_out_results:
+        #     filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        #     output_path = os.path.join(ouput_dir, filename)
+        #     with open(output_path, 'w') as f:
+        #         json.dump(gs_results, f)
         return truth_comparisons
 
     def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
@@ -268,23 +269,25 @@ class GaitSpeedValidator:
                     self.write_out_gs2_comparison_results(comparison, fig,
                                                           eval_percentages,
                                                           results_location)
-            fig.close()
+            plt.close()
         return truth_comparisons
 
     def write_out_gs2_comparison_results(self, comparison, fig, eval_percentages,
                                          results_location):
-        timestr = time.strftime("%Y%m%d-%H%M%S")
-        result_path = os.path.join(results_location, timestr)
-        Path(result_path).mkdir(parents=True, exist_ok=True)
+        # TODO: results are not being written out correctly, there needs to be a check on the diff value to see where the particular result gets output to
         # For every percentage in the evaluation percentages
         for percentage in eval_percentages:
             # Create a folder for each evaluation percentage
-            perc_dir_path = os.path.join(results_location, f'percentile_{str(percentage)}%')
+            perc_dir_path = os.path.join(results_location,
+                                         f'percentile_{str(percentage)}%')
             Path(perc_dir_path).mkdir(parents=True, exist_ok=True)
             # Write out every figure and JSON file that has a truth difference
             # less than the given evaluation percentage
             diff = comparison['diff']
             if not np.isnan(diff) and diff < percentage:
+                timestr = time.strftime("%Y%m%d-%H%M%S")
+                result_path = os.path.join(perc_dir_path, timestr)
+                Path(result_path).mkdir(parents=True, exist_ok=True)
                 user = comparison['id']
                 trial = comparison['trial']
                 uuid = str(uuid4())
@@ -298,7 +301,7 @@ class GaitSpeedValidator:
                 with open(json_file_path, 'w') as jf:
                     json.dump(comparison, jf)
                 # Write out figure to PNG file
-                plt.savefig(fig)
+                plt.savefig(fig_file_path)
 
     def compare_gs_to_truth_val(self, result):
         # Compare the estimate to the truth value
@@ -417,7 +420,7 @@ def main():
     segment_dataset = False
     epoch_size = 0.0
     results_location = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\evaluation_percentages'
-    eval_percentages = [1.0, 3.0, 5.0, 10.0]
+    eval_percentages = [1.0, 3.0, 5.0, 10.0, 100.0]
     write_out_results = True
     val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_location, eval_percentages, write_out_results)
 
