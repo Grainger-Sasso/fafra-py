@@ -256,6 +256,9 @@ class GaitSpeedValidator:
         truth_comparisons = []
         ga = GaitAnalyzerV2()
         count = 0
+        if write_out_results:
+            # Generate the directories based on evaluation percentages
+            percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
@@ -268,40 +271,54 @@ class GaitSpeedValidator:
                 if write_out_results:
                     self.write_out_gs2_comparison_results(comparison, fig,
                                                           eval_percentages,
-                                                          results_location)
+                                                          percentage_dirs)
             plt.close()
         return truth_comparisons
 
-    def write_out_gs2_comparison_results(self, comparison, fig, eval_percentages,
-                                         results_location):
-        # TODO: results are not being written out correctly, there needs to be a check on the diff value to see where the particular result gets output to
-        # For every percentage in the evaluation percentages
+    def generate_percentage_dirs(self, eval_percentages, results_location):
+        percentage_dirs = {}
         for percentage in eval_percentages:
             # Create a folder for each evaluation percentage
             perc_dir_path = os.path.join(results_location,
-                                         f'percentile_{str(percentage)}%')
+                                         f'percentile_{str(percentage)[:-2]}')
             Path(perc_dir_path).mkdir(parents=True, exist_ok=True)
-            # Write out every figure and JSON file that has a truth difference
-            # less than the given evaluation percentage
-            diff = comparison['diff']
-            if not np.isnan(diff) and diff < percentage:
-                timestr = time.strftime("%Y%m%d-%H%M%S")
-                result_path = os.path.join(perc_dir_path, timestr)
-                Path(result_path).mkdir(parents=True, exist_ok=True)
-                user = comparison['id']
-                trial = comparison['trial']
-                uuid = str(uuid4())
-                # Create filename and path for JSON data
-                json_file_name = f'diff_{diff}_{user}_{trial}_{uuid}.json'
-                json_file_path = os.path.join(perc_dir_path, json_file_name)
-                # Create filename and path for figure data
-                fig_file_name = f'fig_{diff}_{user}_{trial}_{uuid}.png'
-                fig_file_path = os.path.join(perc_dir_path, fig_file_name)
-                # Write out data to JSON file
-                with open(json_file_path, 'w') as jf:
-                    json.dump(comparison, jf)
-                # Write out figure to PNG file
-                plt.savefig(fig_file_path)
+            percentage_dirs[str(percentage)] = perc_dir_path
+        return percentage_dirs
+
+
+    def write_out_gs2_comparison_results(self, comparison, fig, eval_percentages,
+                                         percentage_dirs):
+        # Get the directory path that corresponds with the percentage difference
+        diff = comparison['diff']
+        if not np.isnan(diff):
+            perc_dir_path = self.get_corresponding_perc_dir(diff,
+                                                            percentage_dirs)
+            # Create filename and path for figure data
+            user = comparison['id']
+            trial = comparison['trial']
+            uuid = str(uuid4())
+            # Create filename and path for JSON data
+            json_file_name = f'{str(diff)[:6]}_{user}_{trial}_{uuid}.json'
+            json_file_path = os.path.join(perc_dir_path, json_file_name)
+            # Write out data to JSON file
+            with open(json_file_path, 'w') as jf:
+                json.dump(comparison, jf)
+            fig_file_name = f'{str(diff)[:6]}_{user}_{trial}_{uuid}.png'
+            fig_file_path = os.path.join(perc_dir_path, fig_file_name)
+            # Write out figure to PNG file
+            plt.savefig(fig_file_path)
+
+    def get_corresponding_perc_dir(self, diff, percentage_dirs):
+        perc_dir_path = ''
+        prev_perc = 0.0
+        for perc, path in percentage_dirs.items():
+            perc = float(perc)
+            if prev_perc < diff < perc:
+                perc_dir_path = path
+                break
+            else:
+                prev_perc = perc
+        return perc_dir_path
 
     def compare_gs_to_truth_val(self, result):
         # Compare the estimate to the truth value
@@ -420,7 +437,7 @@ def main():
     segment_dataset = False
     epoch_size = 0.0
     results_location = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\evaluation_percentages'
-    eval_percentages = [1.0, 3.0, 5.0, 10.0, 100.0]
+    eval_percentages = [1.0, 3.0, 5.0, 10.0, 25.0, 50.0, 100.0]
     write_out_results = True
     val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_location, eval_percentages, write_out_results)
 
