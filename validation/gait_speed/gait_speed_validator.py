@@ -155,6 +155,13 @@ class GaitSpeedValidator:
         self.print_desc_stats(estamates_1, 'GSE1')
         self.print_desc_stats(estamates_2, 'GSE2')
 
+        for value in truth_comparisons_2:
+            est = value['estimate']
+            if not np.isnan(est):
+                truth = value['truth']
+                plt.plot(truth, est, 'b.')
+        plt.plot([0.25, 1.75], [0.25, 1.75])
+        plt.show()
         # fig, axes = plt.subplots(2)
         #
         # t1_not_nan = [i['truth'] for i in gs_results_1 if
@@ -250,7 +257,7 @@ class GaitSpeedValidator:
     def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
                             results_location, write_out_results=False,
                             hpf=False, max_com_v_delta=0.14,
-                            plot_gait_cycles=True):
+                            plot_gait_cycles=False):
         # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
         # Estimate the gait speed for every user/trial in dataset
         truth_comparisons = []
@@ -438,7 +445,7 @@ def main():
     epoch_size = 0.0
     results_location = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\evaluation_percentages'
     eval_percentages = [1.0, 3.0, 5.0, 10.0, 25.0, 50.0, 100.0]
-    write_out_results = True
+    write_out_results = False
     val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_location, eval_percentages, write_out_results)
 
 
