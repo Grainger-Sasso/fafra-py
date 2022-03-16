@@ -6,6 +6,9 @@ import time
 from uuid import uuid4
 from scipy.stats import skew
 from scipy.stats import kurtosis
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 from matplotlib import pyplot as plt
 from pathlib import Path
 
@@ -110,7 +113,67 @@ class GaitSpeedValidator:
         # Compare the results with truth values, this returns a comparison for
         # every estimate that has a corresponding truth value (including) est-
         # imates that are nan
-        self.compare_analyzers(gs_results_v1, gs_results_v2, eval_percentages)
+        self.generate_analysis_results(gs_results_v1, gs_results_v2, results_location)
+
+    def generate_analysis_results(self, truth_comparisons_1, truth_comparisons_2, results_location):
+        truth_1, estimate_1 = self.get_truth_estimate_pairs(truth_comparisons_1)
+        truth_2, estimate_2 = self.get_truth_estimate_pairs(truth_comparisons_2)
+        # Calculate pearson correlation coefficient (R)
+        pearson_r_1 = pearsonr(truth_1, estimate_1)
+        pearson_r_2 = pearsonr(truth_2, estimate_2)
+        # Calculate root mean square error (RMSE)
+        rmse_1 = mean_squared_error(truth_1, estimate_1, squared=False)
+        rmse_2 = mean_squared_error(truth_2, estimate_2, squared=False)
+        # Calculate mean absolute error (MAE)
+        mae_1 = mean_absolute_error(truth_1, estimate_1)
+        mae_2 = mean_absolute_error(truth_2, estimate_2)
+        # Put the results into JSON format an output metrics+plot to directory
+        # Generate plots of estimated gs vs measured gs
+        self.plot_est_measured(truth_comparisons_1, truth_comparisons_2, pearson_r_1, pearson_r_2)
+        pass
+
+    def get_truth_estimate_pairs(self, truth_comparisons):
+        truth = [result['truth'] for result in truth_comparisons if not np.isnan(result['estimate'])]
+        estimate = [result['estimate'] for result in truth_comparisons if not np.isnan(result['estimate'])]
+        return truth, estimate
+
+    def plot_est_measured(self, truth_comparisons_1, truth_comparisons_2,
+                          pearson_r_1, pearson_r_2):
+        # TODO: add figure titles, axis titles, reformat the r and p values
+        # GENERATES PLOTS OF ESTIMATED VS MEASURED GAIT SPEED
+        fig, axes = plt.subplots(2)
+        for value in truth_comparisons_1:
+            est = value['estimate']
+            if not np.isnan(est):
+                truth = value['truth']
+                axes[0].plot(truth, est, 'b.')
+        for value in truth_comparisons_2:
+            est = value['estimate']
+            if not np.isnan(est):
+                truth = value['truth']
+                axes[1].plot(truth, est, 'b.')
+        # Plot diagonal trend line
+        axes[0].plot([0.25, 1.75], [0.25, 1.75])
+        axes[1].plot([0.25, 1.75], [0.25, 1.75])
+        axes[0].annotate(f"r-squared = {pearson_r_1}", (1, 0.3))
+        axes[1].annotate(f"r-squared = {pearson_r_2}", (1, 0.3))
+        # Sets x,y limits and the x/y axes to same scale
+        axes[0].set_xlim([0, 2])
+        axes[0].set_ylim([0, 2])
+        axes[1].set_xlim([0, 2])
+        axes[1].set_ylim([0, 2])
+        axes[0].set_box_aspect(1)
+        axes[1].set_box_aspect(1)
+        # plt.axis('scaled')
+        plt.show()
+        print('a')
+
+
+
+
+
+
+
 
     def compare_analyzers(self, truth_comparisons_1, truth_comparisons_2, eval_percentages):
         """
@@ -243,7 +306,8 @@ class GaitSpeedValidator:
             trial = user_data.get_clinical_demo_data().get_trial()
             gait_speed = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
-            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed}
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
+                      'user_data': user_data}
             if user_id in self.subj_gs_truth.keys():
                 comparison = self.compare_gs_to_truth_val(result)
                 truth_comparisons.append(comparison)
@@ -271,7 +335,8 @@ class GaitSpeedValidator:
             trial = user_data.get_clinical_demo_data().get_trial()
             gait_speed, fig = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
-            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed}
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
+                      'user_data': user_data}
             if user_id in self.subj_gs_truth.keys():
                 comparison = self.compare_gs_to_truth_val(result)
                 truth_comparisons.append(comparison)
