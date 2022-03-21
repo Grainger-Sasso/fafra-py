@@ -98,7 +98,9 @@ class GaitSpeedValidator:
         return truth_vals
 
     def analyze_gait_speed_estimators(self, dataset_path, clinical_demo_path,
-                                      segment_dataset, epoch_size, results_location, eval_percentages, write_out_results):
+                                      segment_dataset, epoch_size, results_path,
+                                      eval_percentages, write_out_estimates,
+                                      write_out_results):
         # Build dataset
         db = DatasetBuilder()
         dataset = db.build_dataset(dataset_path, clinical_demo_path,
@@ -107,20 +109,33 @@ class GaitSpeedValidator:
         for user_data in dataset.get_dataset():
             self.apply_lpf(user_data, plot=False)
         # Run gait speed estimation on the dataset from both of the estimators
-        gs_results_v1 = self.calc_gait_speeds_v1(dataset, version_num='1.0',
+        gs_results_v1, all_gait_params_1 = self.calc_gait_speeds_v1(dataset, version_num='1.0',
                                                 hpf=False)
-        gs_results_v2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_location, write_out_results=write_out_results)
+        gs_results_v2, all_gait_params_2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_path, write_out_estimates=write_out_estimates)
         # Compare the results with truth values, this returns a comparison for
         # every estimate that has a corresponding truth value (including) est-
         # imates that are nan
-        self.generate_analysis_results(gs_results_v1, gs_results_v2, results_location)
+        samp_freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
+        # self.generate_analysis_results(gs_results_v1, gs_results_v2, results_path, write_out_results)
+        durations_1, step_lens_1, v_com_disp_1 = self.get_phys_1(all_gait_params_1, samp_freq)
+        durations_2, step_lens_2, v_com_disp_2 = self.get_phys_2(all_gait_params_2, samp_freq)
+        self.assess_phys(durations_1, step_lens_1, v_com_disp_1, durations_2, step_lens_2, v_com_disp_2)
 
-    def generate_analysis_results(self, truth_comparisons_1, truth_comparisons_2, results_location):
+
+    def generate_analysis_results(self, truth_comparisons_1, truth_comparisons_2, results_path, write_out_results):
         truth_1, estimate_1 = self.get_truth_estimate_pairs(truth_comparisons_1)
         truth_2, estimate_2 = self.get_truth_estimate_pairs(truth_comparisons_2)
         # Calculate pearson correlation coefficient (R)
-        pearson_r_1 = pearsonr(truth_1, estimate_1)
-        pearson_r_2 = pearsonr(truth_2, estimate_2)
+        pearson_r_1, pearson_p_1 = pearsonr(truth_1, estimate_1)
+        pearson_r_1 = np.format_float_positional(pearson_r_1, precision=4)
+        pearson_p_1 = np.format_float_positional(pearson_p_1, precision=4)
+        if float(pearson_p_1) < 0.001:
+            pearson_p_1 = '<0.001'
+        pearson_r_2, pearson_p_2 = pearsonr(truth_2, estimate_2)
+        pearson_r_2 = np.format_float_positional(pearson_r_2, precision=4)
+        pearson_p_2 = np.format_float_positional(pearson_p_2, precision=4)
+        if float(pearson_p_2) < 0.001:
+            pearson_p_2 = '<0.001'
         # Calculate root mean square error (RMSE)
         rmse_1 = mean_squared_error(truth_1, estimate_1, squared=False)
         rmse_2 = mean_squared_error(truth_2, estimate_2, squared=False)
@@ -129,8 +144,44 @@ class GaitSpeedValidator:
         mae_2 = mean_absolute_error(truth_2, estimate_2)
         # Put the results into JSON format an output metrics+plot to directory
         # Generate plots of estimated gs vs measured gs
-        self.plot_est_measured(truth_comparisons_1, truth_comparisons_2, pearson_r_1, pearson_r_2)
-        pass
+        fig = self.plot_est_measured(truth_comparisons_1, truth_comparisons_2, pearson_r_1, pearson_r_2, pearson_p_1, pearson_p_2)
+        print('\n')
+        print(f'RMSE 1: {rmse_1}')
+        print(f'RMSE 1: {mae_1}')
+        print('\n')
+        print(f'RMSE 2: {rmse_2}')
+        print(f'RMSE 2: {mae_2}')
+        if write_out_results:
+            results_json_format = [
+                {
+                    'estimator': 'IP',
+                    'R-value': pearson_r_1,
+                    'p-value': pearson_p_1,
+                    'RMSE': rmse_1,
+                    'MAE': mae_1},
+                {
+                    'estimator': 'IPv2',
+                    'R-value': pearson_r_2,
+                    'p-value': pearson_p_2,
+                    'RMSE': rmse_2,
+                    'MAE': mae_2
+                }
+            ]
+            # Create timestamp
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            # Create filename and path for JSON data
+            json_file_name = f'analysis_results_{timestamp}.json'
+            json_file_path = os.path.join(results_path, json_file_name)
+            # Write out data to JSON file
+            with open(json_file_path, 'w') as jf:
+                json.dump(results_json_format, jf)
+            fig_file_name = f'est_vs_measured_{timestamp}.png'
+            fig_file_path = os.path.join(results_path, fig_file_name)
+            # Write out figure to PNG file
+            fig.set_size_inches(12, 10)
+            fig.tight_layout()
+            plt.savefig(fig_file_path, dpi=200)
+        plt.show()
 
     def get_truth_estimate_pairs(self, truth_comparisons):
         truth = [result['truth'] for result in truth_comparisons if not np.isnan(result['estimate'])]
@@ -138,7 +189,7 @@ class GaitSpeedValidator:
         return truth, estimate
 
     def plot_est_measured(self, truth_comparisons_1, truth_comparisons_2,
-                          pearson_r_1, pearson_r_2):
+                          pearson_r_1, pearson_r_2, pearson_p_1, pearson_p_2):
         # TODO: add figure titles, axis titles, reformat the r and p values
         # GENERATES PLOTS OF ESTIMATED VS MEASURED GAIT SPEED
         fig, axes = plt.subplots(2)
@@ -155,22 +206,96 @@ class GaitSpeedValidator:
         # Plot diagonal trend line
         axes[0].plot([0.25, 1.75], [0.25, 1.75])
         axes[1].plot([0.25, 1.75], [0.25, 1.75])
-        axes[0].annotate(f"r-squared = {pearson_r_1}", (1, 0.3))
-        axes[1].annotate(f"r-squared = {pearson_r_2}", (1, 0.3))
+        # Plot R- and p-values
+        axes[0].annotate(f"r-squared = {pearson_r_1}", (0.25, 1.75))
+        axes[0].annotate(f"p-value = {pearson_p_1}", (0.25, 1.65))
+        axes[1].annotate(f"r-squared = {pearson_r_2}", (0.25, 1.75))
+        axes[1].annotate(f"p-value = {pearson_p_2}", (0.25, 1.65))
         # Sets x,y limits and the x/y axes to same scale
-        axes[0].set_xlim([0, 2])
-        axes[0].set_ylim([0, 2])
-        axes[1].set_xlim([0, 2])
-        axes[1].set_ylim([0, 2])
+        axes[0].set_xlim([0, 1.95])
+        axes[0].set_ylim([0, 1.95])
+        axes[1].set_xlim([0, 1.95])
+        axes[1].set_ylim([0, 1.95])
         axes[0].set_box_aspect(1)
         axes[1].set_box_aspect(1)
-        # plt.axis('scaled')
+        # Set plot titles
+        axes[0].title.set_text(
+            'Estimated vs. Measured Gait Speeds: Inverted Pendulum Model (IP)')
+        axes[1].title.set_text(
+            'Estimated vs. Measured Gait Speeds: Inverted Pendulum Model version 2 (IPv2)')
+        return fig
+
+    def get_phys_1(self, all_gait_params, samp_freq):
+        # Estimate the range of the estimators biomechanical metrics of gait and
+        # those metrics' physiological range
+        durations = []
+        step_lens = []
+        v_com_disps = []
+        for user in all_gait_params:
+            heel_strike_ixs = user['gait_params']['cadence']
+            heel_strike_ixs.sort()
+            ix = 0
+            while ix < len(heel_strike_ixs) - 1:
+                num_samps = heel_strike_ixs[ix + 1] - heel_strike_ixs[ix]
+                durations.append(num_samps/samp_freq)
+                ix += 1
+            step_lens.extend(user['gait_params']['step_lengths'])
+            v_com_disps.extend(user['gait_params']['step_lengths'])
+
+        return durations, step_lens, v_com_disps
+
+    def get_phys_2(self, all_gait_params, samp_freq):
+        # Estimate the range of the estimators biomechanical metrics of gait and
+        # those metrics' physiological range
+        durations = []
+        step_lens = []
+        v_com_disps = []
+        for user in all_gait_params:
+            if user['gait_params'] is not None:
+                heel_strike_clusters = user['gait_params']['cadence']
+                for cluster in heel_strike_clusters:
+                    cluster.sort()
+                    ix = 0
+                    while ix < len(cluster) - 1:
+                        num_samps = cluster[ix + 1] - cluster[ix]
+                        durations.append(num_samps / samp_freq)
+                        ix += 1
+                step_lens.extend(user['gait_params']['step_lengths'])
+                v_com_disps.extend(user['gait_params']['step_lengths'])
+        return durations, step_lens, v_com_disps
+
+    def assess_phys(self, durations_1, step_lens_1, v_com_disp_1, durations_2, step_lens_2, v_com_disp_2):
+        # Assess stride duration
+        durations_mean_1, duration_std_1 = self.generate_descriptive_stats(durations_1)
+        # Assess stride length
+        step_lens_mean_1, step_lens_std_1 = self.generate_descriptive_stats(step_lens_1)
+        # Assess V COM displacement
+        v_com_disp_mean_1, v_com_disp_std_1 = self.generate_descriptive_stats(
+            v_com_disp_1)
+
+        durations_mean_2, duration_std_2 = self.generate_descriptive_stats(
+            durations_2)
+        # Assess stride length
+        step_lens_mean_2, step_lens_std_2 = self.generate_descriptive_stats(
+            step_lens_2)
+        # Assess V COM displacement
+        v_com_disp_mean_2, v_com_disp_std_2 = self.generate_descriptive_stats(
+            v_com_disp_2)
+        # TODO: Get reference for duration, length, V COM disp in older adults
+        # Make box and whisker plot for each
+        fig, axes = plt.subplots(3)
+        axes[0].boxplot(durations_1)
+        axes[0].boxplot(durations_2)
+        axes[1].boxplot(step_lens_1)
+        axes[1].boxplot(step_lens_2)
+        axes[2].boxplot(v_com_disp_1)
+        axes[2].boxplot(v_com_disp_2)
         plt.show()
-        print('a')
 
-
-
-
+    def generate_descriptive_stats(self, x):
+        mean = np.mean(x)
+        std = np.std(x)
+        return mean, std
 
 
 
@@ -301,11 +426,13 @@ class GaitSpeedValidator:
         # Compare the results of the gait analyzer with truth values
         ga = GaitAnalyzer()
         truth_comparisons = []
+        all_gait_params = []
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
-            gait_speed = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+            gait_speed, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
+            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
             result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
                       'user_data': user_data}
             if user_id in self.subj_gs_truth.keys():
@@ -316,36 +443,38 @@ class GaitSpeedValidator:
         #     output_path = os.path.join(ouput_dir, filename)
         #     with open(output_path, 'w') as f:
         #         json.dump(gs_results, f)
-        return truth_comparisons
+        return truth_comparisons, all_gait_params
 
     def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
-                            results_location, write_out_results=False,
+                            results_location, write_out_estimates=False,
                             hpf=False, max_com_v_delta=0.14,
                             plot_gait_cycles=False):
         # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
         # Estimate the gait speed for every user/trial in dataset
         truth_comparisons = []
+        all_gait_params = []
         ga = GaitAnalyzerV2()
         count = 0
-        if write_out_results:
+        if write_out_estimates:
             # Generate the directories based on evaluation percentages
             percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
-            gait_speed, fig = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+            gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
+            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
             result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
                       'user_data': user_data}
             if user_id in self.subj_gs_truth.keys():
                 comparison = self.compare_gs_to_truth_val(result)
                 truth_comparisons.append(comparison)
-                if write_out_results:
+                if write_out_estimates:
                     self.write_out_gs2_comparison_results(comparison, fig,
                                                           eval_percentages,
                                                           percentage_dirs)
             plt.close()
-        return truth_comparisons
+        return truth_comparisons, all_gait_params
 
     def generate_percentage_dirs(self, eval_percentages, results_location):
         percentage_dirs = {}
@@ -508,10 +637,11 @@ def main():
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
-    results_location = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\evaluation_percentages'
+    results_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\manuscript_results'
     eval_percentages = [1.0, 3.0, 5.0, 10.0, 25.0, 50.0, 100.0]
-    write_out_results = False
-    val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_location, eval_percentages, write_out_results)
+    write_out_estimates = False
+    write_out_results = True
+    val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_path, eval_percentages, write_out_estimates, write_out_results)
 
 
 def run_comparison(val, gs_results):
