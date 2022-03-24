@@ -119,8 +119,8 @@ class GaitSpeedValidator:
         # self.generate_analysis_results(gs_results_v1, gs_results_v2, results_path, write_out_results)
         durations_1, step_lens_1, v_com_disp_1 = self.get_phys_1(all_gait_params_1, samp_freq)
         durations_2, step_lens_2, v_com_disp_2 = self.get_phys_2(all_gait_params_2, samp_freq)
+        self.generate_analysis_results(gs_results_v1, gs_results_v2, results_path, write_out_results)
         self.assess_phys(durations_1, step_lens_1, v_com_disp_1, durations_2, step_lens_2, v_com_disp_2)
-
 
     def generate_analysis_results(self, truth_comparisons_1, truth_comparisons_2, results_path, write_out_results):
         truth_1, estimate_1 = self.get_truth_estimate_pairs(truth_comparisons_1)
@@ -240,7 +240,7 @@ class GaitSpeedValidator:
                 durations.append(num_samps/samp_freq)
                 ix += 1
             step_lens.extend(user['gait_params']['step_lengths'])
-            v_com_disps.extend(user['gait_params']['step_lengths'])
+            v_com_disps.extend(user['gait_params']['v_com_disps'])
 
         return durations, step_lens, v_com_disps
 
@@ -261,7 +261,7 @@ class GaitSpeedValidator:
                         durations.append(num_samps / samp_freq)
                         ix += 1
                 step_lens.extend(user['gait_params']['step_lengths'])
-                v_com_disps.extend(user['gait_params']['step_lengths'])
+                v_com_disps.extend(user['gait_params']['v_com_disps'])
         return durations, step_lens, v_com_disps
 
     def assess_phys(self, durations_1, step_lens_1, v_com_disp_1, durations_2, step_lens_2, v_com_disp_2):
@@ -284,21 +284,25 @@ class GaitSpeedValidator:
         # TODO: Get reference for duration, length, V COM disp in older adults
         # Make box and whisker plot for each
         fig, axes = plt.subplots(3)
-        axes[0].boxplot(durations_1)
-        axes[0].boxplot(durations_2)
-        axes[1].boxplot(step_lens_1)
-        axes[1].boxplot(step_lens_2)
-        axes[2].boxplot(v_com_disp_1)
-        axes[2].boxplot(v_com_disp_2)
+        durations = {'IP Stride Durations (s)': durations_1,
+                         'IPv2 Stride Durations (s)': durations_2}
+        lens = {'IP Stride Lengths (m)': step_lens_1,
+                         'IPv2 Stride Lengths (m)': step_lens_2}
+        com_disps = {'IP Stride Vertical COM Displacements (m)': v_com_disp_1,
+                         'IPv2 Stride Vertical COM Displacements (m)': v_com_disp_2}
+        axes[0].boxplot(durations.values(), widths=(1.0, 1.0))
+        axes[0].set_xticklabels(durations.keys())
+        axes[1].boxplot(lens.values(), widths=(1.0, 1.0))
+        axes[1].set_xticklabels(lens.keys())
+        axes[2].boxplot(com_disps.values(), widths=(1.0, 1.0))
+        axes[2].set_xticklabels(com_disps.keys())
         plt.show()
+        print('you')
 
     def generate_descriptive_stats(self, x):
         mean = np.mean(x)
         std = np.std(x)
         return mean, std
-
-
-
 
     def compare_analyzers(self, truth_comparisons_1, truth_comparisons_2, eval_percentages):
         """
@@ -640,7 +644,7 @@ def main():
     results_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\manuscript_results'
     eval_percentages = [1.0, 3.0, 5.0, 10.0, 25.0, 50.0, 100.0]
     write_out_estimates = False
-    write_out_results = True
+    write_out_results = False
     val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_path, eval_percentages, write_out_estimates, write_out_results)
 
 
