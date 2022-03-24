@@ -147,10 +147,10 @@ class GaitSpeedValidator:
         fig = self.plot_est_measured(truth_comparisons_1, truth_comparisons_2, pearson_r_1, pearson_r_2, pearson_p_1, pearson_p_2)
         print('\n')
         print(f'RMSE 1: {rmse_1}')
-        print(f'RMSE 1: {mae_1}')
+        print(f'MAE 1: {mae_1}')
         print('\n')
         print(f'RMSE 2: {rmse_2}')
-        print(f'RMSE 2: {mae_2}')
+        print(f'MAE 2: {mae_2}')
         if write_out_results:
             results_json_format = [
                 {
@@ -297,7 +297,6 @@ class GaitSpeedValidator:
         axes[2].boxplot(com_disps.values(), widths=(1.0, 1.0))
         axes[2].set_xticklabels(com_disps.keys())
         plt.show()
-        print('you')
 
     def generate_descriptive_stats(self, x):
         mean = np.mean(x)
@@ -659,7 +658,6 @@ def run_comparison(val, gs_results):
     print_desc_stats(cwt_diffs, 'DIFFS')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs, 'GSE')
-    print('a')
 
 
 if __name__ == '__main__':
