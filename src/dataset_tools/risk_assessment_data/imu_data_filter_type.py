@@ -5,6 +5,7 @@ class IMUDataFilterType(Enum):
     RAW = 'raw'
     LPF = 'low-pass_filtered'
     KF = 'kalman_filtered'
+    ATTITUDE_ESTIMATION = 'attitude_estimation'
 
     def get_name(self):
         # Self is the member here

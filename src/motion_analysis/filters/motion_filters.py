@@ -14,7 +14,7 @@ class MotionFilters:
         return np.convolve(data, np.ones(n), 'valid') / n
 
     def apply_lpass_filter(self, data: np.array, cutoff_freq,
-                           samp_freq, high_low_pass='low'):
+                           samp_freq, high_low_pass='lowpass'):
         # Parameters for Butterworth filter found (3.1. Pre-Processing Stage):
         # https://www.mdpi.com/1424-8220/18/4/1101
         # Create a 4th order lowpass butterworth filter
