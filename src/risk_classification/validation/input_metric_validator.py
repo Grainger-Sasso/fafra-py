@@ -1,3 +1,6 @@
+
+import shap
+import lime
 import matplotlib.pyplot as plt
 import numpy as np
 # import shap
@@ -6,7 +9,6 @@ from sklearn.inspection import partial_dependence
 from sklearn.inspection import PartialDependenceDisplay
 import pandas as pd
 # from pdpbox import pdp, get_dataset, info_plots
-
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.risk_classifiers.classifier import Classifier
 
@@ -87,3 +89,23 @@ class InputMetricValidator:
     #             )
     #         figg,axess=pdp.pdp_plot(pdp_sex,n,plot_lines=True)
     #         plt.show()
+    
+#     def perform_lime(self, model, input_metrics: InputMetrics, value):
+#         x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
+#         cv, name = input_metrics.get_metric_matrix()
+
+#         model.train_model(x_train, y_train)
+#         m = model.get_model()
+
+#         names = []  # without this, won't get feature names
+#         for i in name:
+#             names.append(i.get_value())
+
+#         explainer = lime.lime_tabular.LimeTabularExplainer(x_train, feature_names=names, discretize_continuous=True)
+
+#         exp = explainer.explain_instance(x_test[value], m.predict_proba, top_labels=1)
+#         #exp.show_in_notebook(show_table=True, show_all=False).display()
+
+#         a = exp.as_html(show_table=True, show_all=False)
+#         with open("KNNdata2.html", "w") as file:
+#             file.write(a)
