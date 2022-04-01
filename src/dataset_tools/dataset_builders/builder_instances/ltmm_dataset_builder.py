@@ -21,9 +21,11 @@ class DatasetBuilder(DatasetBuilder):
         super().__init__(DATASET_NAME)
         self.header_and_data_file_paths = dict()
         self.sampling_frequency = 100.0
-        self.units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
-                      'anteroposterior-acc': 'g',
-                      'yaw': 'deg/s', 'pitch': 'deg/s', 'roll': 'deg/s'}
+        # Original units: g,g,g,°/s,°/s,°/s
+        # Converted to: m/s^2,m/s^2,m/s^2,°/s,°/s,°/s
+        self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
+                      'anteroposterior-acc': 'm/s^2',
+                      'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         # Mock height in meters
         self.height = 1.75
 
@@ -41,10 +43,11 @@ class DatasetBuilder(DatasetBuilder):
             header_path = os.path.splitext(header_file_path)[0]
             wfdb_record = wfdb.rdrecord(data_path)
             id = wfdb_record.record_name
+            print(id)
             data = np.array(wfdb_record.p_signal)
             data = np.float16(data)
             # Convert acceleration data from g to m/s^2
-            data[:, 0:3] = data[:, 0:3] * 9.81
+            data[:, 0:3] = data[:, 0:3] * 9.80665
             header_data = wfdb.rdheader(header_path)
             if wfdb_record.comments[0][4:]:
                 age = float(wfdb_record.comments[0][4:])
@@ -57,53 +60,29 @@ class DatasetBuilder(DatasetBuilder):
                 raise ValueError('LTMM Data faller status unclear from id')
 
             imu_data_file_path: str = data_file_path
+            imu_data_file_name: str = os.path.split(os.path.splitext(imu_data_file_path)[0])[1]
             imu_metadata_file_path: str = header_file_path
-            clinical_demo_file_path: str = 'N/A'
             imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
-            clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height)
+            trial = ''
+            clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height, trial)
             if segment_dataset:
                 #TODO: track the segmented data with a linked list
                 # Segment the data and build a UserData object for each epoch
-                data_segments = self.segment_data(data, epoch_size)
+                data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
                 for segment in data_segments:
                     imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
-                    dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+                    dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                             {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
             else:
                 # Build a UserData object for the whole data
                 imu_data = self._generate_imu_data_instance(data, self.sampling_frequency)
-                dataset.append(UserData(imu_data_file_path, imu_metadata_file_path, clinical_demo_file_path,
+                dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                         {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset)
-
-    def segment_data(self, data, epoch_size):
-        """
-        Segments data into epochs of a given duration starting from the beginning of the data
-        :param: data: data to be segmented
-        :param epoch_size: duration of epoch to segment data (in seconds)
-        :return: data segments of given epoch duration
-        """
-        total_time = len(data.T[0])/self.sampling_frequency
-        # Calculate number of segments from given epoch size
-        num_of_segs = int(total_time / epoch_size)
-        # Check to see if data can be segmented at least one segment of given epoch size
-        if num_of_segs > 0:
-            data_segments = []
-            # Counter for the number of segments to be created
-            segment_count = range(0, num_of_segs+1)
-            # Create segmentation indices
-            seg_ixs = [int(seg * self.sampling_frequency * epoch_size) for seg in segment_count]
-            for seg_num in segment_count:
-                if seg_num != segment_count[-1]:
-                    data_segments.append(data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
-                else:
-                    continue
-        else:
-            raise ValueError(f'Data of total time {str(total_time)}s can not be '
-                             f'segmented with given epoch size {str(epoch_size)}s')
-        return data_segments
+        return Dataset(self.get_dataset_name(), dataset_path, clinical_demo_path, dataset, {})
 
     def _generate_imu_data_instance(self, data, sampling_freq):
+        activity_code = ''
+        activity_description = ''
         v_acc_data = np.array(data.T[0])
         ml_acc_data = np.array(data.T[1])
         ap_acc_data = np.array(data.T[2])
@@ -112,8 +91,9 @@ class DatasetBuilder(DatasetBuilder):
         roll_gyr_data = np.array(data.T[5])
         time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
                            len(v_acc_data))
-        return IMUData(v_acc_data, ml_acc_data, ap_acc_data,
-                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
 
     def _generate_header_and_data_file_paths(self, dataset_path):
         data_file_paths = {}
@@ -144,4 +124,15 @@ class DatasetBuilder(DatasetBuilder):
         return data
 
 
+def main():
+    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    segment = True
+    epoch_size = 8.0
+    db = DatasetBuilder()
+    dataset = db.build_dataset(ltmm_dataset_path, clinical_demo_path,
+                     segment, epoch_size)
+    print(dataset)
 
+if __name__ == '__main__':
+    main()
