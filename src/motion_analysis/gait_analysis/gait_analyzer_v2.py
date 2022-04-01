@@ -70,21 +70,24 @@ class GaitAnalyzerV2:
             # Calculate the vertical displacement of the COM
             whole_v_disp = self.estimate_all_v_displacement(
                 valid_strike_ix_clusters, v_acc_data, samp_freq, hpf)
-            gait_speed, all_com_v_deltas, invalid_strike_indexes = self.estimate_all_step_lengths(
+            gait_speed, all_com_v_deltas, invalid_strike_indexes, all_step_lengths = self.estimate_all_step_lengths(
                 valid_strike_ix_clusters, whole_v_disp, samp_freq, leg_length, max_com_v_delta)
-
             additional_invalid_strike_ixs = [ix for ix in heel_strike_indexes if ix not in valid_strike_ixs]
-            invalid_strike_indexes = list(set(invalid_strike_indexes + additional_invalid_strike_ixs))
+            invalid_strike_ixs = list(set(invalid_strike_indexes + additional_invalid_strike_ixs))
             if plot_gait_cycles:
                 fig = self.plot_gait_cycles(
                     v_acc_data, ml_acc_data, ap_acc_data, whole_v_disp, invalid_strike_indexes, samp_freq,
                     all_com_v_deltas, valid_strike_ix_clusters)
             else:
                 fig = None
+            gait_params = {'cadence': valid_strike_ix_clusters,
+                           'step_lengths': all_step_lengths,
+                           'v_com_disps': all_com_v_deltas}
         else:
             gait_speed = np.nan
             fig = None
-        return gait_speed, fig
+            gait_params = None
+        return gait_speed, fig, gait_params
 
     def _detect_peaks(self, acc_data):
         height = None
@@ -232,6 +235,7 @@ class GaitAnalyzerV2:
         cluster_gait_speeds = []
         all_com_v_deltas = []
         invalid_step_indexes = []
+        all_step_lengths = []
         for cluster in heel_strike_ix_clusters:
             step_start_ixs = cluster[:-1]
             step_end_ixs = cluster[1:]
@@ -239,6 +243,7 @@ class GaitAnalyzerV2:
                 whole_v_disp, samp_freq, step_start_ixs, step_end_ixs,
                 leg_length, max_com_v_delta)
             invalid_step_indexes.extend(invalid_strike_ixs)
+            all_step_lengths.extend(step_lengths)
             distance = step_lengths.sum()
             gs = distance / tot_time
             cluster_gait_speeds.append(gs)
@@ -247,7 +252,7 @@ class GaitAnalyzerV2:
         # Averages gait speed for all walking clusters, returns nan if
         # no step clusters were found
         gait_speed = np.array(cluster_gait_speeds).mean()
-        return gait_speed, all_com_v_deltas, invalid_step_indexes
+        return gait_speed, all_com_v_deltas, invalid_step_indexes, all_step_lengths
 
     def estimate_step_lengths(self, v_displacement, samp_freq,
                                step_start_ixs, step_end_ixs, leg_length,

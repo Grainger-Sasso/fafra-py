@@ -52,15 +52,18 @@ class GaitAnalyzer:
         # acc data
         lpf_v_data = lpf_data.get_acc_axis_data('vertical')
         v_acc_data = lpf_v_data - np.mean(lpf_v_data)
-        step_lengths, tot_time = self.estimate_step_lengths(
+        step_lengths, tot_time, com_v_deltas = self.estimate_step_lengths(
             v_acc_data, samp_freq, step_start_ixs,
             step_end_ixs, leg_length, max_com_v_delta, plot_gait_cycles, hpf)
         total_distance = step_lengths.sum()
         gait_speed = (total_distance/tot_time)
+        gait_params = {'cadence': heel_strike_indexes,
+                       'step_lengths': step_lengths,
+                       'v_com_disps': com_v_deltas}
         # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
         # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
         #                               ap_peak_indexes, v_displacement)
-        return gait_speed
+        return gait_speed, gait_params
 
     def _detect_peaks(self, acc_data):
         peaks = PeakDetector().detect_peaks(acc_data)[0]
@@ -105,7 +108,7 @@ class GaitAnalyzer:
             self.plot_gait_cycles(v_acc, v_displacement, valid_strike_ixs,
                                   invalid_strike_ixs, samp_freq, com_v_deltas)
         self._check_step_lengths(step_lengths)
-        return np.array(step_lengths), tot_time
+        return np.array(step_lengths), tot_time, com_v_deltas
 
     def plot_gait_cycles(self, v_acc, v_disp, valid_ix, invalid_ix,
                          samp_freq, com_v_deltas):
