@@ -4,6 +4,7 @@ from enum import Enum
 class ClassifierMetrics(Enum):
     EXAMPLE = 'example'
     SHAP = 'shap'
+    SHAP_GBM = 'shapGBM'
     PFI = 'permutation_feature_importance'
     CV = 'cross_validation'
     PDP = 'partial_dependence_plots'
