@@ -286,7 +286,7 @@ class FallRiskAssessment:
             json.dump(results, rf)
     def classifier_evaluator(self,output_path):
         cl_ev = ClassifierEvaluator()
-        eval_metrics = [ClassifierMetrics.SHAP_GBM]
+        eval_metrics = [ClassifierMetrics.LIME]
         # classifiers = [KNNRiskClassifier(), LightGBMRiskClassifier({}),
         #                SVMRiskClassifier()]
         classifiers = [self.rc]
@@ -343,7 +343,7 @@ def main():
     light_gbm_classifier = LightGBMRiskClassifier({})
     knn_classifier = KNNRiskClassifier()
     svm_classifier = SVMRiskClassifier()
-    fra = FallRiskAssessment(light_gbm_classifier)
+    fra = FallRiskAssessment(knn_classifier)
     fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir)
     fra.classifier_evaluator(output_dir)
 

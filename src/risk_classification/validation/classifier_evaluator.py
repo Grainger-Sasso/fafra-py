@@ -66,6 +66,21 @@ class ClassifierEvaluator:
                             classifier, input_metrics)
                     metric_dictionary['metric_value'] = results['metrics']
                     plots_dict[eval_metric] = results['plots']
+                elif eval_metric == ClassifierMetrics.PDP_KNN:
+                    results = self.input_metric_validator.perform_partial_dependence_plot_knn(
+                            classifier, input_metrics)
+                    metric_dictionary['metric_value'] = results['metrics']
+                    plots_dict[eval_metric] = results['plots']
+                elif eval_metric == ClassifierMetrics.PDP_GBM:
+                    results = self.input_metric_validator.perform_partial_dependence_plot_lightGBM(
+                            classifier, input_metrics)
+                    metric_dictionary['metric_value'] = results['metrics']
+                    plots_dict[eval_metric] = results['plots']
+                elif eval_metric == ClassifierMetrics.LIME:
+                    results = self.input_metric_validator.perform_lime(
+                            classifier, input_metrics)
+                    metric_dictionary['metric_value'] = results['metrics']
+                    plots_dict[eval_metric] = results['plots']
                 elif eval_metric == ClassifierMetrics.CV:
                     x,name = input_metrics.get_metric_matrix()
                     y = input_metrics.get_labels()
@@ -95,15 +110,22 @@ class ClassifierEvaluator:
         plots_output_path = os.path.join(classier_path, str(self.mn)+'plots ')
         if plots==None or len(plots)==0:
             return
-        #for plot_idx in range(len(plots)):
+        if eval_metric== ClassifierMetrics.PDP_GBM:
+            plots_output_path=os.path.join(classier_path, 'PDP_GBM')
+            if exists(plots_output_path)==False:
+                os.mkdir(plots_output_path)
+            plots_output_path=os.path.join(plots_output_path,str(plot))
         for plot in plots:
+            print(eval_metric,(eval_metric== ClassifierMetrics.PDP_GBM))
             # Building path to the file w/extension
-            #metric_name = self.eval_ms[plot_idx].get_name()
+            if eval_metric == ClassifierMetrics.LIME:
+                with open("KNNdata2.html", "w") as file:
+                    file.write(plot)
+                continue
             with open(plots_output_path, 'w') as plot_file:
-                #plots[plot_idx][0].figure.savefig(plots_output_path)
-                if eval_metric==ClassifierMetrics.SHAP:
-                    plot.savefig(plots_output_path)
-                elif eval_metric==ClassifierMetrics.SHAP_GBM:
+                if eval_metric== ClassifierMetrics.PDP_GBM:
+                    plots[plot].savefig(plots_output_path)
+                elif eval_metric == ClassifierMetrics.SHAP or eval_metric==ClassifierMetrics.SHAP_GBM or eval_metric==ClassifierMetrics.PDP_KNN:
                     plot.savefig(plots_output_path)
                     # new_path=plots_output_path+'/shap_gbm'
                     # for p in plot:

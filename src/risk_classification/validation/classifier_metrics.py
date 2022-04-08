@@ -7,7 +7,8 @@ class ClassifierMetrics(Enum):
     SHAP_GBM = 'shapGBM'
     PFI = 'permutation_feature_importance'
     CV = 'cross_validation'
-    PDP = 'partial_dependence_plots'
+    PDP_KNN = 'partial_dependence_plots_knn'
+    PDP_GBM = 'partial_dependence_plots_gbm'
     LIME = 'lime'
 
     def get_name(self):
