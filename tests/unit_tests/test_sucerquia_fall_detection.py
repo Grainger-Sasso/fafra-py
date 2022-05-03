@@ -1,9 +1,8 @@
-import pytest
 import json
 import os
 import pandas as pd
 import numpy as np
-from src.motion_analysis.feature_extraction.fall_detection.sucerquia_fall_detector import SucerquiaFallDetector
+from src.motion_analysis.fall_detection.sucerquia_fall_detector import SucerquiaFallDetector
 from src.dataset_tools.params.motion_dataset import MotionDataset
 from src.dataset_tools.params.motion_data import MotionData
 from src.dataset_tools.params.sensor import Sensor
