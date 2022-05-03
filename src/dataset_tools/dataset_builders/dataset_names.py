@@ -6,6 +6,7 @@ class DatasetNames(Enum):
     LTMM = 'ltmm'
     SISFALL = 'sisfall'
     UIUC_GAIT = 'uiuc_gait'
+    FIBION = 'fibion'
 
     def get_name(self):
         # Self is the member here
