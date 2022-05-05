@@ -6,6 +6,7 @@ import glob
 import time
 import binascii
 import struct
+from datetime import datetime
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
@@ -56,10 +57,10 @@ class DatasetBuilder(DatasetBuilder):
             for hex in hexs:
                 if len(hex) != 24:
                     raise ValueError('you a idiot')
-                time_ms = self.convert_hex_to_float(hex[0:12])
-                x_acc = self.convert_hex_to_float(hex[12:16])
-                y_acc = self.convert_hex_to_float(hex[16:20])
-                z_acc = self.convert_hex_to_float(hex[20:])
+                time_s, time_date = self.convert_hex_time(hex[0:12])
+                x_acc = self.convert_hex_acc(hex[12:16])
+                y_acc = self.convert_hex_acc(hex[16:20])
+                z_acc = self.convert_hex_acc(hex[20:])
 
 
             print(hexdata[-30:-1])
@@ -81,8 +82,21 @@ class DatasetBuilder(DatasetBuilder):
         # Return data classes
         return None
 
-    def convert_hex_to_float(self, hex_str):
-        return struct.unpack('!f', bytes.fromhex(hex_str))[0]
+    def convert_hex_time(self, hex_str):
+        time_s = int(hex_str, 16) / 1000
+        time_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time_s))
+        return time_s, time_date
+
+    def convert_hex_acc(self, hex_str):
+        bits = 16  # Number of bits in a hexadecimal number format
+        acc = int(hex_str, bits)
+        if acc & (1 << (bits - 1)):
+            acc -= 1 << bits
+        acc_g = acc * 0.008
+        acc_ms = acc_g * 9.8
+        return acc_ms
+        # acc_g = int(hex_str, 16) * 0.008
+        # return acc_g
 
 # class ConvertSisFallDataset:
 #     def read_dataset(self):
