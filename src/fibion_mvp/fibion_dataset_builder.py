@@ -5,6 +5,7 @@ import numpy as np
 import glob
 import time
 import binascii
+import struct
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
@@ -46,17 +47,21 @@ class DatasetBuilder(DatasetBuilder):
             hexdata = f.read().hex()
         over = len(hexdata) % 24
         if over == 0:
-            ixs = [i for i in range(0, len(hexdata), 24)]
-            print(ixs[0:5])
-            print(ixs[-1])
-            print(len(hexdata))
-            print(hexdata[ixs[-1]])
-            first_ix = ixs[0:len(ixs)-2]
-            second_ix = ixs[1:len(ixs) - 1]
+            ixs = [i for i in range(0, len(hexdata) + 1, 24)]
+            first_ix = ixs[0:-1]
+            second_ix = ixs[1:]
             hexs = []
             for i, j in zip(first_ix, second_ix):
                 hexs.append(hexdata[i:j])
-            print(hexs[-1])
+            for hex in hexs:
+                if len(hex) != 24:
+                    raise ValueError('you a idiot')
+                time_ms = self.convert_hex_to_float(hex[0:12])
+                x_acc = self.convert_hex_to_float(hex[12:16])
+                y_acc = self.convert_hex_to_float(hex[16:20])
+                z_acc = self.convert_hex_to_float(hex[20:])
+
+
             print(hexdata[-30:-1])
         else:
             raise (ValueError('Hex file, incorrect data length'))
@@ -76,6 +81,8 @@ class DatasetBuilder(DatasetBuilder):
         # Return data classes
         return None
 
+    def convert_hex_to_float(self, hex_str):
+        return struct.unpack('!f', bytes.fromhex(hex_str))[0]
 
 # class ConvertSisFallDataset:
 #     def read_dataset(self):
