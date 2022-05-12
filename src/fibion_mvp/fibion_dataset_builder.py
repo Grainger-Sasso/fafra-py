@@ -6,6 +6,7 @@ import glob
 import time
 import binascii
 import struct
+from matplotlib import pyplot as plt
 from datetime import datetime
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
@@ -38,12 +39,6 @@ class DatasetBuilder(DatasetBuilder):
         return dataset
 
     def read_hex_file(self, hex_file_path):
-        # Read and parse the data file
-        # with open(hex_file_path, mode='r', encoding='utf8') as file:
-        #     hex_file_data = file.read()
-        # print(type(hex_file_data))
-        #
-
         with open(hex_file_path, 'rb') as f:
             hexdata = f.read().hex()
         over = len(hexdata) % 24
@@ -54,32 +49,26 @@ class DatasetBuilder(DatasetBuilder):
             hexs = []
             for i, j in zip(first_ix, second_ix):
                 hexs.append(hexdata[i:j])
+            time_s = []
+            time_date = []
+            x_acc = []
+            y_acc = []
+            z_acc = []
             for hex in hexs:
                 if len(hex) != 24:
                     raise ValueError('you a idiot')
-                time_s, time_date = self.convert_hex_time(hex[0:12])
-                x_acc = self.convert_hex_acc(hex[12:16])
-                y_acc = self.convert_hex_acc(hex[16:20])
-                z_acc = self.convert_hex_acc(hex[20:])
-
-
-            print(hexdata[-30:-1])
+                time_s_i, time_date_i = self.convert_hex_time(hex[0:12])
+                time_s.append(time_s_i)
+                time_date.append(time_date_i)
+                x_acc.append(self.convert_hex_acc(hex[12:16]))
+                y_acc.append(self.convert_hex_acc(hex[16:20]))
+                z_acc.append(self.convert_hex_acc(hex[20:]))
+            print(time_s)
+            print(x_acc)
+            plt.plot(time_s, x_acc)
+            plt.show()
         else:
             raise (ValueError('Hex file, incorrect data length'))
-        # hex_list = map(''.join, zip(hexdata[::24], hexdata[1:24]))
-        # print(hex_list[1:10])
-        # print(hexdata[0:10000])
-        # print(type(hexdata))
-
-        # Open in binary mode (so you don 't read two byte line endings on Windows as one byte)
-        # and use with statement (always do this to avoid leaked file descriptors, unflushed files)
-        # with open(hex_file_path, 'rb') as f:
-        #     # Slurp the whole file and efficiently convert it to hex all at once
-        #     hexdata = binascii.hexlify(f.read())
-        # print(hexdata[0:10000])
-
-        # Put the acceleration data into the acceleration data classes
-        # Return data classes
         return None
 
     def convert_hex_time(self, hex_str):
@@ -181,7 +170,7 @@ def main():
     t0 = time.time()
     db = DatasetBuilder()
     dataset = db.read_hex_file(path)
-    print(str(time.time() - t0))
+    print(f'Time: {str(time.time() - t0)}')
     print(dataset)
 
 
