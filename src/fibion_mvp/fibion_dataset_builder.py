@@ -36,19 +36,27 @@ class DatasetBuilder(DatasetBuilder):
     def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset, epoch_size):
         dataset = None
+        dataset_user_data = []
+        hex_file_paths = [f for f in os.listdir(dataset_path) if os.path.isfile(os.path.join(dataset_path, f))]
+        for hex_file_path in hex_file_paths:
+            user_data = self.read_hex_file(hex_file_path)
+            dataset_user_data.append(user_data)
+
         return dataset
 
     def read_hex_file(self, hex_file_path):
         with open(hex_file_path, 'rb') as f:
             hexdata = f.read().hex()
-        over = len(hexdata) % 24
-        if over == 0:
+        if len(hexdata) % 24 == 0:
             ixs = [i for i in range(0, len(hexdata) + 1, 24)]
             first_ix = ixs[0:-1]
             second_ix = ixs[1:]
             hexs = []
+            t0 = time.time()
             for i, j in zip(first_ix, second_ix):
                 hexs.append(hexdata[i:j])
+            t1 = time.time()
+            print(t1-t0)
             time_s = []
             time_date = []
             x_acc = []
@@ -56,113 +64,56 @@ class DatasetBuilder(DatasetBuilder):
             z_acc = []
             for hex in hexs:
                 if len(hex) != 24:
-                    raise ValueError('you a idiot')
+                    raise ValueError(f'Hex bin data length not 24: {len(hexs)}')
                 time_s_i, time_date_i = self.convert_hex_time(hex[0:12])
                 time_s.append(time_s_i)
                 time_date.append(time_date_i)
                 x_acc.append(self.convert_hex_acc(hex[12:16]))
                 y_acc.append(self.convert_hex_acc(hex[16:20]))
                 z_acc.append(self.convert_hex_acc(hex[20:]))
-            print(time_s)
-            print(x_acc)
-            plt.plot(time_s, x_acc)
-            plt.show()
+            # TODO: set the axes to correct anatomical orientation
+            t2 = time.time()
+            print(t2 - t1)
+            imu_data = IMUData('', '',
+                               np.array(y_acc), np.array(x_acc), np.array(z_acc),
+                               np.array([]), np.array([]), np.array([]),
+                               time_s)
         else:
             raise (ValueError('Hex file, incorrect data length'))
-        return None
+        imu_data_file_path = hex_file_path
+        imu_data_file_name = os.path.basename(hex_file_path)
+        imu_metadata_file_path = None
+        clinical_demo_file_path = None
+        units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
+                 'anteroposterior-acc': 'm/s^2'}
+        # TODO: Use ID and hashmap system to map clinical demographic data to users
+        clinical_demo_data = ClinicalDemographicData('', 0.0, '', True, 0.0,
+                                                     None)
+        # TODO: get the correct sampling frequency
+        imu_metadata = IMUMetadata(None, 24.0, units)
+        user_data = UserData(
+            imu_data_file_path, imu_data_file_name, imu_metadata_file_path,
+            clinical_demo_file_path, imu_data, imu_metadata, clinical_demo_data
+        )
+        return user_data
 
     def convert_hex_time(self, hex_str):
+        t0 = time.time()
         time_s = int(hex_str, 16) / 1000
         time_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time_s))
+        print(f'time_conversion: {time.time()-t0}')
         return time_s, time_date
 
     def convert_hex_acc(self, hex_str):
+        t0 = time.time()
         bits = 16  # Number of bits in a hexadecimal number format
-        acc = int(hex_str, bits)
-        if acc & (1 << (bits - 1)):
-            acc -= 1 << bits
+        acc = int.from_bytes(bytearray.fromhex(hex_str), byteorder='big', signed=True)
         acc_g = acc * 0.008
         acc_ms = acc_g * 9.8
+        print(f'acc_conversion: {time.time() - t0}')
         return acc_ms
         # acc_g = int(hex_str, 16) * 0.008
         # return acc_g
-
-# class ConvertSisFallDataset:
-#     def read_dataset(self):
-#         # Initialize output
-#         all_motion_data_in_dataset: List[MotionData] = []
-#         # Iterate through SisFall directory for all data files
-#         for root, dirs, files in list(os.walk(self.path))[1:]:
-#             for file in files:
-#                 if file == 'Readme.txt' or not file.endswith('.' + self.file_format):
-#                     continue
-#                 else:
-#                     motion_file_path = os.path.join(root, file)
-#                     print(motion_file_path)
-#                     # Open file, read in txt file as csv data
-#                     with open(motion_file_path) as mfp:
-#                         data = pd.read_csv(mfp, sep=',', index_col='time')
-#                         all_motion_data_in_dataset.append(
-#                             self.__build_motion_data(data, file))
-#         self.motion_data = all_motion_data_in_dataset
-#
-#     def write_dataset_to_csv(self, output_folder_path):
-#         output_path = os.path.join(output_folder_path, 'SisFall_dataset_csv')
-#         for motion_data in self.motion_data:
-#             subject_path = os.path.join(output_path, motion_data.subject.id)
-#             os.makedirs(subject_path, exist_ok=True)
-#             filename = motion_data.activity.code + '_' + motion_data.subject.id + '_' + motion_data.trial + '.csv'
-#             file_path = os.path.join(subject_path, filename)
-#             motion_data.motion_df.to_csv(file_path, header=True)
-#
-#     def __apply_unit_conversion_to_all(self, data):
-#         data["ADXL345_x"] = self.__apply_unit_conversion(np.array(data['ADXL345_x'],
-#                                                                   dtype=np.float),
-#                                                          self.sensor_data[
-#                                                              'ADXL345'])
-#         data["ADXL345_y"] = self.__apply_unit_conversion(np.array(data['ADXL345_y'],
-#                                                                   dtype=np.float),
-#                                                          self.sensor_data[
-#                                                              'ADXL345'])
-#         data["ADXL345_z"] = self.__apply_unit_conversion(np.array(data['ADXL345_z'],
-#                                                                   dtype=np.float),
-#                                                          self.sensor_data[
-#                                                              'ADXL345'])
-#         data["ITG3200_x"] = self.__apply_unit_conversion(np.array(data['ITG3200_x'],
-#                                                                   dtype=np.float),
-#                                                          self.sensor_data[
-#                                                              'ITG3200'])
-#         data["ITG3200_y"] = self.__apply_unit_conversion(np.array(data['ITG3200_y'],
-#                                                                   dtype=np.float),
-#                                                          self.sensor_data[
-#                                                              'ITG3200'])
-#         data["ITG3200_z"] = self.__apply_unit_conversion(np.array(data['ITG3200_z'],
-#                                                                   dtype=np.float),
-#                                                          self.sensor_data[
-#                                                              'ITG3200'])
-#         data["MMA8451Q_x"] = self.__apply_unit_conversion(np.array(data['MMA8451Q_x'],
-#                                                                    dtype=np.float),
-#                                                           self.sensor_data[
-#                                                               'MMA8451Q'])
-#         data["MMA8451Q_y"] = self.__apply_unit_conversion(np.array(data['MMA8451Q_y'],
-#                                                                    dtype=np.float),
-#                                                           self.sensor_data[
-#                                                               'MMA8451Q'])
-#         data["MMA8451Q_z"] = self.__apply_unit_conversion(np.array(data['MMA8451Q_z'],
-#                                                                    dtype=np.float),
-#                                                           self.sensor_data[
-#                                                               'MMA8451Q'])
-#         return data
-#
-#     def __apply_unit_conversion(self, single_acc_axis, sensor: Sensor) -> np.array:
-#         # Acceleration [g]: [(2*Range)/(2^Resolution)]*AD
-#         # Angular velocity [°/s]: [(2*Range)/(2^Resolution)]*RD
-#         return np.array(single_acc_axis * ((2*sensor.range)/(2**sensor.resolution)))
-#
-#     def __make_time_array(self, sample_rate: int, number_of_samples: int):
-#         recording_time = (number_of_samples-1)/sample_rate
-#         time_array = np.linspace(0.0, recording_time, number_of_samples)
-#         return time_array
 
 
 def main():
