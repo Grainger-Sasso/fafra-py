@@ -26,7 +26,7 @@ class FibionDatasetBuilder(DatasetBuilder):
     def __init__(self, ):
         # TODO: add second sisfall dataset for the second accelerometer in dataset, currently not being used
         super().__init__(DATASET_NAME)
-        self.sampling_frequency = 24.0
+        self.sampling_frequency = 12.5
         # Original units: g,g,g
         # Converted to: m/s^2,m/s^2,m/s^2
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
@@ -100,7 +100,7 @@ class FibionDatasetBuilder(DatasetBuilder):
                                    time_s)
                 user_data.append(UserData(
                 imu_data_file_path, imu_data_file_name, imu_metadata_file_path,
-                clinical_demo_file_path, imu_data, imu_metadata, clinical_demo_data
+                clinical_demo_file_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data
             ))
         else:
             imu_data = IMUData('', '',
@@ -109,7 +109,7 @@ class FibionDatasetBuilder(DatasetBuilder):
                                time_s)
             user_data = [UserData(
                 imu_data_file_path, imu_data_file_name, imu_metadata_file_path,
-                clinical_demo_file_path, imu_data, imu_metadata, clinical_demo_data
+                clinical_demo_file_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data
             )]
         return user_data
 
@@ -132,7 +132,7 @@ def main():
     path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
     t0 = time.time()
     db = FibionDatasetBuilder()
-    dataset = db.build_dataset(path, '', )
+    dataset = db.build_dataset(path, '')
     print(f'Time: {str(time.time() - t0)}')
     print(dataset)
 
