@@ -286,7 +286,7 @@ class FallRiskAssessment:
             json.dump(results, rf)
     def classifier_evaluator(self,output_path):
         cl_ev = ClassifierEvaluator()
-        eval_metrics = [ClassifierMetrics.LIME]
+        eval_metrics = [ClassifierMetrics.PDP_KNN,ClassifierMetrics.LIME]
         # classifiers = [KNNRiskClassifier(), LightGBMRiskClassifier({}),
         #                SVMRiskClassifier()]
         classifiers = [self.rc]

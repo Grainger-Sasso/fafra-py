@@ -78,7 +78,7 @@ class ClassifierEvaluator:
                     plots_dict[eval_metric] = results['plots']
                 elif eval_metric == ClassifierMetrics.LIME:
                     results = self.input_metric_validator.perform_lime(
-                            classifier, input_metrics)
+                            classifier, input_metrics,50)
                     metric_dictionary['metric_value'] = results['metrics']
                     plots_dict[eval_metric] = results['plots']
                 elif eval_metric == ClassifierMetrics.CV:
@@ -114,28 +114,24 @@ class ClassifierEvaluator:
             plots_output_path=os.path.join(classier_path, 'PDP_GBM')
             if exists(plots_output_path)==False:
                 os.mkdir(plots_output_path)
-            plots_output_path=os.path.join(plots_output_path,str(plot))
+            #plots_output_path=os.path.join(plots_output_path,str(plot))
+            
         for plot in plots:
             print(eval_metric,(eval_metric== ClassifierMetrics.PDP_GBM))
             # Building path to the file w/extension
-            if eval_metric == ClassifierMetrics.LIME:
-                with open("KNNdata2.html", "w") as file:
+            # if eval_metric == ClassifierMetrics.LIME:
+            #     with open("KNNdata2.html", "w") as file:
+            #         file.write(plot)
+            #     continue
+            if eval_metric== ClassifierMetrics.PDP_GBM:
+                plots[plot].savefig(os.path.join(plots_output_path,str(plot)))
+            elif eval_metric == ClassifierMetrics.SHAP or eval_metric==ClassifierMetrics.SHAP_GBM or eval_metric==ClassifierMetrics.PDP_KNN:
+                plot.savefig(plots_output_path)
+            elif eval_metric == ClassifierMetrics.LIME:
+                with open(plots_output_path, "w", encoding='utf-8') as file:
                     file.write(plot)
-                continue
-            with open(plots_output_path, 'w') as plot_file:
-                if eval_metric== ClassifierMetrics.PDP_GBM:
-                    plots[plot].savefig(plots_output_path)
-                elif eval_metric == ClassifierMetrics.SHAP or eval_metric==ClassifierMetrics.SHAP_GBM or eval_metric==ClassifierMetrics.PDP_KNN:
-                    plot.savefig(plots_output_path)
-                    # new_path=plots_output_path+'/shap_gbm'
-                    # for p in plot:
-                    #     if os.path.isdir(new_path):
-                    #         p.savefig(new_path)
-                    #     else:
-                    #         os.makedirs(new_path)
-                    #shap.save_html(plots_output_path+"index.htm", plot)
-                else:
-                    plot[0].figure.savefig(plots_output_path)
+            else:
+                plot[0].figure.savefig(plots_output_path)
                 plt.clf()
                 # Statement to write the plot out to plot_file
 
