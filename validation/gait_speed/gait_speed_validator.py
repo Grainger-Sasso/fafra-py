@@ -3,9 +3,14 @@ import numpy as np
 import uuid
 import os
 import time
+from uuid import uuid4
 from scipy.stats import skew
 from scipy.stats import kurtosis
+from scipy.stats import pearsonr
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 from matplotlib import pyplot as plt
+from pathlib import Path
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_assessments.fall_risk_assessment import FallRiskAssessment
@@ -85,79 +90,483 @@ class GaitSpeedValidator:
         }
         self.filter = MotionFilters()
 
-    def calculate_gait_speeds_v1(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, check_against_truth=False, plot_gait_cycles=False):
+    def get_cwt_truth_values(self, comparison_results):
+        truth_vals = []
+        for result in comparison_results:
+            if result['id'] in self.subj_gs_truth.keys():
+                truth_vals.append(self.subj_gs_truth[result['id']]['CWT'])
+        return truth_vals
+
+    def analyze_gait_speed_estimators(self, dataset_path, clinical_demo_path,
+                                      segment_dataset, epoch_size, results_path,
+                                      eval_percentages, write_out_estimates,
+                                      write_out_results):
+        # Build dataset
+        db = DatasetBuilder()
+        dataset = db.build_dataset(dataset_path, clinical_demo_path,
+                                   segment_dataset, epoch_size)
+        # Run dataset through low-pass filter
+        for user_data in dataset.get_dataset():
+            self.apply_lpf(user_data, plot=False)
+        # Run gait speed estimation on the dataset from both of the estimators
+        gs_results_v1, all_gait_params_1 = self.calc_gait_speeds_v1(dataset, version_num='1.0',
+                                                hpf=False)
+        gs_results_v2, all_gait_params_2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_path, write_out_estimates=write_out_estimates)
+        # Compare the results with truth values, this returns a comparison for
+        # every estimate that has a corresponding truth value (including) est-
+        # imates that are nan
+        samp_freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
+        # self.generate_analysis_results(gs_results_v1, gs_results_v2, results_path, write_out_results)
+        durations_1, step_lens_1, v_com_disp_1 = self.get_phys_1(all_gait_params_1, samp_freq)
+        durations_2, step_lens_2, v_com_disp_2 = self.get_phys_2(all_gait_params_2, samp_freq)
+        self.generate_analysis_results(gs_results_v1, gs_results_v2, results_path, write_out_results)
+        self.assess_phys(durations_1, step_lens_1, v_com_disp_1, durations_2, step_lens_2, v_com_disp_2)
+
+    def generate_analysis_results(self, truth_comparisons_1, truth_comparisons_2, results_path, write_out_results):
+        truth_1, estimate_1 = self.get_truth_estimate_pairs(truth_comparisons_1)
+        truth_2, estimate_2 = self.get_truth_estimate_pairs(truth_comparisons_2)
+        # Calculate pearson correlation coefficient (R)
+        pearson_r_1, pearson_p_1 = pearsonr(truth_1, estimate_1)
+        pearson_r_1 = np.format_float_positional(pearson_r_1, precision=4)
+        pearson_p_1 = np.format_float_positional(pearson_p_1, precision=4)
+        if float(pearson_p_1) < 0.001:
+            pearson_p_1 = '<0.001'
+        pearson_r_2, pearson_p_2 = pearsonr(truth_2, estimate_2)
+        pearson_r_2 = np.format_float_positional(pearson_r_2, precision=4)
+        pearson_p_2 = np.format_float_positional(pearson_p_2, precision=4)
+        if float(pearson_p_2) < 0.001:
+            pearson_p_2 = '<0.001'
+        # Calculate root mean square error (RMSE)
+        rmse_1 = mean_squared_error(truth_1, estimate_1, squared=False)
+        rmse_2 = mean_squared_error(truth_2, estimate_2, squared=False)
+        # Calculate mean absolute error (MAE)
+        mae_1 = mean_absolute_error(truth_1, estimate_1)
+        mae_2 = mean_absolute_error(truth_2, estimate_2)
+        # Put the results into JSON format an output metrics+plot to directory
+        # Generate plots of estimated gs vs measured gs
+        fig = self.plot_est_measured(truth_comparisons_1, truth_comparisons_2, pearson_r_1, pearson_r_2, pearson_p_1, pearson_p_2)
+        print('\n')
+        print(f'RMSE 1: {rmse_1}')
+        print(f'MAE 1: {mae_1}')
+        print('\n')
+        print(f'RMSE 2: {rmse_2}')
+        print(f'MAE 2: {mae_2}')
+        if write_out_results:
+            results_json_format = [
+                {
+                    'estimator': 'IP',
+                    'R-value': pearson_r_1,
+                    'p-value': pearson_p_1,
+                    'RMSE': rmse_1,
+                    'MAE': mae_1},
+                {
+                    'estimator': 'IPv2',
+                    'R-value': pearson_r_2,
+                    'p-value': pearson_p_2,
+                    'RMSE': rmse_2,
+                    'MAE': mae_2
+                }
+            ]
+            # Create timestamp
+            timestamp = time.strftime("%Y%m%d-%H%M%S")
+            # Create filename and path for JSON data
+            json_file_name = f'analysis_results_{timestamp}.json'
+            json_file_path = os.path.join(results_path, json_file_name)
+            # Write out data to JSON file
+            with open(json_file_path, 'w') as jf:
+                json.dump(results_json_format, jf)
+            fig_file_name = f'est_vs_measured_{timestamp}.png'
+            fig_file_path = os.path.join(results_path, fig_file_name)
+            # Write out figure to PNG file
+            fig.set_size_inches(12, 10)
+            fig.tight_layout()
+            plt.savefig(fig_file_path, dpi=200)
+        plt.show()
+
+    def get_truth_estimate_pairs(self, truth_comparisons):
+        truth = [result['truth'] for result in truth_comparisons if not np.isnan(result['estimate'])]
+        estimate = [result['estimate'] for result in truth_comparisons if not np.isnan(result['estimate'])]
+        return truth, estimate
+
+    def plot_est_measured(self, truth_comparisons_1, truth_comparisons_2,
+                          pearson_r_1, pearson_r_2, pearson_p_1, pearson_p_2):
+        # TODO: add figure titles, axis titles, reformat the r and p values
+        # GENERATES PLOTS OF ESTIMATED VS MEASURED GAIT SPEED
+        fig, axes = plt.subplots(2)
+        for value in truth_comparisons_1:
+            est = value['estimate']
+            if not np.isnan(est):
+                truth = value['truth']
+                axes[0].plot(truth, est, 'b.')
+        for value in truth_comparisons_2:
+            est = value['estimate']
+            if not np.isnan(est):
+                truth = value['truth']
+                axes[1].plot(truth, est, 'b.')
+        # Plot diagonal trend line
+        axes[0].plot([0.25, 1.75], [0.25, 1.75])
+        axes[1].plot([0.25, 1.75], [0.25, 1.75])
+        # Plot R- and p-values
+        axes[0].annotate(f"r-squared = {pearson_r_1}", (0.25, 1.75))
+        axes[0].annotate(f"p-value = {pearson_p_1}", (0.25, 1.65))
+        axes[1].annotate(f"r-squared = {pearson_r_2}", (0.25, 1.75))
+        axes[1].annotate(f"p-value = {pearson_p_2}", (0.25, 1.65))
+        # Sets x,y limits and the x/y axes to same scale
+        axes[0].set_xlim([0, 1.95])
+        axes[0].set_ylim([0, 1.95])
+        axes[1].set_xlim([0, 1.95])
+        axes[1].set_ylim([0, 1.95])
+        axes[0].set_box_aspect(1)
+        axes[1].set_box_aspect(1)
+        # Set plot titles
+        axes[0].title.set_text(
+            'Estimated vs. Measured Gait Speeds: Inverted Pendulum Model (IP)')
+        axes[1].title.set_text(
+            'Estimated vs. Measured Gait Speeds: Inverted Pendulum Model version 2 (IPv2)')
+        return fig
+
+    def get_phys_1(self, all_gait_params, samp_freq):
+        # Estimate the range of the estimators biomechanical metrics of gait and
+        # those metrics' physiological range
+        durations = []
+        step_lens = []
+        v_com_disps = []
+        for user in all_gait_params:
+            heel_strike_ixs = user['gait_params']['cadence']
+            heel_strike_ixs.sort()
+            ix = 0
+            while ix < len(heel_strike_ixs) - 1:
+                num_samps = heel_strike_ixs[ix + 1] - heel_strike_ixs[ix]
+                durations.append(num_samps/samp_freq)
+                ix += 1
+            step_lens.extend(user['gait_params']['step_lengths'])
+            v_com_disps.extend(user['gait_params']['v_com_disps'])
+
+        return durations, step_lens, v_com_disps
+
+    def get_phys_2(self, all_gait_params, samp_freq):
+        # Estimate the range of the estimators biomechanical metrics of gait and
+        # those metrics' physiological range
+        durations = []
+        step_lens = []
+        v_com_disps = []
+        for user in all_gait_params:
+            if user['gait_params'] is not None:
+                heel_strike_clusters = user['gait_params']['cadence']
+                for cluster in heel_strike_clusters:
+                    cluster.sort()
+                    ix = 0
+                    while ix < len(cluster) - 1:
+                        num_samps = cluster[ix + 1] - cluster[ix]
+                        durations.append(num_samps / samp_freq)
+                        ix += 1
+                step_lens.extend(user['gait_params']['step_lengths'])
+                v_com_disps.extend(user['gait_params']['v_com_disps'])
+        return durations, step_lens, v_com_disps
+
+    def assess_phys(self, durations_1, step_lens_1, v_com_disp_1, durations_2, step_lens_2, v_com_disp_2):
+        # Assess stride duration
+        durations_mean_1, duration_std_1 = self.generate_descriptive_stats(durations_1)
+        # Assess stride length
+        step_lens_mean_1, step_lens_std_1 = self.generate_descriptive_stats(step_lens_1)
+        # Assess V COM displacement
+        v_com_disp_mean_1, v_com_disp_std_1 = self.generate_descriptive_stats(
+            v_com_disp_1)
+
+        durations_mean_2, duration_std_2 = self.generate_descriptive_stats(
+            durations_2)
+        # Assess stride length
+        step_lens_mean_2, step_lens_std_2 = self.generate_descriptive_stats(
+            step_lens_2)
+        # Assess V COM displacement
+        v_com_disp_mean_2, v_com_disp_std_2 = self.generate_descriptive_stats(
+            v_com_disp_2)
+        # TODO: Get reference for duration, length, V COM disp in older adults
+        # Make box and whisker plot for each
+        fig, axes = plt.subplots(3)
+        durations = {'IP Stride Durations (s)': durations_1,
+                         'IPv2 Stride Durations (s)': durations_2}
+        lens = {'IP Stride Lengths (m)': step_lens_1,
+                         'IPv2 Stride Lengths (m)': step_lens_2}
+        com_disps = {'IP Stride Vertical COM Displacements (m)': v_com_disp_1,
+                         'IPv2 Stride Vertical COM Displacements (m)': v_com_disp_2}
+        axes[0].boxplot(durations.values(), widths=(1.0, 1.0))
+        axes[0].set_xticklabels(durations.keys())
+        axes[1].boxplot(lens.values(), widths=(1.0, 1.0))
+        axes[1].set_xticklabels(lens.keys())
+        axes[2].boxplot(com_disps.values(), widths=(1.0, 1.0))
+        axes[2].set_xticklabels(com_disps.keys())
+        plt.show()
+
+    def generate_descriptive_stats(self, x):
+        mean = np.mean(x)
+        std = np.std(x)
+        return mean, std
+
+    def compare_analyzers(self, truth_comparisons_1, truth_comparisons_2, eval_percentages):
+        """
+        Comparison consists of displaying the occurrences of percentage
+        differences for both estimators and some plotting
+        """
+        # Print the number of files that an estimate was made for
+        print(f'[1] Number of estimates (including nan): {len(truth_comparisons_1)}')
+        print(f'[2] Number of estimates (including nan): {len(truth_comparisons_2)}')
+        print('\n')
+        # Print the number of files that an estimate was made for where the
+        # result was not nan
+        est_not_nan_1 = [comp for comp in truth_comparisons_1 if
+                         not np.isnan(comp['estimate'])]
+        number_est_not_nan_1 = len(est_not_nan_1)
+        est_not_nan_2 = [comp for comp in truth_comparisons_2 if
+                         not np.isnan(comp['estimate'])]
+        number_est_not_nan_2 = len(est_not_nan_2)
+        print(f'[1] Number of estimates (NOT including nan): {number_est_not_nan_1}')
+        print(f'[2] Number of estimates (NOT including nan): {number_est_not_nan_2}')
+        print('\n')
+        # Print the number of occurrences of percent differences below given values
+        # Count the occurrences of percentage differences for both estimators
+        diff_counts_1 = self.count_percent_diff_occurrences(truth_comparisons_1, eval_percentages)
+        diff_counts_2 = self.count_percent_diff_occurrences(truth_comparisons_2, eval_percentages)
+        self.print_perc_diff_occurrences(diff_counts_1, len(truth_comparisons_1), '1', eval_percentages)
+        self.print_perc_diff_occurrences(diff_counts_2, len(truth_comparisons_2), '2', eval_percentages)
+
+        # Print descriptive statistics for the results where results are not nan
+        percent_diffs_1 = [comp['diff'] for comp in truth_comparisons_1 if
+                           not np.isnan(comp['diff'])]
+        percent_diffs_2 = [comp['diff'] for comp in truth_comparisons_2 if
+                           not np.isnan(comp['diff'])]
+        truth_values = self.get_cwt_truth_values(truth_comparisons_1)
+        estamates_1 = [comp['estimate'] for comp in truth_comparisons_1 if
+                           not np.isnan(comp['estimate'])]
+        estamates_2 = [comp['estimate'] for comp in truth_comparisons_2 if
+                       not np.isnan(comp['estimate'])]
+        self.print_desc_stats(percent_diffs_1, 'DIFFS1')
+        self.print_desc_stats(percent_diffs_2, 'DIFFS2')
+        self.print_desc_stats(truth_values, 'TRUTH')
+        self.print_desc_stats(estamates_1, 'GSE1')
+        self.print_desc_stats(estamates_2, 'GSE2')
+
+        for value in truth_comparisons_2:
+            est = value['estimate']
+            if not np.isnan(est):
+                truth = value['truth']
+                plt.plot(truth, est, 'b.')
+        plt.plot([0.25, 1.75], [0.25, 1.75])
+        plt.show()
+        # fig, axes = plt.subplots(2)
+        #
+        # t1_not_nan = [i['truth'] for i in gs_results_1 if
+        #               not np.isnan(i['truth'])]
+        # d1_not_nan = [i['diff'] for i in gs_results_1 if
+        #               not np.isnan(i['diff'])]
+        # t2_not_nan = [i['truth'] for i in gs_results_2 if
+        #               not np.isnan(i['truth'])]
+        # d2_not_nan = [i['diff'] for i in gs_results_2 if
+        #               not np.isnan(i['diff'])]
+        # axes[0].plot(t1_not_nan, d1_not_nan, 'bo')
+        # axes[0].plot(t1_not_nan, np.zeros(len(t1_not_nan)))
+        # axes[1].plot(t2_not_nan, d2_not_nan, 'bo')
+        # axes[1].plot(t2_not_nan, np.zeros(len(t2_not_nan)))
+        #
+        # plt.show()
+
+        # bins = np.linspace(0.0, 2.0, 30)
+        # fig, axes = plt.subplots(3)
+        # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+        # axes[0].legend(loc='upper right')
+        # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
+        # axes[1].legend(loc='upper right')
+        # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
+        # axes[2].legend(loc='upper right')
+        #
+        # # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
+        # # plt.hist(gs1, bins, alpha=0.33, label='gs1')
+        # # plt.hist(gs2, bins, alpha=0.33, label='gs2')
+        # # plt.legend(loc='upper right')
+        # plt.show()
+
+    def print_perc_diff_occurrences(self, diff_counts, results_len, ver_num, eval_percentages):
+        for percentage, diff_count in zip(eval_percentages, diff_counts):
+            print(
+                f'Percent of GSEV{ver_num} within {str(percentage)}% truth: {(diff_count / results_len) * 100}')
+        print('\n')
+
+    def count_percent_diff_occurrences(self, results, eval_percentages):
+        diff_counts = []
+        for percentage in eval_percentages:
+            count = 0
+            for result in results:
+                diff = result['diff']
+                if not np.isnan(diff):
+                    if diff < percentage:
+                        count += 1
+            diff_counts.append(count)
+        return diff_counts
+
+    def print_desc_stats(self, data, name):
+        print(name)
+        print(f'Min: {min(data)}')
+        print(f'Max: {max(data)}')
+        print(f'Mean: {np.mean(data)}')
+        print(f'Median: {np.median(data)}')
+        print(f'STD: {np.std(data)}')
+        print(f'Skewness: {skew(data)}')
+        if skew(data) > 0.0:
+            print('Data skews to lower values')
+        else:
+            print('Data skews to higher values')
+        print(f'Kurtosis {kurtosis(data)}')
+        if skew(data) > 0.0:
+            print('Tightly distributed')
+        else:
+            print('Widely distributed')
+        print('\n')
+
+    def calc_gait_speeds_v1(self, dataset: Dataset, write_out_results=False,
+                            ouput_dir='', version_num='1.0', hpf=False,
+                            max_com_v_delta=0.14,
+                            plot_gait_cycles=False):
         # Compare the results of the gait analyzer with truth values
-        gs_results = []
         ga = GaitAnalyzer()
+        truth_comparisons = []
+        all_gait_params = []
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
-            gait_speed = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+            gait_speed, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
-            gs_results.append(dict({'id': user_id, 'trial': trial,
-                                    'gait_speed': gait_speed}))
-        if write_out_results:
-            filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
-            output_path = os.path.join(ouput_dir, filename)
-            with open(output_path, 'w') as f:
-                json.dump(gs_results, f)
-        return gs_results
+            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
+                      'user_data': user_data}
+            if user_id in self.subj_gs_truth.keys():
+                comparison = self.compare_gs_to_truth_val(result)
+                truth_comparisons.append(comparison)
+        # if write_out_results:
+        #     filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        #     output_path = os.path.join(ouput_dir, filename)
+        #     with open(output_path, 'w') as f:
+        #         json.dump(gs_results, f)
+        return truth_comparisons, all_gait_params
 
-    def calculate_gait_speeds_v2(self, dataset: Dataset, write_out_results=False, ouput_dir='', version_num='1.0', hpf=False, max_com_v_delta=0.14, check_against_truth=False, plot_gait_cycles=False):
-        # Compare the results of the gait analyzer with truth values
-        gs_results = []
+    def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
+                            results_location, write_out_estimates=False,
+                            hpf=False, max_com_v_delta=0.14,
+                            plot_gait_cycles=False):
+        # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
+        # Estimate the gait speed for every user/trial in dataset
+        truth_comparisons = []
+        all_gait_params = []
         ga = GaitAnalyzerV2()
+        count = 0
+        if write_out_estimates:
+            # Generate the directories based on evaluation percentages
+            percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
         for user_data in dataset.get_dataset():
             user_id = user_data.get_clinical_demo_data().get_id()
             trial = user_data.get_clinical_demo_data().get_trial()
-            gait_speed, fig = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+            gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
                                                 plot_gait_cycles)
-            gs_results.append(dict({'id': user_id, 'trial': trial,
-                                    'gait_speed': gait_speed}))
-            if check_against_truth:
-                cwt_truth_value = self.subj_gs_truth[user_id]['CWT']
-                if user_id in self.subj_gs_truth.keys() and not np.isnan(gait_speed):
-                    # If the difference between estimate and truth exceeds 10%
-                    diff = (abs(cwt_truth_value - gait_speed)/cwt_truth_value) * 100.0
-                    if 10.0 < diff < 15.0:
-                        # Show figure and print out the diff, ID, and trial
-                        print('Function returned Valid Results')
-                        print(f'ID: {user_id}')
-                        print(f'Trial: {trial}')
-                        print(f'Diff: {diff}')
-                        print(f'Truth: {cwt_truth_value}')
-                        print(f'Estimate: {gait_speed}')
-                        print('\n')
-                        plt.show()
-                        print('\n')
-                else:
-                    # Print off the ID and trial
-                    print('Function returned NAN')
-                    print(f'ID: {user_id}')
-                    print(f'Diff: {trial}')
-                    print(f'Truth: {cwt_truth_value}')
-                    print('\n')
+            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
+                      'user_data': user_data}
+            if user_id in self.subj_gs_truth.keys():
+                comparison = self.compare_gs_to_truth_val(result)
+                truth_comparisons.append(comparison)
+                if write_out_estimates:
+                    self.write_out_gs2_comparison_results(comparison, fig,
+                                                          eval_percentages,
+                                                          percentage_dirs)
             plt.close()
+        return truth_comparisons, all_gait_params
 
-        if write_out_results:
-            filename = 'gait_speed_estimator_results_v' + version_num + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
-            output_path = os.path.join(ouput_dir, filename)
-            with open(output_path, 'w') as f:
-                json.dump(gs_results, f)
-        return gs_results
+    def generate_percentage_dirs(self, eval_percentages, results_location):
+        percentage_dirs = {}
+        for percentage in eval_percentages:
+            # Create a folder for each evaluation percentage
+            perc_dir_path = os.path.join(results_location,
+                                         f'percentile_{str(percentage)[:-2]}')
+            Path(perc_dir_path).mkdir(parents=True, exist_ok=True)
+            percentage_dirs[str(percentage)] = perc_dir_path
+        return percentage_dirs
 
-    def compare_gs_to_truth(self, gs_results):
-        cwt_diffs = []
-        bs_diffs = []
-        for result in gs_results:
-            if result['id'] in self.subj_gs_truth.keys() and not np.isnan(result['gait_speed']):
-                cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
-                bs_truth_value = self.subj_gs_truth[result['id']]['BS']
-                cwt_diffs.append(abs(cwt_truth_value - result['gait_speed'])/cwt_truth_value * 100.0)
-                bs_diffs.append(abs(bs_truth_value - result['gait_speed'])/bs_truth_value * 100.0)
-        cwt_diffs = np.array(cwt_diffs)
-        bs_diffs = np.array(bs_diffs)
-        return cwt_diffs, bs_diffs
+
+    def write_out_gs2_comparison_results(self, comparison, fig, eval_percentages,
+                                         percentage_dirs):
+        # Get the directory path that corresponds with the percentage difference
+        diff = comparison['diff']
+        if not np.isnan(diff):
+            perc_dir_path = self.get_corresponding_perc_dir(diff,
+                                                            percentage_dirs)
+            # Create filename and path for figure data
+            user = comparison['id']
+            trial = comparison['trial']
+            uuid = str(uuid4())
+            # Create filename and path for JSON data
+            json_file_name = f'{str(diff)[:6]}_{user}_{trial}_{uuid}.json'
+            json_file_path = os.path.join(perc_dir_path, json_file_name)
+            # Write out data to JSON file
+            with open(json_file_path, 'w') as jf:
+                json.dump(comparison, jf)
+            fig_file_name = f'{str(diff)[:6]}_{user}_{trial}_{uuid}.png'
+            fig_file_path = os.path.join(perc_dir_path, fig_file_name)
+            # Write out figure to PNG file
+            plt.savefig(fig_file_path)
+
+    def get_corresponding_perc_dir(self, diff, percentage_dirs):
+        perc_dir_path = ''
+        prev_perc = 0.0
+        for perc, path in percentage_dirs.items():
+            perc = float(perc)
+            if prev_perc < diff < perc:
+                perc_dir_path = path
+                break
+            else:
+                prev_perc = perc
+        return perc_dir_path
+
+    def compare_gs_to_truth_val(self, result):
+        # Compare the estimate to the truth value
+        comparison = {}
+        comparison['id'] = result['id']
+        comparison['trial'] = result['trial']
+        cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+        comparison['truth'] = cwt_truth_value
+        # If the gs estimate is not a nan value, compare it to truth
+        if not np.isnan(result['gait_speed']):
+            estimate = result['gait_speed']
+            comparison['estimate'] = estimate
+            comparison['diff'] = (
+                    abs(cwt_truth_value - estimate) / cwt_truth_value * 100.0)
+        # Otherwise, add nan as the comparison value
+        else:
+            comparison['estimate'] = np.nan
+            comparison['diff'] = np.nan
+        return comparison
+
+
+    # def compare_gs_to_truth_val(self, gs_results):
+    #     truth_comparisons = []
+    #     for result in gs_results:
+    #         # If the result has a truth value in the list of truth values
+    #         if result['id'] in self.subj_gs_truth.keys():
+    #             # Compare the estimate to the truth value
+    #             comparison = {}
+    #             comparison['id'] = result['id']
+    #             comparison['trial'] = result['trial']
+    #             cwt_truth_value = self.subj_gs_truth[result['id']]['CWT']
+    #             comparison['truth'] = cwt_truth_value
+    #             # If the gs estimate is not a nan value, compare it to truth
+    #             if not np.isnan(result['gait_speed']):
+    #                 estimate = result['gait_speed']
+    #                 comparison['estimate'] = estimate
+    #                 comparison['diff'] = (
+    #                         abs(cwt_truth_value - estimate) / cwt_truth_value * 100.0)
+    #             # Otherwise, add nan as the comparison value
+    #             else:
+    #                 comparison['estimate'] = np.nan
+    #                 comparison['diff'] = np.nan
+    #             truth_comparisons.append(comparison)
+    #     return truth_comparisons
 
     def compare_gse_to_baseline(self, gs_results, baseline_path):
         # Read in the baseline comparisons from baseline path
@@ -226,120 +635,16 @@ class GaitSpeedValidator:
 
 
 def main():
-    # Instantiate the Validator
     val = GaitSpeedValidator()
-    # Set dataset paths and builder parameters
     dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\GaitSpeedValidation\GaitSpeedValidation\Hexoskin Binary Data files 2\Hexoskin Binary Data files'
     clinical_demo_path = 'N/A'
     segment_dataset = False
     epoch_size = 0.0
-    # Build dataset
-    db = DatasetBuilder()
-    dataset = db.build_dataset(dataset_path, clinical_demo_path,
-                               segment_dataset, epoch_size)
-    # Run dataset through low-pass filter
-    for user_data in dataset.get_dataset():
-        val.apply_lpf(user_data, plot=False)
-    gs_results_v1 = val.calculate_gait_speeds_v1(dataset, version_num='1.0', hpf=False)
-    gs_results_v2 = val.calculate_gait_speeds_v2(dataset, version_num='2.0', hpf=False, check_against_truth=False , plot_gait_cycles=False)
-    # Perform validation
-    # run_comparison(val, gs_results)
-    # baseline_out_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0'
-    # gs_results = val.calculate_gait_speeds(dataset, True, baseline_out_path, version_num='1.0')
-    # run_baseline(val, gs_results)
-    run_analyzer_comparison(val, gs_results_v1, gs_results_v2)
-
-
-def run_analyzer_comparison(val, gs_results_1, gs_results_2):
-    # Run the validation
-    gs1 = np.array([r['gait_speed'] for r in gs_results_1])
-    gs2 = np.array([r['gait_speed'] for r in gs_results_2])
-    cwt_truth_values = [truth_val[1]['CWT'] for truth_val in
-                        val.subj_gs_truth.items()]
-
-    cwt_percent_diffs1, bs_percent_diffs1 = val.compare_gs_to_truth(gs_results_1)
-    print(f'Number of diffs evaluated for 1: {len(cwt_percent_diffs1)}')
-    good_count_1_1 = 0
-    good_count_3_1 = 0
-    good_count_5_1 = 0
-    good_count_10_1 = 0
-    for diff1 in cwt_percent_diffs1:
-        if diff1 < 1.0:
-            good_count_1_1 += 1
-        if diff1 < 3.0:
-            good_count_3_1 += 1
-        if diff1 < 5.0:
-            good_count_5_1 += 1
-        if diff1 < 10.0:
-            good_count_10_1 += 1
-
-    cwt_percent_diffs2, bs_percent_diffs2 = val.compare_gs_to_truth(gs_results_2)
-    print(f'Number of diffs evaluated for 2: {len(cwt_percent_diffs2)}')
-    good_count_1_2 = 0
-    good_count_3_2 = 0
-    good_count_5_2 = 0
-    good_count_10_2 = 0
-    for diff2 in cwt_percent_diffs2:
-        if diff2 < 1.0:
-            good_count_1_2 += 1
-        if diff2 < 3.0:
-            good_count_3_2 += 1
-        if diff2 < 5.0:
-            good_count_5_2 += 1
-        if diff2 < 10.0:
-            good_count_10_2 += 1
-
-    print('\n')
-    print(
-        f'Percent of GSEV1 within 1% truth: {(good_count_1_1 / len(cwt_percent_diffs1)) * 100}')
-    print(
-        f'Percent of GSEV1 within 3% truth: {good_count_3_1 / len(cwt_percent_diffs1) * 100}')
-    print(f'Percent of GSEV1 within 5% truth: {good_count_5_1/len(cwt_percent_diffs1) * 100}')
-    print(
-        f'Percent of GSEV1 within 10% truth: {good_count_10_1 / len(cwt_percent_diffs1) * 100}')
-    print('\n')
-    print(
-        f'Percent of GSEV2 within 1% truth: {good_count_1_2 / len(cwt_percent_diffs1) * 100}')
-    print(
-        f'Percent of GSEV2 within 3% truth: {good_count_3_2 / len(cwt_percent_diffs1) * 100}')
-    print(
-        f'Percent of GSEV2 within 5% truth: {good_count_5_2 / len(cwt_percent_diffs2) * 100}')
-    print(
-        f'Percent of GSEV2 within 10% truth: {good_count_10_2 / len(cwt_percent_diffs2) * 100}')
-    print('\n')
-    print_desc_stats(cwt_percent_diffs1, 'DIFFS1')
-    print_desc_stats(cwt_percent_diffs2, 'DIFFS2')
-    print_desc_stats(cwt_truth_values, 'TRUTH')
-    print_desc_stats(gs1, 'GSE1')
-    # Remove nan's from the results before calculating and printing descriptive statistics
-    gs1 = [result['gait_speed'] for result in gs_results_1 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
-    gs2 = [result['gait_speed'] for result in gs_results_2 if not np.isnan(result['gait_speed']) and result['id'] in val.subj_gs_truth.keys()]
-    print_desc_stats(gs2, 'GSE2')
-    # plt.plot(gs1, cwt_percent_diffs1, 'bo')
-    plt.plot(gs2, cwt_percent_diffs2, 'rv')
-    plt.show()
-
-
-    # bins = np.linspace(0.0, 2.0, 30)
-    # fig, axes = plt.subplots(3)
-    # axes[0].hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    # axes[0].legend(loc='upper right')
-    # axes[1].hist(gs1, bins, alpha=1.0, label='gs1')
-    # axes[1].legend(loc='upper right')
-    # axes[2].hist(gs2, bins, alpha=1.0, label='gs2')
-    # axes[2].legend(loc='upper right')
-    #
-    # # plt.hist(cwt_truth_values, bins, alpha=1.0, label='truth')
-    # # plt.hist(gs1, bins, alpha=0.33, label='gs1')
-    # # plt.hist(gs2, bins, alpha=0.33, label='gs2')
-    # # plt.legend(loc='upper right')
-    # plt.show()
-
-
-def run_baseline(val, gs_results):
-    full_baseline_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\baselines_v1.0\gait_speed_estimator_results_v1.0_20220204-124523.json'
-    errors = val.compare_gse_to_baseline(gs_results, full_baseline_path)
-    print(errors)
+    results_path = r'C:\Users\gsass\Documents\fafra\testing\gait_speed\manuscript_results'
+    eval_percentages = [1.0, 3.0, 5.0, 10.0, 25.0, 50.0, 100.0]
+    write_out_estimates = False
+    write_out_results = False
+    val.analyze_gait_speed_estimators(dataset_path, clinical_demo_path, segment_dataset, epoch_size, results_path, eval_percentages, write_out_estimates, write_out_results)
 
 
 def run_comparison(val, gs_results):
@@ -353,27 +658,6 @@ def run_comparison(val, gs_results):
     print_desc_stats(cwt_diffs, 'DIFFS')
     print_desc_stats(cwt_truth_values, 'TRUTH')
     print_desc_stats(gs, 'GSE')
-    print('a')
-
-
-def print_desc_stats(data, name):
-    print(name)
-    print(f'Min: {min(data)}')
-    print(f'Max: {max(data)}')
-    print(f'Mean: {np.mean(data)}')
-    print(f'Median: {np.median(data)}')
-    print(f'STD: {np.std(data)}')
-    print(f'Skewness: {skew(data)}')
-    if skew(data) > 0.0:
-        print('Data skews to lower values')
-    else:
-        print('Data skews to higher values')
-    print(f'Kurtosis {kurtosis(data)}')
-    if skew(data) > 0.0:
-        print('Tightly distributed')
-    else:
-        print('Widely distributed')
-    print('\n')
 
 
 if __name__ == '__main__':

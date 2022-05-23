@@ -56,8 +56,10 @@ class LightGBMRiskClassifier(Classifier):
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
         lgbdata = lgb.Dataset(x, label=y)
+        trial.params["objective"]="binary"
         self.params = trial.params
-        model = lgb.train(trial.params, lgbdata, verbose_eval=False)
+        model = lgb.train(trial.params, lgbdata)
+        print("in LightGMB",trial.params,model.params)
         self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
 
@@ -74,7 +76,7 @@ class LightGBMRiskClassifier(Classifier):
     # See lightgbm_tuner_cv.py from https://github.com/optuna/optuna-examples/tree/main/lightgbm to see how I implemented k-fold CV training.
     def cross_validate(self, x, y, folds=5, **kwargs):
         # TODO: may be able to switch out the portion prior to CV with train model fxn, not sure difference
-        optuna.logging.set_verbosity(optuna.logging.ERROR)
+        #optuna.logging.set_verbosity(optuna.logging.ERROR)
         lgb_dataset_for_kfold_cv = optuna.integration.lightgbm.Dataset(x, label=y)
 
         # Set training parameters for Optuna's LightGBM k-fold CV algorithm.

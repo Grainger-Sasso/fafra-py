@@ -38,7 +38,6 @@ def newMain():
 def main():
     start = time.time()
     # Instantiate the classifier
-    # classifier = SVMRiskClassifier()
     classifier = KNNRiskClassifier()
     #classifier = LightGBMRiskClassifier({})
 
@@ -83,7 +82,12 @@ def main():
     validate.perform_permutation_feature_importance(classifier.get_model(),input_metrics,y)
     #validate.perform_permutation_feature_importance(classifier,input_metrics,y)
     # cv.plot_classification(classifier.get_model(), x_t, y)
+
+    validate = InputMetricValidator() # validator instances
+    validate.perform_shap_values(classifier, scaled_input_metrics) # shap metric implementation
+
     print(f'Runtime: {time.time() - start}')
+    
 
 def train_score(model, input_metrics):
     x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)

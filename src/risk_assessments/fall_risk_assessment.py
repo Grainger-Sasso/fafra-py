@@ -60,6 +60,7 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         input_metrics: InputMetrics = self.generate_risk_metrics(input_metric_names)
+        print(input_metrics)
         # Using canonical notation for input vectors, x and y
         # x = input_metrics.get_metrics()
         # y = input_metrics.get_labels()
@@ -77,17 +78,20 @@ class FallRiskAssessment:
             input_metrics)
         cv_x, names = input_metrics.get_metric_matrix()
         cv_results = self.rc.cross_validate(cv_x, y)
+        print("cross val done",cv_results)
         # Fit model to training data
         self.rc.train_model(x_train, y_train, metric_names=input_metric_names)
         # Make predictions on the test data
         y_predictions = self.rc.make_prediction(x_test)
         y_predictions = [int(i) for i in y_predictions]
         class_report = self.rc.create_classification_report(y_test, y_predictions)
+        
         # input_validator= InputMetricValidator()
         # input_validator.perform_partial_dependence_plot_lightGBM(self.rc,input_metrics,y)
         #input_validator.perform_partial_dependence_plot_sklearn(self.rc,input_metrics,y)
         #input_validator.perform_shap_values(self.rc,input_metrics)
         #input_validator.perform_permutation_feature_importance(self.rc,input_metrics,y)
+
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
