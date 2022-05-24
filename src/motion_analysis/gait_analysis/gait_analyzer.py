@@ -15,7 +15,7 @@ class GaitAnalyzer:
     def __init__(self):
         self.gse_viz = GSEViz()
 
-    def estimate_gait_speed(self, user_data: UserData, hpf, max_com_v_delta, plot_gait_cycles):
+    def estimate_gait_speed(self, user_data: UserData, hpf, max_com_v_delta, plot_gait_cycles, diagnostic=False):
         """
         Several assumptions are made in this version of the gait speed
         estimator:
@@ -63,7 +63,11 @@ class GaitAnalyzer:
         # self.plot_gait_cycles(v_displacement, valid_strike_ixs, invalid_strike_ixs, samp_freq)
         # self.gse_viz.plot_gse_results(user_data, v_peak_indexes,
         #                               ap_peak_indexes, v_displacement)
-        return gait_speed, gait_params
+        if diagnostic:
+            results = (gait_speed, gait_params)
+        else:
+            results = gait_speed
+        return results
 
     def _detect_peaks(self, acc_data):
         peaks = PeakDetector().detect_peaks(acc_data)[0]

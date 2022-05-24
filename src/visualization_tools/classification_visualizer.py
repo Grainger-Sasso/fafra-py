@@ -14,7 +14,7 @@ from matplotlib import gridspec
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.metric_names import MetricNames
-
+ 
 
 class ClassificationVisualizer:
 
@@ -217,5 +217,7 @@ def main():
     #cl.all_feature_scatterplot(all_data)
 
 
+
 if __name__ ==  '__main__':
     main() 
+

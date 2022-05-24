@@ -9,6 +9,7 @@ from typing import Tuple, Dict, List, Any
 from definitions import ROOT_DIR
 from sklearn.preprocessing import StandardScaler
 from matplotlib import pyplot as plt
+import sys,getopt
 
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
@@ -28,6 +29,10 @@ from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_class
 from src.risk_classification.risk_classifiers.svm_risk_classifier.svm_risk_classifier import SVMRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.motion_analysis.attitude_estimation.attitude_estimator import AttitudeEstimator
+
+from src.risk_classification.validation.classifier_evaluator import ClassifierEvaluator
+from src.risk_classification.validation.classifier_metrics import ClassifierMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
 class FallRiskAssessment:
@@ -55,12 +60,14 @@ class FallRiskAssessment:
         # Derive risk metrics
         random.shuffle(self.datasets[DatasetNames.LTMM].get_dataset())
         input_metrics: InputMetrics = self.generate_risk_metrics(input_metric_names)
+        print(input_metrics)
         # Using canonical notation for input vectors, x and y
         # x = input_metrics.get_metrics()
         # y = input_metrics.get_labels()
         # self.m_viz.violin_plot_metrics(x, y)
         # Scale input metrics
         input_metrics = self.rc.scale_input_data(input_metrics)
+        self.inputM=input_metrics
         x = input_metrics.get_metrics()
         y = input_metrics.get_labels()
         self.rc_viz.violin_plot_metrics(x, y)
@@ -88,6 +95,7 @@ class FallRiskAssessment:
         if output_path:
             self._write_results(output_path, x, x_train, x_test, y_train, y_test,
                        y_predictions, cv_results, class_report)
+
         print(cv_results)
         print(class_report)
 
@@ -280,17 +288,37 @@ class FallRiskAssessment:
             json.dump(params, pf)
         with open(results_filename, 'w') as rf:
             json.dump(results, rf)
-
+    def classifier_evaluator(self,output_path):
+        cl_ev = ClassifierEvaluator()
+        eval_metrics = [ClassifierMetrics.PDP_KNN,ClassifierMetrics.LIME]
+        # classifiers = [KNNRiskClassifier(), LightGBMRiskClassifier({}),
+        #                SVMRiskClassifier()]
+        classifiers = [self.rc]
+        input_metrics = self.inputM
+        #metric_name = MetricNames.EXAMPLE
+        #input_metric = InputMetric(metric_name, np.array([]))
+        #input_metrics.set_metric(MetricNames.EXAMPLE, input_metric)
+        #y = np.array([])
+        #input_metrics.set_labels(y)
+        #output_path = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
+        cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)
 
 def main():
     # dataset_info: [{dataset_name: DatasetName, dataset_path: path, clin: clin_path, segment_data: bool, epoch: float, mod: MOD}]
+    argumentList=sys.argv[1:]
+    opts='io:'
+    long_opts=['input_add','output_add']
+    argument,values=getopt.getopt(argumentList,opts,long_opts)
+    for cur_Arg,cur_val in argument:
+        if cur_Arg in('-o','--output_add'):
+            output_dir=cur_val
     st = time.time()
     # ltmm_dataset_name = 'LTMM'
 
     # Desktop paths
-    ltmm_dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0\LabWalks'
+    ltmm_dataset_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\LabWalks'
     # ltmm_dataset_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0'
-    clinical_demo_path = r'C:\Users\gsass\Documents\fafra\datasets\LTMM\LTMM_database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    clinical_demo_path = r'F:\long-term-movement-monitoring-database-1.0.0\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
 
     # Laptop paths
     # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
@@ -299,7 +327,7 @@ def main():
     # clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     # report_home_75h_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ReportHome75h.xlsx'
 
-    output_dir = r'C:\Users\gsass\Documents\fafra\testing\ltmm\results'
+    #output_dir = r'F:\long-term-movement-monitoring-database-1.0.0\output_dir'
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -321,6 +349,7 @@ def main():
     svm_classifier = SVMRiskClassifier()
     fra = FallRiskAssessment(knn_classifier)
     fra.perform_risk_assessment(dataset_info, input_metric_names, output_dir)
+    fra.classifier_evaluator(output_dir)
 
 
     # cv_results = ltmm_ra.cross_validate_model()
