@@ -24,7 +24,6 @@ DATASET_NAME = DatasetNames.FIBION
 
 class FibionDatasetBuilder(DatasetBuilder):
     def __init__(self, ):
-        # TODO: add second sisfall dataset for the second accelerometer in dataset, currently not being used
         super().__init__(DATASET_NAME)
         self.sampling_frequency = 12.5
         # Original units: g,g,g
@@ -94,8 +93,8 @@ class FibionDatasetBuilder(DatasetBuilder):
                 y_acc = segment.T[2]
                 z_acc = segment.T[3]
                 imu_data = IMUData('', '',
-                                   np.array(y_acc), np.array(x_acc),
-                                   np.array(z_acc),
+                                   np.array(x_acc), np.array(z_acc),
+                                   np.array(y_acc),
                                    np.array([]), np.array([]), np.array([]),
                                    time_s)
                 user_data.append(UserData(

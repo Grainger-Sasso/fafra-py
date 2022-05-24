@@ -2,7 +2,6 @@ from enum import Enum
  
 
 class MetricNames(Enum):
-    EXAMPLE = 'example'
     AUTOCORRELATION = 'ac'
     FAST_FOURIER_TRANSFORM = 'fft'
     MEAN = 'mean'
