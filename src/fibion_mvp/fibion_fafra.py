@@ -35,7 +35,8 @@ class FibionFaFRA:
         sleep_dis = self.get_ac_sleep_disturb()
         # Estimate subject fall risk
         fall_risk_score = self.estimate_fall_risk(input_metric_names)
-        # Construct report
+        # Build risk report
+        self.build_risk_report()
 
 
     def get_ac_sleep_disturb(self):
