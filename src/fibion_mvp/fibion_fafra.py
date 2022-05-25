@@ -23,10 +23,11 @@ class FibionFaFRA:
         return fdb.build_dataset(dataset_path, '')
 
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
+        # Preprocess subject data (low-pass filtering)
         self.preprocess_data()
         user_data = self.dataset.get_dataset()
         # Estimate subject gait speed
-        gs = self.estimate_gait_speed()
+        gs = self.estimate_gait_speed(user_data)
         # Get subject step count from activity chart
         act_chart_sc = self.get_ac_step_count()
         # Estimate subject activity levels
@@ -38,14 +39,13 @@ class FibionFaFRA:
         # Build risk report
         self.build_risk_report()
 
+    def estimate_gait_speed(self, user_data):
+        gs_results_v2, all_gait_params_2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_path, write_out_estimates=write_out_estimates)
 
     def get_ac_sleep_disturb(self):
         pass
 
     def estimate_activity_levels(self):
-        pass
-
-    def estimate_gait_speed(self):
         pass
 
     def get_ac_step_count(self):
