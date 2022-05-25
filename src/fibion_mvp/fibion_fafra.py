@@ -25,11 +25,37 @@ class FibionFaFRA:
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
         self.preprocess_data()
         user_data = self.dataset.get_dataset()
-        # Generate risk metrics
+        # Estimate subject gait speed
+        gs = self.estimate_gait_speed()
+        # Get subject step count from activity chart
+        act_chart_sc = self.get_ac_step_count()
+        # Estimate subject activity levels
+        act_levels = self.estimate_activity_levels()
+        # Get sleep disturbances from activity chart
+        sleep_dis = self.get_ac_sleep_disturb()
+        # Estimate subject fall risk
+        fall_risk_score = self.estimate_fall_risk(input_metric_names)
+        # Construct report
+
+
+    def get_ac_sleep_disturb(self):
+        pass
+
+    def estimate_activity_levels(self):
+        pass
+
+    def estimate_gait_speed(self):
+        pass
+
+    def get_ac_step_count(self):
+        pass
+
+    def estimate_fall_risk(self, input_metric_names):
         input_metrics: InputMetrics = self.generate_risk_metrics(
             input_metric_names)
-        # Run the risk classifier with input metrics
-        metrics = []
+
+    def build_risk_report(self):
+        pass
 
     def generate_risk_metrics(self, input_metric_names):
         # Separate datasets into fallers and nonfallers
@@ -72,7 +98,26 @@ class FibionFaFRA:
 def main():
     dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
     fib_fafra = FibionFaFRA(dataset_path)
-    fib_fafra.perform_risk_analysis()
+    # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+    #                             MetricNames.FAST_FOURIER_TRANSFORM,
+    #                             MetricNames.MEAN,
+    #                             MetricNames.ROOT_MEAN_SQUARE,
+    #                             MetricNames.STANDARD_DEVIATION,
+    #                             MetricNames.SIGNAL_ENERGY,
+    #                             MetricNames.COEFFICIENT_OF_VARIANCE,
+    #                             MetricNames.ZERO_CROSSING,
+    #                             MetricNames.SIGNAL_MAGNITUDE_AREA,
+    #                             MetricNames.GAIT_SPEED_ESTIMATOR])
+    input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+                                MetricNames.FAST_FOURIER_TRANSFORM,
+                                MetricNames.MEAN,
+                                MetricNames.ROOT_MEAN_SQUARE,
+                                MetricNames.STANDARD_DEVIATION,
+                                MetricNames.SIGNAL_ENERGY,
+                                MetricNames.COEFFICIENT_OF_VARIANCE,
+                                MetricNames.ZERO_CROSSING,
+                                MetricNames.SIGNAL_MAGNITUDE_AREA])
+    fib_fafra.perform_risk_analysis(input_metric_names)
 
 
 if __name__ == '__main__':
