@@ -1,20 +1,26 @@
 import numpy as np
+import pandas as pd
+import calendar
+from matplotlib import pyplot as plt
+from dateutil import parser
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.fibion_mvp.fibion_dataset_builder import FibionDatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
-
+from src.motion_analysis.gait_analysis.gait_analyzer_v2 import GaitAnalyzerV2
 
 
 class FibionFaFRA:
-
-    def __init__(self, dataset_path):
+    def __init__(self, dataset_path, activity_path):
         self.dataset_path = dataset_path
+        self.activity_path = activity_path
         self.dataset = self.load_dataset(self.dataset_path)
+        self.activity_data = self.load_activity_data(activity_path)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
 
@@ -22,12 +28,26 @@ class FibionFaFRA:
         fdb = FibionDatasetBuilder()
         return fdb.build_dataset(dataset_path, '')
 
+    def load_activity_data(self, activity_path):
+        act_data = pd.read_csv(activity_path)
+        # Add column with epoch time
+        epochs = []
+        valid_data_ixs = []
+        # Get each row, get the epoch from that row and whether there is data (no data time = 15)
+        for ix, row in act_data.iterrows():
+            date = parser.parse(row['utc'])
+            epoch = calendar.timegm(date.utctimetuple())
+            epochs.append(epoch)
+            if row[' general/nodata/time'] != 15.0:
+                valid_data_ixs.append(ix)
+        act_data['epochs'] = epochs
+        return act_data
+
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
         # Preprocess subject data (low-pass filtering)
         self.preprocess_data()
-        user_data = self.dataset.get_dataset()
         # Estimate subject gait speed
-        gs = self.estimate_gait_speed(user_data)
+        gs = self.estimate_gait_speed(self.dataset)
         # Get subject step count from activity chart
         act_chart_sc = self.get_ac_step_count()
         # Estimate subject activity levels
@@ -39,8 +59,62 @@ class FibionFaFRA:
         # Build risk report
         self.build_risk_report()
 
-    def estimate_gait_speed(self, user_data):
-        gs_results_v2, all_gait_params_2 = self.calc_gait_speeds_v2(dataset, eval_percentages, results_path, write_out_estimates=write_out_estimates)
+    def estimate_gait_speed(self, dataset):
+        # Initialize gse variables
+        gait_speed_estimates = []
+        ga = GaitAnalyzerV2()
+        # Compile list of all walking bout times from activity data
+
+        # For every epoch in the data
+        for user_data in self.dataset.get_dataset():
+            # If the epoch has walking bouts in it according to Fibion data
+            if self.check_walking_bout(user_data):
+                # Run the epoch through the GSE
+                # gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data,
+                #                                                       hpf,
+                #                                                       max_com_v_delta,
+                #                                                       plot_gait_cycles)
+                pass
+            else:
+                pass
+        # Average the gait speeds together, return average
+
+    def compile_walk_times(self):
+        walking_times = {}
+
+    def check_walking_bout(self, user_data):
+        pass
+
+    def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
+                            results_location, write_out_estimates=False,
+                            hpf=False, max_com_v_delta=0.14,
+                            plot_gait_cycles=False):
+        # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
+        # Estimate the gait speed for every user/trial in dataset
+        truth_comparisons = []
+        all_gait_params = []
+        ga = GaitAnalyzerV2()
+        count = 0
+        if write_out_estimates:
+            # Generate the directories based on evaluation percentages
+            percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
+        for user_data in dataset.get_dataset():
+            user_id = user_data.get_clinical_demo_data().get_id()
+            trial = user_data.get_clinical_demo_data().get_trial()
+            gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
+                                                plot_gait_cycles)
+            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
+            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
+                      'user_data': user_data}
+            if user_id in self.subj_gs_truth.keys():
+                comparison = self.compare_gs_to_truth_val(result)
+                truth_comparisons.append(comparison)
+                if write_out_estimates:
+                    self.write_out_gs2_comparison_results(comparison, fig,
+                                                          eval_percentages,
+                                                          percentage_dirs)
+            plt.close()
+        return truth_comparisons, all_gait_params
 
     def get_ac_sleep_disturb(self):
         pass
@@ -98,7 +172,8 @@ class FibionFaFRA:
 
 def main():
     dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
-    fib_fafra = FibionFaFRA(dataset_path)
+    activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
+    fib_fafra = FibionFaFRA(dataset_path, activity_path)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,
