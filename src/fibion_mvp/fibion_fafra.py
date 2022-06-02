@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import pandas as pd
 import calendar
@@ -25,8 +26,11 @@ class FibionFaFRA:
         self.mg = MetricGenerator()
 
     def load_dataset(self, dataset_path):
+        t0 = time.time()
         fdb = FibionDatasetBuilder()
-        return fdb.build_dataset(dataset_path, '')
+        ds = fdb.build_dataset(dataset_path, '')
+        print(f'{time.time() - t0}')
+        return ds
 
     def load_activity_data(self, activity_path):
         act_data = pd.read_csv(activity_path)
@@ -35,7 +39,7 @@ class FibionFaFRA:
         valid_data_ixs = []
         # Get each row, get the epoch from that row and whether there is data (no data time = 15)
         for ix, row in act_data.iterrows():
-            date = parser.parse(row['utc'])
+            date = parser.parse(row[' local'])
             epoch = calendar.timegm(date.utctimetuple())
             epochs.append(epoch)
             if row[' general/nodata/time'] != 15.0:
@@ -171,8 +175,12 @@ class FibionFaFRA:
 
 
 def main():
-    dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
-    activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
+    # Grainger desktop paths
+    # dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
+    # activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
+    # Grainger laptop paths
+    dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
+    activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
     fib_fafra = FibionFaFRA(dataset_path, activity_path)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
