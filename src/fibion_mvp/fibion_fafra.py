@@ -2,6 +2,7 @@ import time
 import numpy as np
 import pandas as pd
 import calendar
+import bisect
 from matplotlib import pyplot as plt
 from dateutil import parser
 
@@ -26,10 +27,8 @@ class FibionFaFRA:
         self.mg = MetricGenerator()
 
     def load_dataset(self, dataset_path):
-        t0 = time.time()
         fdb = FibionDatasetBuilder()
         ds = fdb.build_dataset(dataset_path, '')
-        print(f'{time.time() - t0}')
         return ds
 
     def load_activity_data(self, activity_path):
@@ -44,12 +43,14 @@ class FibionFaFRA:
             epochs.append(epoch)
             if row[' general/nodata/time'] != 15.0:
                 valid_data_ixs.append(ix)
-        act_data['epochs'] = epochs
+        act_data['epoch'] = epochs
         return act_data
 
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
+        t0 = time.time()
         # Preprocess subject data (low-pass filtering)
         self.preprocess_data()
+        print(f'{time.time() - t0}')
         # Estimate subject gait speed
         gs = self.estimate_gait_speed(self.dataset)
         # Get subject step count from activity chart
@@ -67,27 +68,30 @@ class FibionFaFRA:
         # Initialize gse variables
         gait_speed_estimates = []
         ga = GaitAnalyzerV2()
-        # Compile list of all walking bout times from activity data
-
         # For every epoch in the data
         for user_data in self.dataset.get_dataset():
             # If the epoch has walking bouts in it according to Fibion data
-            if self.check_walking_bout(user_data):
+            if self._check_walking_bout(user_data):
                 # Run the epoch through the GSE
                 # gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data,
                 #                                                       hpf,
                 #                                                       max_com_v_delta,
                 #                                                       plot_gait_cycles)
-                pass
+                print(user_data.get_imu_data(IMUDataFilterType.RAW).get_time()[0])
+                print('HUH')
             else:
-                pass
+                print('YIKES')
         # Average the gait speeds together, return average
 
-    def compile_walk_times(self):
-        walking_times = {}
-
-    def check_walking_bout(self, user_data):
-        pass
+    def _check_walking_bout(self, user_data):
+        walking = False
+        t0 = user_data.get_imu_data(IMUDataFilterType.RAW).get_time()[0]
+        epoch_ix = bisect.bisect_right(self.activity_data['epoch'], t0)
+        if epoch_ix > 0:
+            if self.activity_data[' activity/upright_walk/time'][epoch_ix] > 0:
+                print(self.activity_data['epoch'][epoch_ix])
+                walking = True
+        return walking
 
     def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
                             results_location, write_out_estimates=False,
@@ -180,7 +184,8 @@ def main():
     # activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
     # Grainger laptop paths
     dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
-    activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
+    activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
+    # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
     fib_fafra = FibionFaFRA(dataset_path, activity_path)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
