@@ -4,7 +4,8 @@ import pandas as pd
 import calendar
 import bisect
 from matplotlib import pyplot as plt
-from dateutil import parser
+from datetime import datetime
+from dateutil import parser, tz
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.fibion_mvp.fibion_dataset_builder import FibionDatasetBuilder
@@ -18,11 +19,11 @@ from src.motion_analysis.gait_analysis.gait_analyzer_v2 import GaitAnalyzerV2
 
 
 class FibionFaFRA:
-    def __init__(self, dataset_path, activity_path):
+    def __init__(self, dataset_path, activity_path, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
         self.dataset = self.load_dataset(self.dataset_path)
-        self.activity_data = self.load_activity_data(activity_path)
+        self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
 
@@ -31,19 +32,22 @@ class FibionFaFRA:
         ds = fdb.build_dataset(dataset_path, '')
         return ds
 
-    def load_activity_data(self, activity_path):
+    def load_activity_data(self, activity_path, timezone):
         act_data = pd.read_csv(activity_path)
         # Add column with epoch time
         epochs = []
+        local_times = []
         valid_data_ixs = []
         # Get each row, get the epoch from that row and whether there is data (no data time = 15)
         for ix, row in act_data.iterrows():
-            date = parser.parse(row[' local'])
-            epoch = calendar.timegm(date.utctimetuple())
-            epochs.append(epoch)
+            date = parser.parse(row['utc']).replace(tzinfo=tz.gettz('UTC'))
+            local_time = date.astimezone(timezone)
+            epochs.append(local_time.timestamp())
+            local_times.append(local_time)
             if row[' general/nodata/time'] != 15.0:
                 valid_data_ixs.append(ix)
         act_data['epoch'] = epochs
+        act_data['converted_local_time'] = local_times
         return act_data
 
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
@@ -77,19 +81,21 @@ class FibionFaFRA:
                 #                                                       hpf,
                 #                                                       max_com_v_delta,
                 #                                                       plot_gait_cycles)
-                print(user_data.get_imu_data(IMUDataFilterType.RAW).get_time()[0])
-                print('HUH')
+                pass
             else:
-                print('YIKES')
+                pass
         # Average the gait speeds together, return average
 
     def _check_walking_bout(self, user_data):
         walking = False
         t0 = user_data.get_imu_data(IMUDataFilterType.RAW).get_time()[0]
-        epoch_ix = bisect.bisect_right(self.activity_data['epoch'], t0)
+        epoch_ix = bisect.bisect_right(self.activity_data['epoch'], t0) - 1
         if epoch_ix > 0:
             if self.activity_data[' activity/upright_walk/time'][epoch_ix] > 0:
+                print(t0)
                 print(self.activity_data['epoch'][epoch_ix])
+                print(self.activity_data['converted_local_time'][epoch_ix])
+                print('')
                 walking = True
         return walking
 

@@ -3,6 +3,7 @@ import json
 import pandas as pd
 import numpy as np
 import time
+from dateutil import parser, tz
 import glob
 import binascii
 import struct
@@ -23,7 +24,7 @@ DATASET_NAME = DatasetNames.FIBION
 
 
 class FibionDatasetBuilder(DatasetBuilder):
-    def __init__(self, ):
+    def __init__(self, timezone=tz.gettz("America/New_York")):
         super().__init__(DATASET_NAME)
         self.sampling_frequency = 12.5
         # Original units: g,g,g
@@ -31,6 +32,7 @@ class FibionDatasetBuilder(DatasetBuilder):
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
+        self.local_tz = timezone
 
     def build_dataset(self, dataset_path, clinical_demo_path,
                       segment_dataset=True, epoch_size=60.0):
@@ -54,16 +56,14 @@ class FibionDatasetBuilder(DatasetBuilder):
             for i, j in zip(first_ix, second_ix):
                 hexs.append(hexdata[i:j])
             time_s = []
-            time_date = []
             x_acc = []
             y_acc = []
             z_acc = []
             for hex in hexs:
                 if len(hex) != 24:
                     raise ValueError(f'Hex bin data length not 24: {len(hexs)}')
-                time_s_i, time_date_i = self.convert_hex_time(hex[0:12])
+                time_s_i = self.convert_hex_time(hex[0:12])
                 time_s.append(time_s_i)
-                time_date.append(time_date_i)
                 x_acc.append(self.convert_hex_acc(hex[12:16]))
                 y_acc.append(self.convert_hex_acc(hex[16:20]))
                 z_acc.append(self.convert_hex_acc(hex[20:]))
@@ -113,9 +113,23 @@ class FibionDatasetBuilder(DatasetBuilder):
         return user_data
 
     def convert_hex_time(self, hex_str):
-        time_s = int(hex_str, 16) / 1000
-        time_date = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time_s))
-        return time_s, time_date
+        # Converts from hex to s (in CEST time, Stockholm, Sweden)
+        swe_time_s = (int(hex_str, 16) / 1000)
+        # TODO: enable proper tz conversion; disabled now because of runtime
+        # local_time_s = self.convert_tz(swe_time_s)
+        local_time_s = swe_time_s - (3600 * 6)
+        return local_time_s
+
+    def convert_tz(self, from_s_swe):
+        swe_time_date = time.strftime('%Y-%m-%d %H:%M:%S',
+                                      time.localtime(from_s_swe))
+        swe_time_date = parser.parse(swe_time_date).replace(
+            tzinfo=tz.gettz('Europe/Stockholm'))
+        # Convert UTC datetime to Local datetime
+        local_time_date = swe_time_date.astimezone(self.local_tz)
+        # Convert local datetime to epoch
+        local_time_s = local_time_date.timestamp()
+        return local_time_s
 
     def convert_hex_acc(self, hex_str):
         bits = 16  # Number of bits in a hexadecimal number format
