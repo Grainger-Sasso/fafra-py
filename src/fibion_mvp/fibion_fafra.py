@@ -26,6 +26,7 @@ class FibionFaFRA:
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
+        self.gse = GaitAnalyzerV2()
 
     def load_dataset(self, dataset_path):
         fdb = FibionDatasetBuilder()
@@ -72,15 +73,19 @@ class FibionFaFRA:
         # Initialize gse variables
         gait_speed_estimates = []
         ga = GaitAnalyzerV2()
+        # GSE params
+        hpf = False
+        max_com_v_delta = 0.14
+        plot_gait_cycles = True
         # For every epoch in the data
         for user_data in self.dataset.get_dataset():
             # If the epoch has walking bouts in it according to Fibion data
             if self._check_walking_bout(user_data):
                 # Run the epoch through the GSE
-                # gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data,
-                #                                                       hpf,
-                #                                                       max_com_v_delta,
-                #                                                       plot_gait_cycles)
+                gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
+                    user_data, hpf, max_com_v_delta, plot_gait_cycles)
+                if fig:
+                    fig.show()
                 pass
             else:
                 pass
