@@ -172,24 +172,26 @@ class GaitAnalyzerV2:
             v_displacement = []
             # For every step (interval between ap peak)
             for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
-                # Calculate the vertical displacement of that step
-                step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
-                                                           end_ix, samp_freq,
-                                                           hpf)
-                # Smooth the vertical displacement signal
-                v_disp_mean = np.array(step_v_disp).mean()
                 filter_size = 21
                 polyorder = 3
-                if filter_size-1 <= polyorder:
+                if filter_size - 1 <= polyorder:
                     filter_size = polyorder + 2
                 if (filter_size % 2) == 0:
                     filter_size -= 1
-                step_v_disp = savgol_filter(step_v_disp, filter_size, polyorder)
-                new_v_disp_mean = np.array(step_v_disp).mean()
-                step_v_disp = step_v_disp * (v_disp_mean / new_v_disp_mean)
-                # Add step vertical displacement to the walking bout
-                # vertical displacment
-                v_displacement.extend(step_v_disp)
+                # Check that there are a minimum num of data points being passed
+                if (end_ix - start_ix) > filter_size:
+                    # Calculate the vertical displacement of that step
+                    step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
+                                                               end_ix, samp_freq,
+                                                               hpf)
+                    # Smooth the vertical displacement signal
+                    v_disp_mean = np.array(step_v_disp).mean()
+                    step_v_disp = savgol_filter(step_v_disp, filter_size, polyorder)
+                    new_v_disp_mean = np.array(step_v_disp).mean()
+                    step_v_disp = step_v_disp * (v_disp_mean / new_v_disp_mean)
+                    # Add step vertical displacement to the walking bout
+                    # vertical displacment
+                    v_displacement.extend(step_v_disp)
             no_v_disp_data = np.zeros((step_start_ixs[0] - no_v_disp_ix))
             whole_v_disp.extend(no_v_disp_data)
             whole_v_disp.extend(v_displacement)
