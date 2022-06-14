@@ -62,13 +62,16 @@ class GaitAnalyzerV2:
             valid_strike_ix_clusters = self._validate_strike_ixs(
                 heel_strike_indexes, ap_acc_data, ap_signal_fft,
                 samp_freq, v_acc_data)
-            valid_strike_ixs = list(
+            valid_strike_ixs = sorted(list(
                 set([cluster for clusters in valid_strike_ix_clusters for cluster
-                     in clusters]))
+                     in clusters])))
             # Given assumption 1, remove the effects of gravity from the
             # vertical acc data
             # Calculate the vertical displacement of the COM
             if valid_strike_ixs:
+
+                diffs = [a - b for a, b in
+                         zip(valid_strike_ixs[1:], valid_strike_ixs[:-1])]
                 whole_v_disp = self.estimate_all_v_displacement(
                     valid_strike_ix_clusters, v_acc_data, samp_freq, hpf)
                 gait_speed, all_com_v_deltas, invalid_strike_indexes, all_step_lengths = self.estimate_all_step_lengths(
@@ -167,7 +170,7 @@ class GaitAnalyzerV2:
                          step_clusters if len(cluster) > min_cluster_size]
         # Check that the clusters contain more the n steps
         valid_step_clusters = [cluster for cluster in step_clusters if
-                               len(cluster) > 5]
+                               len(cluster) >= 10]
         return valid_step_clusters
 
     def estimate_all_v_displacement(self, heel_strike_ix_clusters, v_acc, samp_freq, hpf):
@@ -179,21 +182,13 @@ class GaitAnalyzerV2:
             v_displacement = []
             # For every step (interval between ap peak)
             for start_ix, end_ix in zip(step_start_ixs, step_end_ixs):
-                filter_size = 21
-                polyorder = 3
-                if filter_size - 1 <= polyorder:
-                    filter_size = polyorder + 2
-                if (filter_size % 2) == 0:
-                    filter_size -= 1
-                # Check that there are a minimum num of data points being passed
-                # if (end_ix - start_ix) > filter_size:
                 # Calculate the vertical displacement of that step
                 step_v_disp = self.estimate_v_displacement(v_acc, start_ix,
                                                            end_ix, samp_freq,
                                                            hpf)
-                # Smooth the vertical displacement signal
                 v_disp_mean = np.array(step_v_disp).mean()
-                step_v_disp = savgol_filter(step_v_disp, filter_size, polyorder)
+                # Smooth the vertical displacement signal
+                step_v_disp = self.smooth_step_v_disp(step_v_disp, start_ix, end_ix)
                 new_v_disp_mean = np.array(step_v_disp).mean()
                 step_v_disp = step_v_disp * (v_disp_mean / new_v_disp_mean)
                 # Add step vertical displacement to the walking bout
@@ -206,6 +201,19 @@ class GaitAnalyzerV2:
         no_v_disp_data = np.zeros((len(v_acc) - no_v_disp_ix))
         whole_v_disp.extend(no_v_disp_data)
         return whole_v_disp
+
+    def smooth_step_v_disp(self, step_v_disp, start_ix, end_ix):
+        filter_size = 21
+        polyorder = 3
+        if filter_size >= (end_ix - start_ix):
+            filter_size = (end_ix - start_ix) - 1
+        if (filter_size % 2) == 0:
+            filter_size -= 1
+        if polyorder < filter_size:
+            step_v_disp = savgol_filter(step_v_disp, filter_size, polyorder)
+        else:
+            step_v_disp = np.array(step_v_disp)
+        return step_v_disp
 
     def estimate_v_displacement(self, v_acc, start_ix,
                                       end_ix, samp_freq, hpf):

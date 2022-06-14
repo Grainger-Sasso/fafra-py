@@ -19,18 +19,18 @@ from src.motion_analysis.gait_analysis.gait_analyzer_v2 import GaitAnalyzerV2
 
 
 class FibionFaFRA:
-    def __init__(self, dataset_path, activity_path, timezone=tz.gettz("America/New_York")):
+    def __init__(self, dataset_path, activity_path, demo_data, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
-        self.dataset = self.load_dataset(self.dataset_path)
+        self.dataset = self.load_dataset(self.dataset_path, demo_data)
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
         self.gse = GaitAnalyzerV2()
 
-    def load_dataset(self, dataset_path):
+    def load_dataset(self, dataset_path, demo_data):
         fdb = FibionDatasetBuilder()
-        ds = fdb.build_dataset(dataset_path, '')
+        ds = fdb.build_dataset(dataset_path, demo_data, '')
         return ds
 
     def load_activity_data(self, activity_path, timezone):
@@ -84,13 +84,11 @@ class FibionFaFRA:
                 # Run the epoch through the GSE
                 gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
                     user_data, hpf, max_com_v_delta, plot_gait_cycles)
-                if fig and not np.isnan(gait_speed):
-                    fig.show()
-                    print('slow')
+                # if fig and not np.isnan(gait_speed):
+                #     gait_speed_estimates.append(gait_speed)
+                #     fig.show()
                 plt.close()
-            else:
-                pass
-        # Average the gait speeds together, return average
+        return np.array(gait_speed_estimates).mean()
 
     def _check_walking_bout(self, user_data):
         walking = False
@@ -197,8 +195,9 @@ def main():
     # Grainger laptop paths
     dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
     activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
+    demo_data = {'user_height': 1.88}
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
-    fib_fafra = FibionFaFRA(dataset_path, activity_path)
+    fib_fafra = FibionFaFRA(dataset_path, activity_path, demo_data)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,

@@ -34,18 +34,18 @@ class FibionDatasetBuilder(DatasetBuilder):
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         self.local_tz = timezone
 
-    def build_dataset(self, dataset_path, clinical_demo_path,
+    def build_dataset(self, dataset_path, demo_data, clinical_demo_path,
                       segment_dataset=True, epoch_size=60.0):
         dataset = None
         dataset_user_data = []
         hex_file_paths = [os.path.join(dataset_path, f) for f in os.listdir(dataset_path) if os.path.isfile(os.path.join(dataset_path, f))]
         for hex_file_path in hex_file_paths:
-            user_data = self.read_hex_file(hex_file_path, segment_dataset, epoch_size)
+            user_data = self.read_hex_file(hex_file_path, demo_data, segment_dataset, epoch_size)
             dataset_user_data.extend(user_data)
         dataset_name = 'Fibion'
         return Dataset(dataset_name, dataset_path, clinical_demo_path, dataset_user_data, {})
 
-    def read_hex_file(self, hex_file_path, segment_dataset, epoch_size):
+    def read_hex_file(self, hex_file_path, demo_data, segment_dataset, epoch_size):
         with open(hex_file_path, 'rb') as f:
             hexdata = f.read().hex()
         if len(hexdata) % 24 == 0:
@@ -77,7 +77,7 @@ class FibionDatasetBuilder(DatasetBuilder):
         units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                  'anteroposterior-acc': 'm/s^2'}
         # TODO: Use ID and hashmap system to map clinical demographic data to users
-        clinical_demo_data = ClinicalDemographicData('', 0.0, '', False, 0.0,
+        clinical_demo_data = ClinicalDemographicData('', 0.0, '', False, demo_data['user_height'],
                                                      None)
         # TODO: get the correct sampling frequency
         imu_metadata = IMUMetadata(None, self.sampling_frequency, units)
