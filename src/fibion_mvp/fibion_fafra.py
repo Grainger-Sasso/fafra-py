@@ -59,7 +59,7 @@ class FibionFaFRA:
         # Estimate subject gait speed
         gs = self.estimate_gait_speed(self.dataset)
         # Get subject step count from activity chart
-        act_chart_sc = self.get_ac_step_count()
+        step_count = self.get_ac_step_count()
         # Estimate subject activity levels
         act_levels = self.estimate_activity_levels()
         # Get sleep disturbances from activity chart
@@ -112,7 +112,6 @@ class FibionFaFRA:
         truth_comparisons = []
         all_gait_params = []
         ga = GaitAnalyzerV2()
-        count = 0
         if write_out_estimates:
             # Generate the directories based on evaluation percentages
             percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
@@ -141,7 +140,7 @@ class FibionFaFRA:
         pass
 
     def get_ac_step_count(self):
-        pass
+        return self.activity_data[' activity/steps2/count'].sum()
 
     def estimate_fall_risk(self, input_metric_names):
         input_metrics: InputMetrics = self.generate_risk_metrics(
