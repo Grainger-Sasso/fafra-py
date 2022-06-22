@@ -36,7 +36,7 @@ class ModelTrainer:
 
     def load_data(self):
         db = DatasetBuilder()
-        return db.build_dataset(self.data_path, self.clinical_demo_path, True, 20.0)
+        return db.build_dataset(self.data_path, self.clinical_demo_path, False, 20.0)
 
     def preprocess_data(self, dataset):
         for user_data in dataset.get_dataset():
@@ -75,7 +75,7 @@ class ModelTrainer:
         return self.rc.scale_input_data(input_metrics)
 
     def train_model(self, input_metrics, input_metric_names):
-        x = input_metrics.get_metrics()
+        x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
         self.rc.train_model(x, y, metric_names = input_metric_names)
         pass
