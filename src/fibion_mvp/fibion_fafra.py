@@ -16,6 +16,8 @@ from src.risk_classification.input_metrics.metric_generator import MetricGenerat
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.motion_analysis.gait_analysis.gait_analyzer_v2 import GaitAnalyzerV2
+from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
 
 
 class FibionFaFRA:
@@ -26,6 +28,7 @@ class FibionFaFRA:
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
+        self.risk_model = LightGBMRiskClassifier({})
 
     def load_dataset(self, dataset_path):
         fdb = FibionDatasetBuilder()
@@ -65,6 +68,8 @@ class FibionFaFRA:
         sleep_dis = self.get_ac_sleep_disturb()
         # Estimate subject fall risk
         fall_risk_score = self.estimate_fall_risk(input_metric_names)
+        # Evaluate user fall risk status
+        # Evaluate faller risk levels
         # Build risk report
         self.build_risk_report()
 
@@ -140,8 +145,12 @@ class FibionFaFRA:
         pass
 
     def estimate_fall_risk(self, input_metric_names):
+        # Compute input metrics
         input_metrics: InputMetrics = self.generate_risk_metrics(
             input_metric_names)
+        # Scale input metrics
+        # Feed metrics into trained model
+
 
     def build_risk_report(self):
         pass
