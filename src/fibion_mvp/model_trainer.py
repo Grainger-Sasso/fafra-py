@@ -1,3 +1,5 @@
+import os
+import time
 import numpy as np
 from typing import Tuple
 
@@ -9,7 +11,6 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
-from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
@@ -35,7 +36,7 @@ class ModelTrainer:
 
     def load_data(self):
         db = DatasetBuilder()
-        return db.build_dataset(self.data_path, self.clinical_demo_path, True, 60.0)
+        return db.build_dataset(self.data_path, self.clinical_demo_path, True, 20.0)
 
     def preprocess_data(self, dataset):
         for user_data in dataset.get_dataset():
@@ -80,9 +81,27 @@ class ModelTrainer:
         pass
 
     def export_model(self):
-        self.rc.model.save_model(self.output_path)
+        model_name = 'lgbm_fafra_rcm_' + time.strftime("%Y%m%d-%H%M%S")
+        model_path = os.path.join(self.output_path, model_name)
+        self.rc.model.save_model(model_path)
 
 
 def main():
-    ltmm_dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
+    ltmm_dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
+    mt = ModelTrainer(ltmm_dataset_path, clinical_demo_path, output_path)
+    input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+                                MetricNames.FAST_FOURIER_TRANSFORM,
+                                MetricNames.MEAN,
+                                MetricNames.ROOT_MEAN_SQUARE,
+                                MetricNames.STANDARD_DEVIATION,
+                                MetricNames.SIGNAL_ENERGY,
+                                MetricNames.COEFFICIENT_OF_VARIANCE,
+                                MetricNames.ZERO_CROSSING,
+                                MetricNames.SIGNAL_MAGNITUDE_AREA,
+                                MetricNames.GAIT_SPEED_ESTIMATOR])
+    mt.create_risk_model(input_metric_names)
+
+if __name__ == '__main__':
+    main()
