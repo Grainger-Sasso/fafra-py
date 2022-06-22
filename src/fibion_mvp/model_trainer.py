@@ -1,0 +1,88 @@
+import numpy as np
+from typing import Tuple
+
+
+from src.risk_classification.input_metrics.metric_generator import MetricGenerator
+from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import DatasetBuilder
+from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
+from src.dataset_tools.dataset_builders.dataset_builder import DatasetBuilder
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
+from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+from src.dataset_tools.risk_assessment_data.imu_metadata import IMUMetadata
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.dataset_tools.risk_assessment_data.clinical_demographic_data import ClinicalDemographicData
+
+
+class ModelTrainer:
+    def __init__(self, data_path, clinical_demo_path, output_path):
+        self.data_path = data_path
+        self.clinical_demo_path = clinical_demo_path
+        self.output_path = output_path
+        self.filter = MotionFilters()
+        self.rc = LightGBMRiskClassifier({})
+
+    def create_risk_model(self, input_metric_names: Tuple[MetricNames]):
+        dataset = self.load_data()
+        self.preprocess_data(dataset)
+        input_metrics: InputMetrics = self.gen_input_metrics(dataset, input_metric_names)
+        self.train_model(input_metrics, input_metric_names)
+        self.export_model()
+
+    def load_data(self):
+        db = DatasetBuilder()
+        return db.build_dataset(self.data_path, self.clinical_demo_path, True, 60.0)
+
+    def preprocess_data(self, dataset):
+        for user_data in dataset.get_dataset():
+            # Filter the data
+            self.apply_lp_filter(user_data)
+
+    def apply_lp_filter(self, user_data):
+        imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
+        samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        act_code = imu_data.get_activity_code()
+        act_des = imu_data.get_activity_description()
+        all_raw_data = imu_data.get_all_data()
+        lpf_data_all_axis = []
+        for data in all_raw_data:
+            lpf_data_all_axis.append(
+                self.filter.apply_lpass_filter(data, 2, samp_freq))
+        lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
+                                                        samp_freq, act_code, act_des)
+        user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
+
+    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
+        v_acc_data = np.array(data[0])
+        ml_acc_data = np.array(data[1])
+        ap_acc_data = np.array(data[2])
+        yaw_gyr_data = np.array(data[3])
+        pitch_gyr_data = np.array(data[4])
+        roll_gyr_data = np.array(data[5])
+        time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
+                           len(v_acc_data))
+        return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
+                       yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
+
+    def gen_input_metrics(self, dataset, input_metric_names):
+        mg = MetricGenerator()
+        input_metrics = mg.generate_metrics(dataset.get_dataset(), input_metric_names)
+        return self.rc.scale_input_data(input_metrics)
+
+    def train_model(self, input_metrics, input_metric_names):
+        x = input_metrics.get_metrics()
+        y = input_metrics.get_labels()
+        self.rc.train_model(x, y, metric_names = input_metric_names)
+        pass
+
+    def export_model(self):
+        self.rc.model.save_model(self.output_path)
+
+
+def main():
+    ltmm_dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0'
+    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
