@@ -28,11 +28,11 @@ class FibionFaFRA:
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
-        self.risk_model = LightGBMRiskClassifier({})
+        self.gse = GaitAnalyzerV2()
 
-    def load_dataset(self, dataset_path):
+    def load_dataset(self, dataset_path, demo_data):
         fdb = FibionDatasetBuilder()
-        ds = fdb.build_dataset(dataset_path, '')
+        ds = fdb.build_dataset(dataset_path, demo_data, '')
         return ds
 
     def load_activity_data(self, activity_path, timezone):
@@ -61,7 +61,7 @@ class FibionFaFRA:
         # Estimate subject gait speed
         gs = self.estimate_gait_speed(self.dataset)
         # Get subject step count from activity chart
-        act_chart_sc = self.get_ac_step_count()
+        step_count = self.get_ac_step_count()
         # Estimate subject activity levels
         act_levels = self.estimate_activity_levels()
         # Get sleep disturbances from activity chart
@@ -77,19 +77,22 @@ class FibionFaFRA:
         # Initialize gse variables
         gait_speed_estimates = []
         ga = GaitAnalyzerV2()
+        # GSE params
+        hpf = False
+        max_com_v_delta = 0.14
+        plot_gait_cycles = True
         # For every epoch in the data
         for user_data in self.dataset.get_dataset():
             # If the epoch has walking bouts in it according to Fibion data
             if self._check_walking_bout(user_data):
                 # Run the epoch through the GSE
-                # gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data,
-                #                                                       hpf,
-                #                                                       max_com_v_delta,
-                #                                                       plot_gait_cycles)
-                pass
-            else:
-                pass
-        # Average the gait speeds together, return average
+                gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
+                    user_data, hpf, max_com_v_delta, plot_gait_cycles)
+                # if fig and not np.isnan(gait_speed):
+                #     gait_speed_estimates.append(gait_speed)
+                #     fig.show()
+                plt.close()
+        return np.array(gait_speed_estimates).mean()
 
     def _check_walking_bout(self, user_data):
         walking = False
@@ -113,7 +116,6 @@ class FibionFaFRA:
         truth_comparisons = []
         all_gait_params = []
         ga = GaitAnalyzerV2()
-        count = 0
         if write_out_estimates:
             # Generate the directories based on evaluation percentages
             percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
@@ -142,7 +144,7 @@ class FibionFaFRA:
         pass
 
     def get_ac_step_count(self):
-        pass
+        return self.activity_data[' activity/steps2/count'].sum()
 
     def estimate_fall_risk(self, input_metric_names):
         # Compute input metrics
@@ -200,8 +202,9 @@ def main():
     # Grainger laptop paths
     dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
     activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
+    demo_data = {'user_height': 1.88}
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
-    fib_fafra = FibionFaFRA(dataset_path, activity_path)
+    fib_fafra = FibionFaFRA(dataset_path, activity_path, demo_data)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,
