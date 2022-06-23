@@ -88,8 +88,8 @@ class FibionFaFRA:
                 # Run the epoch through the GSE
                 gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
                     user_data, hpf, max_com_v_delta, plot_gait_cycles)
-                # if fig and not np.isnan(gait_speed):
-                #     gait_speed_estimates.append(gait_speed)
+                if fig and not np.isnan(gait_speed):
+                    gait_speed_estimates.append(gait_speed)
                 #     fig.show()
                 plt.close()
         return np.array(gait_speed_estimates).mean()
