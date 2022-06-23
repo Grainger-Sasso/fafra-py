@@ -13,5 +13,6 @@ class Metric(RiskClassificationInputMetric):
         super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
-        gait_speed, fig, gait_params = GaitAnalyzerV2().estimate_gait_speed(kwargs['data'], hpf=False, max_com_v_delta=0.14, plot_gait_cycles=False)
+        gait_speed, fig, gait_params = GaitAnalyzerV2().estimate_gait_speed(
+            kwargs['data'], hpf=False, max_com_v_delta=0.14, plot_gait_cycles=False)
         return gait_speed

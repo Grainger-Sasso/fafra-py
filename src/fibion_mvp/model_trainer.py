@@ -27,12 +27,12 @@ class ModelTrainer:
         self.filter = MotionFilters()
         self.rc = LightGBMRiskClassifier({})
 
-    def create_risk_model(self, input_metric_names: Tuple[MetricNames]):
+    def create_risk_model(self, input_metric_names: Tuple[MetricNames], model_name):
         dataset = self.load_data()
         self.preprocess_data(dataset)
         input_metrics: InputMetrics = self.gen_input_metrics(dataset, input_metric_names)
         self.train_model(input_metrics, input_metric_names)
-        self.export_model()
+        self.export_model(model_name)
 
     def load_data(self):
         db = DatasetBuilder()
@@ -80,8 +80,7 @@ class ModelTrainer:
         self.rc.train_model(x, y, metric_names = input_metric_names)
         pass
 
-    def export_model(self):
-        model_name = 'lgbm_fafra_rcm_' + time.strftime("%Y%m%d-%H%M%S")
+    def export_model(self, model_name):
         model_path = os.path.join(self.output_path, model_name)
         self.rc.model.save_model(model_path)
 
@@ -110,7 +109,8 @@ def main():
     #                             MetricNames.COEFFICIENT_OF_VARIANCE,
     #                             MetricNames.ZERO_CROSSING,
     #                             MetricNames.SIGNAL_MAGNITUDE_AREA])
-    mt.create_risk_model(input_metric_names)
+    model_name = 'lgbm_fafra_rcm_' + time.strftime("%Y%m%d-%H%M%S")
+    mt.create_risk_model(input_metric_names, model_name)
 
 if __name__ == '__main__':
     main()
