@@ -87,7 +87,7 @@ class ModelTrainer:
 
 
 def main():
-    ltmm_dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
     mt = ModelTrainer(ltmm_dataset_path, clinical_demo_path, output_path)
@@ -101,6 +101,15 @@ def main():
                                 MetricNames.ZERO_CROSSING,
                                 MetricNames.SIGNAL_MAGNITUDE_AREA,
                                 MetricNames.GAIT_SPEED_ESTIMATOR])
+    # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+    #                             MetricNames.FAST_FOURIER_TRANSFORM,
+    #                             MetricNames.MEAN,
+    #                             MetricNames.ROOT_MEAN_SQUARE,
+    #                             MetricNames.STANDARD_DEVIATION,
+    #                             MetricNames.SIGNAL_ENERGY,
+    #                             MetricNames.COEFFICIENT_OF_VARIANCE,
+    #                             MetricNames.ZERO_CROSSING,
+    #                             MetricNames.SIGNAL_MAGNITUDE_AREA])
     mt.create_risk_model(input_metric_names)
 
 if __name__ == '__main__':
