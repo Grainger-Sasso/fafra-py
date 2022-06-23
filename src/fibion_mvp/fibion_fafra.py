@@ -21,10 +21,10 @@ from src.risk_classification.input_metrics.input_metrics import InputMetrics
 
 
 class FibionFaFRA:
-    def __init__(self, dataset_path, activity_path, timezone=tz.gettz("America/New_York")):
+    def __init__(self, dataset_path, activity_path, demo_data, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
-        self.dataset = self.load_dataset(self.dataset_path)
+        self.dataset = self.load_dataset(self.dataset_path, demo_data)
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
