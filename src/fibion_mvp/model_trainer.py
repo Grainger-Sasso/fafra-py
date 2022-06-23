@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 from typing import Tuple
+import joblib
 
 
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
@@ -32,7 +33,9 @@ class ModelTrainer:
         self.preprocess_data(dataset)
         input_metrics: InputMetrics = self.gen_input_metrics(dataset, input_metric_names)
         self.train_model(input_metrics, input_metric_names)
-        self.export_model(model_name)
+        model_path = self.export_model(model_name)
+        model = self.import_model(model_path)
+        print('YUSSS')
 
     def load_data(self):
         db = DatasetBuilder()
@@ -78,11 +81,16 @@ class ModelTrainer:
         x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
         self.rc.train_model(x, y, metric_names = input_metric_names)
-        pass
 
     def export_model(self, model_name):
         model_path = os.path.join(self.output_path, model_name)
-        self.rc.model.save_model(model_path)
+        # self.rc.model.save_model(model_path)
+        joblib.dump(self.rc.get_model(), model_path)
+        return model_path
+
+    def import_model(self, model_path):
+        model = joblib.load(model_path)
+        return model
 
 
 def main():
@@ -90,16 +98,6 @@ def main():
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
     output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
     mt = ModelTrainer(ltmm_dataset_path, clinical_demo_path, output_path)
-    input_metric_names = tuple([MetricNames.AUTOCORRELATION,
-                                MetricNames.FAST_FOURIER_TRANSFORM,
-                                MetricNames.MEAN,
-                                MetricNames.ROOT_MEAN_SQUARE,
-                                MetricNames.STANDARD_DEVIATION,
-                                MetricNames.SIGNAL_ENERGY,
-                                MetricNames.COEFFICIENT_OF_VARIANCE,
-                                MetricNames.ZERO_CROSSING,
-                                MetricNames.SIGNAL_MAGNITUDE_AREA,
-                                MetricNames.GAIT_SPEED_ESTIMATOR])
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,
@@ -108,8 +106,18 @@ def main():
     #                             MetricNames.SIGNAL_ENERGY,
     #                             MetricNames.COEFFICIENT_OF_VARIANCE,
     #                             MetricNames.ZERO_CROSSING,
-    #                             MetricNames.SIGNAL_MAGNITUDE_AREA])
-    model_name = 'lgbm_fafra_rcm_' + time.strftime("%Y%m%d-%H%M%S")
+    #                             MetricNames.SIGNAL_MAGNITUDE_AREA,
+    #                             MetricNames.GAIT_SPEED_ESTIMATOR])
+    input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+                                MetricNames.FAST_FOURIER_TRANSFORM,
+                                MetricNames.MEAN,
+                                MetricNames.ROOT_MEAN_SQUARE,
+                                MetricNames.STANDARD_DEVIATION,
+                                MetricNames.SIGNAL_ENERGY,
+                                MetricNames.COEFFICIENT_OF_VARIANCE,
+                                MetricNames.ZERO_CROSSING,
+                                MetricNames.SIGNAL_MAGNITUDE_AREA])
+    model_name = 'lgbm_fafra_rcm_' + time.strftime("%Y%m%d-%H%M%S") + '.pkl'
     mt.create_risk_model(input_metric_names, model_name)
 
 if __name__ == '__main__':
