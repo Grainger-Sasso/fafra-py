@@ -7,6 +7,7 @@ import joblib
 
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import DatasetBuilder
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
@@ -27,19 +28,20 @@ class ModelTrainer:
         self.output_path = output_path
         self.filter = MotionFilters()
         self.rc = LightGBMRiskClassifier({})
+        # self.rc = KNNRiskClassifier({})
 
-    def create_risk_model(self, input_metric_names: Tuple[MetricNames], model_name):
+    def create_risk_model(self, input_metric_names: Tuple[MetricNames], model_name, scaler_name):
         dataset = self.load_data()
         self.preprocess_data(dataset)
         input_metrics: InputMetrics = self.gen_input_metrics(dataset, input_metric_names)
         self.train_model(input_metrics, input_metric_names)
-        model_path = self.export_model(model_name)
+        model_path = self.export_model(model_name, scaler_name)
         model = self.import_model(model_path)
         print('YUSSS')
 
     def load_data(self):
         db = DatasetBuilder()
-        return db.build_dataset(self.data_path, self.clinical_demo_path, False, 20.0)
+        return db.build_dataset(self.data_path, self.clinical_demo_path, True, 8.0)
 
     def preprocess_data(self, dataset):
         for user_data in dataset.get_dataset():
@@ -82,10 +84,12 @@ class ModelTrainer:
         y = input_metrics.get_labels()
         self.rc.train_model(x, y, metric_names = input_metric_names)
 
-    def export_model(self, model_name):
+    def export_model(self, model_name, scaler_name):
         model_path = os.path.join(self.output_path, model_name)
+        scaler_path = os.path.join(self.output_path, scaler_name)
         # self.rc.model.save_model(model_path)
         joblib.dump(self.rc.get_model(), model_path)
+        joblib.dump(self.rc.get_scaler(), scaler_path)
         return model_path
 
     def import_model(self, model_path):
@@ -96,18 +100,11 @@ class ModelTrainer:
 def main():
     ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
     clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
-    output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
+    # Desktop output
+    # output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
+    # Laptop output
+    output_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models'
     mt = ModelTrainer(ltmm_dataset_path, clinical_demo_path, output_path)
-    # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
-    #                             MetricNames.FAST_FOURIER_TRANSFORM,
-    #                             MetricNames.MEAN,
-    #                             MetricNames.ROOT_MEAN_SQUARE,
-    #                             MetricNames.STANDARD_DEVIATION,
-    #                             MetricNames.SIGNAL_ENERGY,
-    #                             MetricNames.COEFFICIENT_OF_VARIANCE,
-    #                             MetricNames.ZERO_CROSSING,
-    #                             MetricNames.SIGNAL_MAGNITUDE_AREA,
-    #                             MetricNames.GAIT_SPEED_ESTIMATOR])
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,
                                 MetricNames.MEAN,
@@ -116,9 +113,20 @@ def main():
                                 MetricNames.SIGNAL_ENERGY,
                                 MetricNames.COEFFICIENT_OF_VARIANCE,
                                 MetricNames.ZERO_CROSSING,
-                                MetricNames.SIGNAL_MAGNITUDE_AREA])
+                                MetricNames.SIGNAL_MAGNITUDE_AREA,
+                                MetricNames.GAIT_SPEED_ESTIMATOR])
+    # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
+    #                             MetricNames.FAST_FOURIER_TRANSFORM,
+    #                             MetricNames.MEAN,
+    #                             MetricNames.ROOT_MEAN_SQUARE,
+    #                             MetricNames.STANDARD_DEVIATION,
+    #                             MetricNames.SIGNAL_ENERGY,
+    #                             MetricNames.COEFFICIENT_OF_VARIANCE,
+    #                             MetricNames.ZERO_CROSSING,
+    #                             MetricNames.SIGNAL_MAGNITUDE_AREA])
     model_name = 'lgbm_fafra_rcm_' + time.strftime("%Y%m%d-%H%M%S") + '.pkl'
-    mt.create_risk_model(input_metric_names, model_name)
+    scaler_name = 'lgbm_fafra_scaler_' + time.strftime("%Y%m%d-%H%M%S") + '.bin'
+    mt.create_risk_model(input_metric_names, model_name, scaler_name)
 
 if __name__ == '__main__':
     main()

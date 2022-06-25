@@ -6,6 +6,7 @@ import bisect
 from matplotlib import pyplot as plt
 from datetime import datetime
 from dateutil import parser, tz
+import joblib
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.fibion_mvp.fibion_dataset_builder import FibionDatasetBuilder
@@ -18,6 +19,7 @@ from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataF
 from src.motion_analysis.gait_analysis.gait_analyzer_v2 import GaitAnalyzerV2
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
 class FibionFaFRA:
@@ -29,6 +31,9 @@ class FibionFaFRA:
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
         self.gse = GaitAnalyzerV2()
+        self.rc_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220625-140624.pkl'
+        self.rc_scaler_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220625-140624.bin'
+        self.rc = LightGBMRiskClassifier({})
 
     def load_dataset(self, dataset_path, demo_data):
         fdb = FibionDatasetBuilder()
@@ -59,7 +64,7 @@ class FibionFaFRA:
         self.preprocess_data()
         print(f'{time.time() - t0}')
         # Estimate subject gait speed
-        gs = self.estimate_gait_speed(self.dataset)
+        gait_speed = self.estimate_gait_speed(self.dataset)
         # Get subject step count from activity chart
         step_count = self.get_ac_step_count()
         # Estimate subject activity levels
@@ -67,7 +72,7 @@ class FibionFaFRA:
         # Get sleep disturbances from activity chart
         sleep_dis = self.get_ac_sleep_disturb()
         # Estimate subject fall risk
-        fall_risk_score = self.estimate_fall_risk(input_metric_names)
+        fall_risk_score = self.estimate_fall_risk(input_metric_names, gait_speed)
         # Evaluate user fall risk status
         # Evaluate faller risk levels
         # Build risk report
@@ -146,13 +151,36 @@ class FibionFaFRA:
     def get_ac_step_count(self):
         return self.activity_data[' activity/steps2/count'].sum()
 
-    def estimate_fall_risk(self, input_metric_names):
+    def estimate_fall_risk(self, input_metric_names, gait_speed):
+        # Import risk model
+        model, scaler = self.import_model()
+        self.rc.set_model(model)
+        self.rc.set_scaler(scaler)
         # Compute input metrics
         input_metrics: InputMetrics = self.generate_risk_metrics(
             input_metric_names)
-        # Scale input metrics
-        # Feed metrics into trained model
+        self.take_epoch_average(input_metrics)
+        # Insert gait speed metrics to metrics
+        metrics, names = input_metrics.get_metric_matrix()
+        metrics = np.array(metrics.tolist().insert(3, gait_speed))
+        names.insert(3, MetricNames.GAIT_SPEED_ESTIMATOR)
+        # Scale input metrics via scaler transformation
+        metrics = self.rc.scaler.transform(metrics)
+        # Format input data for model prediction
+        print('OO')
+        # Make fall risk prediction on trained model
+        pred = self.rc.make_prediction(metrics)
+        print('oo')
 
+    def take_epoch_average(self, input_metrics: InputMetrics):
+        for name, metric in input_metrics.get_metrics().items():
+            metric.value = metric.value.mean()
+
+
+    def import_model(self):
+        model = joblib.load(self.rc_path)
+        scaler = joblib.load(self.rc_scaler_path)
+        return model, scaler
 
     def build_risk_report(self):
         pass
