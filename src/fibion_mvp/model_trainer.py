@@ -98,12 +98,16 @@ class ModelTrainer:
 
 
 def main():
-    ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
-    clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
-    # Desktop output
-    # output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
-    # Laptop output
-    output_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models'
+    # Desktop paths
+    ltmm_dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    clinical_demo_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    output_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models'
+
+    # Laptop paths
+    # ltmm_dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\LabWalks'
+    # clinical_demo_path = r'C:\Users\gsass\Desktop\Fall Project Master\datasets\LTMMD\long-term-movement-monitoring-database-1.0.0\ClinicalDemogData_COFL.xlsx'
+    # output_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models'
+
     mt = ModelTrainer(ltmm_dataset_path, clinical_demo_path, output_path)
     input_metric_names = tuple([MetricNames.AUTOCORRELATION,
                                 MetricNames.FAST_FOURIER_TRANSFORM,

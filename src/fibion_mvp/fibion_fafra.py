@@ -31,8 +31,12 @@ class FibionFaFRA:
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
         self.gse = GaitAnalyzerV2()
-        self.rc_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220625-140624.pkl'
-        self.rc_scaler_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220625-140624.bin'
+        # Laptop RC Paths
+        # self.rc_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220625-140624.pkl'
+        # self.rc_scaler_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220625-140624.bin'
+        # Desktop RC paths
+        self.rc_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220627-142608.pkl'
+        self.rc_scaler_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220627-142608.bin'
         self.rc = LightGBMRiskClassifier({})
 
     def load_dataset(self, dataset_path, demo_data):
@@ -93,8 +97,9 @@ class FibionFaFRA:
                 # Run the epoch through the GSE
                 gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
                     user_data, hpf, max_com_v_delta, plot_gait_cycles)
-                if fig and not np.isnan(gait_speed):
+                if not np.isnan(gait_speed):
                     gait_speed_estimates.append(gait_speed)
+                # if fig and not np.isnan(gait_speed):
                 #     fig.show()
                 plt.close()
         return np.array(gait_speed_estimates).mean()
@@ -176,7 +181,6 @@ class FibionFaFRA:
         for name, metric in input_metrics.get_metrics().items():
             metric.value = metric.value.mean()
 
-
     def import_model(self):
         model = joblib.load(self.rc_path)
         scaler = joblib.load(self.rc_scaler_path)
@@ -225,11 +229,11 @@ class FibionFaFRA:
 
 def main():
     # Grainger desktop paths
-    # dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
-    # activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
+    dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
+    activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
     # Grainger laptop paths
-    dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
-    activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
+    # dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
+    # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
     demo_data = {'user_height': 1.88}
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
     fib_fafra = FibionFaFRA(dataset_path, activity_path, demo_data)
