@@ -89,7 +89,7 @@ class FibionFaFRA:
         # GSE params
         hpf = False
         max_com_v_delta = 0.14
-        plot_gait_cycles = True
+        plot_gait_cycles = False
         # For every epoch in the data
         for user_data in self.dataset.get_dataset():
             # If the epoch has walking bouts in it according to Fibion data
@@ -166,9 +166,7 @@ class FibionFaFRA:
             input_metric_names)
         self.take_epoch_average(input_metrics)
         # Insert gait speed metrics to metrics
-        metrics, names = input_metrics.get_metric_matrix()
-        metrics = np.array(metrics.tolist().insert(3, gait_speed))
-        names.insert(3, MetricNames.GAIT_SPEED_ESTIMATOR)
+        metrics, names = self.format_input_metrics_scaling(input_metrics, gait_speed)
         # Scale input metrics via scaler transformation
         metrics = self.rc.scaler.transform(metrics)
         # Format input data for model prediction
@@ -176,6 +174,15 @@ class FibionFaFRA:
         # Make fall risk prediction on trained model
         pred = self.rc.make_prediction(metrics)
         print('oo')
+
+    def format_input_metrics_scaling(self, input_metrics, gait_speed):
+        metrics, names = input_metrics.get_metric_matrix()
+        metrics = metrics.tolist()
+        metrics.insert(3, gait_speed)
+        metrics = np.array(metrics)
+        metrics = np.reshape(metrics, (1, -1))
+        names.insert(3, MetricNames.GAIT_SPEED_ESTIMATOR)
+        return metrics, names
 
     def take_epoch_average(self, input_metrics: InputMetrics):
         for name, metric in input_metrics.get_metrics().items():
