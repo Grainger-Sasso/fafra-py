@@ -28,11 +28,11 @@ from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
 class FaFRA_SKDH:
-    def __init__(self, dataset_path, activity_path, demo_data, output_path, dataset_name, timezone=tz.gettz("America/New_York")):
+    def __init__(self, dataset_path, activity_path, demo_data, output_path, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
         self.output_path = output_path
-        self.dataset = self.load_dataset(self.dataset_path, demo_data, dataset_name)
+        self.dataset = self.load_dataset(self.dataset_path, demo_data)
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
@@ -48,7 +48,7 @@ class FaFRA_SKDH:
         self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220706-112631.bin'
         self.rc = LightGBMRiskClassifier({})
 
-    def load_dataset(self, dataset_path, demo_data, dataset_name):
+    def load_dataset(self, dataset_path, demo_data):
         fdb = FibionDatasetBuilder()
         ds = fdb.build_dataset(dataset_path, demo_data, '', segment_dataset=False)
         return ds
@@ -202,7 +202,7 @@ def main():
     demo_data = {'user_height': 1.88}
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
     dataset_name = 'LTMM'
-    fib_fafra = FaFRA_SKDH(dataset_path, activity_path, demo_data, output_path, dataset_name)
+    fib_fafra = FaFRA_SKDH(dataset_path, activity_path, demo_data, output_path)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,
