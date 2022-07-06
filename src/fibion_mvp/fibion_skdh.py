@@ -22,7 +22,7 @@ from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
-class FibionFaFRA:
+class FaFRA_SKDH:
     def __init__(self, dataset_path, activity_path, demo_data, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
@@ -69,7 +69,6 @@ class FibionFaFRA:
         t0 = time.time()
         # Preprocess subject data (low-pass filtering)
         self.preprocess_data()
-        print(f'{time.time() - t0}')
         # Estimate subject gait speed
         gait_speed = self.estimate_gait_speed(self.dataset)
         # Get subject step count from activity chart
@@ -86,69 +85,7 @@ class FibionFaFRA:
         self.build_risk_report(fall_risk_score)
 
     def estimate_gait_speed(self, dataset):
-        # Initialize gse variables
-        gait_speed_estimates = []
-        ga = GaitAnalyzerV2()
-        # GSE params
-        hpf = False
-        max_com_v_delta = 0.14
-        plot_gait_cycles = False
-        # For every epoch in the data
-        for user_data in self.dataset.get_dataset():
-            # If the epoch has walking bouts in it according to Fibion data
-            if self._check_walking_bout(user_data):
-                # Run the epoch through the GSE
-                gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
-                    user_data, hpf, max_com_v_delta, plot_gait_cycles)
-                if not np.isnan(gait_speed):
-                    gait_speed_estimates.append(gait_speed)
-                # if fig and not np.isnan(gait_speed):
-                #     fig.show()
-                plt.close()
-        return np.array(gait_speed_estimates).mean()
-
-    def _check_walking_bout(self, user_data):
-        walking = False
-        t0 = user_data.get_imu_data(IMUDataFilterType.RAW).get_time()[0]
-        epoch_ix = bisect.bisect_right(self.activity_data['epoch'], t0) - 1
-        if epoch_ix > 0:
-            if self.activity_data[' activity/upright_walk/time'][epoch_ix] > 0:
-                print(t0)
-                print(self.activity_data['epoch'][epoch_ix])
-                print(self.activity_data['converted_local_time'][epoch_ix])
-                print('')
-                walking = True
-        return walking
-
-    def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
-                            results_location, write_out_estimates=False,
-                            hpf=False, max_com_v_delta=0.14,
-                            plot_gait_cycles=False):
-        # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
-        # Estimate the gait speed for every user/trial in dataset
-        truth_comparisons = []
-        all_gait_params = []
-        ga = GaitAnalyzerV2()
-        if write_out_estimates:
-            # Generate the directories based on evaluation percentages
-            percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
-        for user_data in dataset.get_dataset():
-            user_id = user_data.get_clinical_demo_data().get_id()
-            trial = user_data.get_clinical_demo_data().get_trial()
-            gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
-                                                plot_gait_cycles)
-            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
-            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
-                      'user_data': user_data}
-            if user_id in self.subj_gs_truth.keys():
-                comparison = self.compare_gs_to_truth_val(result)
-                truth_comparisons.append(comparison)
-                if write_out_estimates:
-                    self.write_out_gs2_comparison_results(comparison, fig,
-                                                          eval_percentages,
-                                                          percentage_dirs)
-            plt.close()
-        return truth_comparisons, all_gait_params
+        pass
 
     def get_ac_sleep_disturb(self):
         pass
@@ -175,7 +112,6 @@ class FibionFaFRA:
         # Format input data for model prediction
         # Make fall risk prediction on trained model
         return self.rc.make_prediction(metrics)[0]
-
 
     def format_input_metrics_scaling(self, input_metrics, gait_speed):
         metrics, names = input_metrics.get_metric_matrix()
@@ -235,7 +171,6 @@ class FibionFaFRA:
         return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
-
 def main():
     # Grainger VM paths
     dataset_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/bin'
@@ -271,7 +206,6 @@ def main():
                                 MetricNames.ZERO_CROSSING,
                                 MetricNames.SIGNAL_MAGNITUDE_AREA])
     fib_fafra.perform_risk_analysis(input_metric_names)
-
 
 if __name__ == '__main__':
     main()
