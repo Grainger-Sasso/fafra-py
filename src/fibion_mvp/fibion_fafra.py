@@ -35,11 +35,11 @@ class FibionFaFRA:
         # self.rc_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220625-140624.pkl'
         # self.rc_scaler_path = r'C:\Users\gsass\Desktop\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220625-140624.bin'
         # Desktop RC paths
-        # self.rc_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220627-142608.pkl'
-        # self.rc_scaler_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220627-142608.bin'
+        self.rc_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_rcm_20220706-112631.pkl'
+        self.rc_scaler_path = r'C:\Users\gsass\Documents\Fall Project Master\fafra_testing\fibion\risk_models\lgbm_fafra_scaler_20220706-112631.bin'
         # VM RC paths
-        self.rc_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_rcm_20220627-142608.pkl'
-        self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220627-142608.bin'
+        # self.rc_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_rcm_20220627-142608.pkl'
+        # self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220627-142608.bin'
         self.rc = LightGBMRiskClassifier({})
 
     def load_dataset(self, dataset_path, demo_data):
@@ -173,10 +173,9 @@ class FibionFaFRA:
         # Scale input metrics via scaler transformation
         metrics = self.rc.scaler.transform(metrics)
         # Format input data for model prediction
-        print('OO')
         # Make fall risk prediction on trained model
-        pred = self.rc.make_prediction(metrics)
-        print('oo')
+        return self.rc.make_prediction(metrics)[0]
+
 
     def format_input_metrics_scaling(self, input_metrics, gait_speed):
         metrics, names = input_metrics.get_metric_matrix()
@@ -239,12 +238,12 @@ class FibionFaFRA:
 
 def main():
     # Grainger VM paths
-    dataset_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/bin'
-    activity_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/activity/fibion_test_activity_04_10_2022.csv'
+    # dataset_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/bin'
+    # activity_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/activity/fibion_test_activity_04_10_2022.csv'
 
     # Grainger desktop paths
-    # dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
-    # activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
+    dataset_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\bin'
+    activity_path = r'C:\Users\gsass\Documents\Fall Project Master\datasets\fibion\io_test_data\activity\fibion_test_activity_04_10_2022.csv'
 
     # Grainger laptop paths
     # dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
