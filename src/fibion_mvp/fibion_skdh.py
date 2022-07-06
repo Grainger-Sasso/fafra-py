@@ -1,3 +1,4 @@
+import os
 import time
 import numpy as np
 import pandas as pd
@@ -6,6 +7,10 @@ import bisect
 from matplotlib import pyplot as plt
 from datetime import datetime
 from dateutil import parser, tz
+from skdh import Pipeline
+from skdh.gait import Gait
+from skdh.sleep import Sleep
+from skdh.activity import ActivityLevelClassification
 import joblib
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
@@ -23,10 +28,11 @@ from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
 class FaFRA_SKDH:
-    def __init__(self, dataset_path, activity_path, demo_data, timezone=tz.gettz("America/New_York")):
+    def __init__(self, dataset_path, activity_path, demo_data, output_path, dataset_name, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
-        self.dataset = self.load_dataset(self.dataset_path, demo_data)
+        self.output_path = output_path
+        self.dataset = self.load_dataset(self.dataset_path, demo_data, dataset_name)
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
@@ -42,9 +48,9 @@ class FaFRA_SKDH:
         self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220706-112631.bin'
         self.rc = LightGBMRiskClassifier({})
 
-    def load_dataset(self, dataset_path, demo_data):
+    def load_dataset(self, dataset_path, demo_data, dataset_name):
         fdb = FibionDatasetBuilder()
-        ds = fdb.build_dataset(dataset_path, demo_data, '')
+        ds = fdb.build_dataset(dataset_path, demo_data, '', segment_dataset=False)
         return ds
 
     def load_activity_data(self, activity_path, timezone):
@@ -65,18 +71,24 @@ class FaFRA_SKDH:
         act_data['converted_local_time'] = local_times
         return act_data
 
+    def generate_pipeline(self):
+        pipeline = Pipeline()
+        # gait_file = os.path.join(self.output_path, 'gait_results.csv')
+        # pipeline.add(Gait(), save_file=gait_file)
+        act_file = os.path.join(self.output_path, 'activity_results.csv')
+        pipeline.add(ActivityLevelClassification(), save_file=act_file)
+        # sleep_file = os.path.join(self.output_path, 'sleep_results.csv')
+        # pipeline.add(Sleep(), save_file=sleep_file)
+        return pipeline
+
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
         t0 = time.time()
         # Preprocess subject data (low-pass filtering)
         self.preprocess_data()
-        # Estimate subject gait speed
-        gait_speed = self.estimate_gait_speed(self.dataset)
-        # Get subject step count from activity chart
-        step_count = self.get_ac_step_count()
-        # Estimate subject activity levels
-        act_levels = self.estimate_activity_levels()
-        # Get sleep disturbances from activity chart
-        sleep_dis = self.get_ac_sleep_disturb()
+        # Generate SKDH pipeline
+        pipeline = self.generate_pipeline()
+        # Run SKDH Pipeline
+        self.run_pipeline(pipeline)
         # Estimate subject fall risk
         fall_risk_score = self.estimate_fall_risk(input_metric_names, gait_speed)
         # Evaluate user fall risk status
@@ -84,17 +96,15 @@ class FaFRA_SKDH:
         # Build risk report
         self.build_risk_report(fall_risk_score)
 
-    def estimate_gait_speed(self, dataset):
-        pass
-
-    def get_ac_sleep_disturb(self):
-        pass
-
-    def estimate_activity_levels(self):
-        pass
-
-    def get_ac_step_count(self):
-        return self.activity_data[' activity/steps2/count'].sum()
+    def run_pipeline(self, pipeline: Pipeline):
+        # Get numpy 3D array of IMU data for each epoch in dataset
+        user_data = self.dataset.get_dataset()[0]
+        imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+        tri_acc = imu_data.get_triax_acc_data()
+        tri_acc = np.array([tri_acc['vertical'], tri_acc['mediolateral'], tri_acc['anteroposterior']])
+        time = imu_data.get_time()
+        pipeline.run(time=time, accel=tri_acc)
+        print('yahoo')
 
     def estimate_fall_risk(self, input_metric_names, gait_speed):
         # Import risk model
@@ -149,16 +159,17 @@ class FaFRA_SKDH:
         act_code = imu_data.get_activity_code()
         act_des = imu_data.get_activity_description()
         all_raw_data = imu_data.get_all_data()
+        time = imu_data.get_time()
         lpf_data_all_axis = []
         for data in all_raw_data:
             lpf_data = self.filter.apply_lpass_filter(data, 2, samp_freq) if data.any() else data
             lpf_data_all_axis.append(lpf_data)
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
                                                         samp_freq, act_code,
-                                                        act_des)
+                                                        act_des, time)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
 
-    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
+    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des, time):
         # TODO: Finish reformatting the imu data for new data instances after lpf
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
@@ -166,8 +177,8 @@ class FaFRA_SKDH:
         yaw_gyr_data = np.array(data[3])
         pitch_gyr_data = np.array(data[4])
         roll_gyr_data = np.array(data[5])
-        time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
-                           len(v_acc_data))
+        # time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
+        #                    len(v_acc_data))
         return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
 
@@ -183,9 +194,15 @@ def main():
     # Grainger laptop paths
     # dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
+
+    # Output path
+    output_path = '/home/grainger/Desktop/skdh_testing/'
+
+
     demo_data = {'user_height': 1.88}
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
-    fib_fafra = FibionFaFRA(dataset_path, activity_path, demo_data)
+    dataset_name = 'LTMM'
+    fib_fafra = FaFRA_SKDH(dataset_path, activity_path, demo_data, output_path, dataset_name)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,
