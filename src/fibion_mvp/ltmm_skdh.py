@@ -28,7 +28,7 @@ class LTMM_SKDH:
         pass
 
     def run_pipeline(self, data, time, pipeline):
-        pipeline.run(time=time, accel=data, fs=fs)
+        pipeline.run(time=time, accel=data, fs=fs, height=1.77)
 
     def generate_pipeline(self, output_path):
         pipeline = Pipeline()
@@ -37,7 +37,7 @@ class LTMM_SKDH:
         act_file = os.path.join(output_path, 'activity_results.csv')
         pipeline.add(ActivityLevelClassification(), save_file=act_file)
         sleep_file = os.path.join(output_path, 'sleep_results.csv')
-        pipeline.add(Sleep(), save_file=sleep_file)
+        pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_file)
         return pipeline
 
     def read_ltmm_file(self, path):
@@ -51,7 +51,7 @@ class LTMM_SKDH:
         print(data.shape)
         data = data.T
         print(data.shape)
-        time = np.linspace(0, len(v_acc_data) / int(fs),
+        time = np.linspace(1657299657.0, (len(v_acc_data) / int(fs)) + 1657299657.0,
                            len(v_acc_data))
         return data, time
 
