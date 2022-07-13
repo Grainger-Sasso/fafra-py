@@ -96,14 +96,14 @@ class LTMM_SKDH:
         bout_n = gait_metrics['Bout N']
         current_ix = 0
         for ix, bout in enumerate(bout_n):
-            if bout > current_ix + 1:
+            if bout > current_ix:
                 current_ix = bout
                 bout_steps.append(gait_metrics['Bout Steps'][ix])
                 bout_durs.append(gait_metrics['Bout Duration'][ix])
         set_n = list(set(bout_n))
         for i in set_n:
             print(i)
-        print(all(x + 1 == y for x, y in zip(set_n, set_n[1:])))
+        print(all(x < y for x, y in zip(set_n, set_n[1:])))
         print(len(set(bout_n)))
         print(len(bout_steps) - 1)
         step_sum = np.array(bout_steps).sum()
