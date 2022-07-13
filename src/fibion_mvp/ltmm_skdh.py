@@ -36,11 +36,12 @@ class LTMM_SKDH:
             'PARAM:gait speed',
             'BOUTPARAM:gait symmetry index',
             'PARAM:cadence',
-            'Bout N'
+            'Bout N',
             'Bout Steps',
             'Bout Duration',
         ]
         gait_metrics = self.parse_results(results, 'Gait', gait_metric_names)
+        print(gait_metrics['Bout N'])
         gait_metrics = self.parse_gait_metrics(gait_metrics)
 
         act_metric_names = [
@@ -83,16 +84,36 @@ class LTMM_SKDH:
             # Replace value in metric dict
             new_gait_metrics[name + ': mean'] = metric_mean
             new_gait_metrics[name + ': std'] = metric_std
-            if name == 'Bout Steps' or name == 'Bout Duration':
-                print(new_metric)
-                print(len(new_metric))
-                new_gait_metrics[name + ': sum'] = new_metric.sum()
+
+        step_sum, duration_sum = self.parse_bouts(gait_metrics)
+        new_gait_metrics['Bout Steps: sum'] = step_sum
+        new_gait_metrics['Bout Duration: sum'] = duration_sum
         return new_gait_metrics
 
-    def parse_results(self, results, results_type, act_metric_names):
+    def parse_bouts(self, gait_metrics):
+        bout_steps = []
+        bout_durs = []
+        bout_n = gait_metrics['Bout N']
+        current_ix = 0
+        for ix, bout in enumerate(bout_n):
+            if bout > current_ix + 1:
+                current_ix = bout
+                bout_steps.append(gait_metrics['Bout Steps'][ix])
+                bout_durs.append(gait_metrics['Bout Duration'][ix])
+        set_n = list(set(bout_n))
+        for i in set_n:
+            print(i)
+        print(all(x + 1 == y for x, y in zip(set_n, set_n[1:])))
+        print(len(set(bout_n)))
+        print(len(bout_steps) - 1)
+        step_sum = np.array(bout_steps).sum()
+        duration_sum = np.array(bout_durs).sum()
+        return step_sum, duration_sum
+
+    def parse_results(self, results, results_type, metric_names):
         results_act = results[results_type]
         act_metrics = {}
-        for name in act_metric_names:
+        for name in metric_names:
             if name in results_act.keys():
                 act_metrics[name] = results_act[name]
             else:
