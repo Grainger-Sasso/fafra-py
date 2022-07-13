@@ -13,6 +13,7 @@ from skdh.preprocessing import DetectWear
 from skdh.gait import Gait
 from skdh.sleep import Sleep
 from skdh.activity import ActivityLevelClassification
+from skdh.activity import TotalIntensityTime
 import wfdb
 import joblib
 
@@ -31,21 +32,72 @@ class LTMM_SKDH:
         # Run data through the pipeline
         results = self.run_pipeline(data, time, pipeline)
 
-        results_gait = results['Gait']
-        results_gait = {k: v.tolist() for k, v in results_gait.items() if type(v) is np.ndarray or type(v) is np.array}
-        gk = [k for k,v in results_gait.items()]
-        print(gk)
-        # self.write_results_json(results_gait, 'gait_results', output_path)
-        print('\n\n\n')
+        gait_metric_names = [
+            'PARAM:gait speed',
+            'BOUTPARAM:gait symmetry index',
+            'PARAM:cadence',
+            'Bout N'
+            'Bout Steps',
+            'Bout Duration',
+        ]
+        gait_metrics = self.parse_results(results, 'Gait', gait_metric_names)
+        gait_metrics = self.parse_gait_metrics(gait_metrics)
 
-        results_act = results['ActivityLevelClassification']
-        results_act = {k: v.tolist() for k, v in results_act.items() if type(v) is np.ndarray}
-        # self.write_results_json(results_act, 'act_results', output_path)
-        rk = [k for k,v in results_act.items()]
-        print(rk)
-        print('\n\n\n')
-        print(results)
-        pass
+        act_metric_names = [
+            'wake sed 5s epoch [min]',
+            'wake light 5s epoch [min]',
+            'wake mod 5s epoch [min]',
+            'wake vig 5s epoch [min]',
+            'wake sed avg duration',
+        ]
+        act_metrics = self.parse_results(results, 'ActivityLevelClassification', act_metric_names)
+
+        sleep_metric_names = [
+            'average sleep duration',
+            'total sleep time',
+            'percent time asleep',
+            'number of wake bouts',
+            'sleep average hazard',
+        ]
+        sleep_metrics = self.parse_results(results, 'Sleep', sleep_metric_names)
+
+        print(gait_metrics)
+        print('\n\n')
+        print(act_metrics)
+        print('\n\n')
+        print(sleep_metrics)
+        tot_time_s = len(time) / fs
+        print(tot_time_s)
+        print(tot_time_s/(60 * 60))
+
+    def parse_gait_metrics(self, gait_metrics):
+        # Mean and std of all
+        # Total of steps and duration
+        new_gait_metrics = {}
+        for name, metric_arr in gait_metrics.items():
+            # Remove nans from the array
+            new_metric = metric_arr[~np.isnan(metric_arr)]
+            # Take average of the array
+            metric_mean = new_metric.mean()
+            metric_std = new_metric.std()
+            # Replace value in metric dict
+            new_gait_metrics[name + ': mean'] = metric_mean
+            new_gait_metrics[name + ': std'] = metric_std
+            if name == 'Bout Steps' or name == 'Bout Duration':
+                print(new_metric)
+                print(len(new_metric))
+                new_gait_metrics[name + ': sum'] = new_metric.sum()
+        return new_gait_metrics
+
+    def parse_results(self, results, results_type, act_metric_names):
+        results_act = results[results_type]
+        act_metrics = {}
+        for name in act_metric_names:
+            if name in results_act.keys():
+                act_metrics[name] = results_act[name]
+            else:
+                raise ValueError(f'{name} not valid activity metric name: {results_act.keys()}')
+        return act_metrics
 
     def write_results_json(self, data, name, path):
         file = os.path.join(path, name + '.json')
@@ -55,8 +107,8 @@ class LTMM_SKDH:
     def run_pipeline(self, data, time, pipeline):
         # final_ix = len(time) - 1
         # Start and stop index for the day (12AM day 0, 12AM day 1
-        # testing
-        day_ends = np.array([[3954300, 12594300]])
+        # day_ends = np.array([[3954300, 12594300]])
+        day_ends = np.array([[2514300, 11154300]])
         data = np.ascontiguousarray(data)
         return pipeline.run(time=time, accel=data, fs=fs, height=1.77, day_ends={(12, 24): day_ends})
 
@@ -68,8 +120,10 @@ class LTMM_SKDH:
         pipeline.add(Gait(), save_file=gait_result_file, plot_file=gait_plot_file)
         act_result_file = os.path.join(output_path, 'activity_results.csv')
         act_plot_file = os.path.join(output_path, 'activity_plot.pdf')
-        pipeline.add(ActivityLevelClassification(), save_file=act_result_file, plot_file=act_plot_file)
-        pipeline.add(ActivityLevelClassification(), save_file=act_result_file)
+        act = ActivityLevelClassification(cutpoints='esliger_lumbar_adult')
+        # act.add(TotalIntensityTime(level='sed', epoch_length=60, cutpoints='esliger_lumbar_adult'))
+        # pipeline.add(act, save_file=act_result_file, plot_file=act_plot_file)
+        pipeline.add(act, save_file=act_result_file)
         sleep_result_file = os.path.join(output_path, 'sleep_results.csv')
         sleep_plot_file = os.path.join(output_path, 'sleep_plot.pdf')
         pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_result_file, plot_file=sleep_plot_file)
@@ -83,9 +137,7 @@ class LTMM_SKDH:
         ml_acc_data = np.array(data.T[1])
         ap_acc_data = np.array(data.T[2])
         data = np.array([v_acc_data, ml_acc_data, ap_acc_data])
-        print(data.shape)
         data = data.T
-        print(data.shape)
         time = np.linspace(1657299657.0, (len(v_acc_data) / int(fs)) + 1657299657.0,
                            len(v_acc_data))
         return data, time
