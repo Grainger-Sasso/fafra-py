@@ -2,6 +2,8 @@ from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder i
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.fibion_mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
+
 
 
 class ModelTrainer:
@@ -13,11 +15,11 @@ class ModelTrainer:
         self.dataset = self.build_dataset()
         self.custom_metric_names = custom_metric_names
 
-    def generate_model(self, output_path, file_name):
+    def generate_model(self, skdh_output_path, file_name):
         # Generate custom metrics
         custom_input_metrics: InputMetrics = self.generate_custom_metrics()
         # Generate SKDH metrics
-        skdh_input_metrics = self.generate_skdh_metrics()
+        skdh_input_metrics = self.generate_skdh_metrics(skdh_output_path)
         # Format input metrics
         input_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics)
         # Train model on input metrics
@@ -40,8 +42,22 @@ class ModelTrainer:
             self.custom_metric_names
         )
 
-    def generate_skdh_metrics(self):
-        return 0
+    def generate_skdh_metrics(self, output_path):
+        pipeline_gen = SKDHPipelineGenerator()
+        pipeline = pipeline_gen.generate_pipeline(output_path)
+        pipeline_run = SKDHPipelineRunner(pipeline)
+        results = []
+        for user_data in self.dataset.get_dataset():
+            # Get the data from the user data in correct format
+            # Get the time axis from user data
+            # Get sampling rate
+            # Generate day ends for the time axes
+            data = []
+            time = []
+            fs = 0.0
+            day_ends = []
+            results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
+        return results
 
     def format_input_metrics(self, custom_input_metrics, skdh_input_metrics):
         pass
