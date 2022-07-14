@@ -20,10 +20,9 @@ import joblib
 
 from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import DatasetBuilder
 
-# Test commit
-
 
 fs = 100.0
+
 
 class LTMM_SKDH:
     def run_ltmm_skdh(self, data_path, output_path):
@@ -38,12 +37,10 @@ class LTMM_SKDH:
             'PARAM:gait speed',
             'BOUTPARAM:gait symmetry index',
             'PARAM:cadence',
-            'Bout N',
             'Bout Steps',
             'Bout Duration',
         ]
         gait_metrics = self.parse_results(results, 'Gait', gait_metric_names)
-        print(gait_metrics['Bout N'])
         gait_metrics = self.parse_gait_metrics(gait_metrics)
 
         act_metric_names = [
@@ -64,11 +61,16 @@ class LTMM_SKDH:
         ]
         sleep_metrics = self.parse_results(results, 'Sleep', sleep_metric_names)
 
+        for key, value in gait_metrics.items():
+            print(key + ': ' + str(value))
+        print('\n\n')
+        for key, value in act_metrics.items():
+            print(key + ': ' + str(value))
+        print('\n\n')
+        for key, value in sleep_metrics.items():
+            print(key + ': ' + str(value))
         print(gait_metrics)
-        print('\n\n')
-        print(act_metrics)
-        print('\n\n')
-        print(sleep_metrics)
+
         tot_time_s = len(time) / fs
         print(tot_time_s)
         print(tot_time_s/(60 * 60))
@@ -102,12 +104,6 @@ class LTMM_SKDH:
                 current_ix = bout
                 bout_steps.append(gait_metrics['Bout Steps'][ix])
                 bout_durs.append(gait_metrics['Bout Duration'][ix])
-        set_n = list(set(bout_n))
-        for i in set_n:
-            print(i)
-        print(all(x < y for x, y in zip(set_n, set_n[1:])))
-        print(len(set(bout_n)))
-        print(len(bout_steps) - 1)
         step_sum = np.array(bout_steps).sum()
         duration_sum = np.array(bout_durs).sum()
         return step_sum, duration_sum
