@@ -90,3 +90,17 @@ class SKDHPipelineRunner:
         new_gait_metrics['Bout Steps: sum'] = step_sum
         new_gait_metrics['Bout Duration: sum'] = duration_sum
         return new_gait_metrics
+
+    def parse_bouts(self, gait_metrics):
+        bout_steps = []
+        bout_durs = []
+        bout_n = gait_metrics['Bout N']
+        current_ix = 0
+        for ix, bout in enumerate(bout_n):
+            if bout > current_ix:
+                current_ix = bout
+                bout_steps.append(gait_metrics['Bout Steps'][ix])
+                bout_durs.append(gait_metrics['Bout Duration'][ix])
+        step_sum = np.array(bout_steps).sum()
+        duration_sum = np.array(bout_durs).sum()
+        return step_sum, duration_sum
