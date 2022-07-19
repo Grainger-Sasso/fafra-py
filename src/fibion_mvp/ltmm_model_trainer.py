@@ -113,17 +113,29 @@ def main():
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     seg = False
     epoch = 0.0
+    # metric_names = tuple(
+    #     [
+    #         MetricNames.AUTOCORRELATION,
+    #         MetricNames.FAST_FOURIER_TRANSFORM,
+    #         MetricNames.MEAN,
+    #         MetricNames.ROOT_MEAN_SQUARE,
+    #         MetricNames.STANDARD_DEVIATION,
+    #         MetricNames.SIGNAL_ENERGY,
+    #         MetricNames.COEFFICIENT_OF_VARIANCE,
+    #         MetricNames.ZERO_CROSSING,
+    #         MetricNames.SIGNAL_MAGNITUDE_AREA
+    #     ]
+    # )
     metric_names = tuple(
         [
-            MetricNames.AUTOCORRELATION,
-            MetricNames.FAST_FOURIER_TRANSFORM,
-            MetricNames.MEAN,
-            MetricNames.ROOT_MEAN_SQUARE,
-            MetricNames.STANDARD_DEVIATION,
-            MetricNames.SIGNAL_ENERGY,
+            MetricNames.SIGNAL_MAGNITUDE_AREA,
             MetricNames.COEFFICIENT_OF_VARIANCE,
+            MetricNames.SIGNAL_ENERGY,
+            MetricNames.STANDARD_DEVIATION,
+            MetricNames.MEAN,
             MetricNames.ZERO_CROSSING,
-            MetricNames.SIGNAL_MAGNITUDE_AREA
+            MetricNames.ROOT_MEAN_SQUARE,
+            MetricNames.FAST_FOURIER_TRANSFORM
         ]
     )
     mt = ModelTrainer(dp, cdp, seg, epoch, metric_names)
