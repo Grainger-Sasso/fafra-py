@@ -23,10 +23,10 @@ class ModelTrainer:
         # Preprocess data
         self.preprocess_data()
         # Generate custom metrics
-        custom_input_metrics: InputMetrics = self.generate_custom_metrics()
-        print(custom_input_metrics)
+        # custom_input_metrics: InputMetrics = self.generate_custom_metrics()
+        # print(custom_input_metrics)
         # Generate SKDH metrics
-        # skdh_input_metrics = self.generate_skdh_metrics(skdh_output_path)
+        skdh_input_metrics = self.generate_skdh_metrics(skdh_output_path)
         # Format input metrics
         # input_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics)
         # Train model on input metrics
@@ -95,9 +95,13 @@ class ModelTrainer:
             # Get the time axis from user data
             # Get sampling rate
             # Generate day ends for the time axes
-            data = []
-            time = []
-            fs = 0.0
+            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
+            data = imu_data.get_triax_acc_data()
+            data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
+            data = data.T
+            time = imu_data.get_time()
+            fs = user_data.get_imu_metadata().get_sampling_frequency()
+            # TODO: create function to translate the time axis into day ends
             day_ends = []
             results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
         return results
