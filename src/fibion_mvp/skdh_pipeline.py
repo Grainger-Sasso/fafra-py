@@ -11,10 +11,11 @@ from skdh.activity import ActivityLevelClassification
 class SKDHPipelineGenerator:
     def generate_pipeline(self, output_path):
         pipeline = Pipeline()
-        pipeline.add(DetectWear())
+        # pipeline.add(DetectWear())
         gait_result_file = os.path.join(output_path, 'gait_results.csv')
-        gait_plot_file = os.path.join(output_path, 'gait_plot.pdf')
-        pipeline.add(Gait(), save_file=gait_result_file, plot_file=gait_plot_file)
+        # gait_plot_file = os.path.join(output_path, 'gait_plot.pdf')
+        # pipeline.add(Gait(), save_file=gait_result_file, plot_file=gait_plot_file)
+        pipeline.add(Gait(), save_file=gait_result_file)
         act_result_file = os.path.join(output_path, 'activity_results.csv')
         act_plot_file = os.path.join(output_path, 'activity_plot.pdf')
         act = ActivityLevelClassification(cutpoints='esliger_lumbar_adult')
@@ -22,8 +23,9 @@ class SKDHPipelineGenerator:
         # pipeline.add(act, save_file=act_result_file, plot_file=act_plot_file)
         pipeline.add(act, save_file=act_result_file)
         sleep_result_file = os.path.join(output_path, 'sleep_results.csv')
-        sleep_plot_file = os.path.join(output_path, 'sleep_plot.pdf')
-        pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_result_file, plot_file=sleep_plot_file)
+        # sleep_plot_file = os.path.join(output_path, 'sleep_plot.pdf')
+        # pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_result_file, plot_file=sleep_plot_file)
+        pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_result_file)
         return pipeline
 
 
@@ -36,6 +38,7 @@ class SKDHPipelineRunner:
             'PARAM:cadence',
             'Bout Steps',
             'Bout Duration',
+            'Bout N'
         ]
         self.act_metric_names = [
             'wake sed 5s epoch [min]',
@@ -52,7 +55,7 @@ class SKDHPipelineRunner:
             'sleep average hazard',
         ]
 
-    def run_pipeline(self, data, time, fs, day_ends):
+    def run_pipeline(self, data, time, fs, day_ends=np.array([])):
         # TODO: list data shape here
         data = np.ascontiguousarray(data)
         results = self.pipeline.run(time=time, accel=data, fs=fs, height=1.77, day_ends={(12, 24): day_ends})

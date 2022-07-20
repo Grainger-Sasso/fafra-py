@@ -39,6 +39,7 @@ class LTMM_SKDH:
             'PARAM:cadence',
             'Bout Steps',
             'Bout Duration',
+            'Bout N'
         ]
         gait_metrics = self.parse_results(results, 'Gait', gait_metric_names)
         gait_metrics = self.parse_gait_metrics(gait_metrics)
