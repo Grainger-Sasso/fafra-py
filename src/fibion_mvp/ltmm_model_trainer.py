@@ -1,4 +1,5 @@
 import os
+import sys
 import psutil
 import numpy as np
 import glob
@@ -75,6 +76,8 @@ class ModelTrainer:
         pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         pipeline_run = SKDHPipelineRunner(pipeline)
         for name, header_and_data_file_path in head_df_paths.items():
+            pid1 = os.getpid()
+            ps1 = psutil.Process(pid1)
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
             self.preprocess_data(ds)
@@ -82,10 +85,19 @@ class ModelTrainer:
             skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
+            print(str(sys.getsizeof(ds)))
+            print(str(sys.getsizeof(custom_input_metrics)))
+            print(str(sys.getsizeof(skdh_input_metrics)))
+            print(str(sys.getsizeof(input_metrics)))
             del ds
             gc.collect()
             memory_usage = ps.memory_info()
+            memory_usage1 = ps1.memory_info()
+            print('\n')
+            print('\n')
             print(memory_usage)
+            print(memory_usage1)
+            print('\n')
             print('\n')
         input_metrics = self.finalize_metric_formatting(input_metrics)
         return self.rc.scale_input_data(input_metrics)
