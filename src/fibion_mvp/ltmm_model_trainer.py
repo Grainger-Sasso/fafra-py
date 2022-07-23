@@ -1,7 +1,9 @@
 import os
+import psutil
 import numpy as np
 import glob
 import wfdb
+import gc
 import joblib
 import time
 from typing import List
@@ -64,17 +66,27 @@ class ModelTrainer:
         # pass
 
     def generate_input_metrics(self, skdh_output_path):
+        pid = os.getpid()
+        ps = psutil.Process(pid)
+
         head_df_paths = self._generate_header_and_data_file_paths()
         input_metrics = self.initialize_input_metrics()
+        pipeline_gen = SKDHPipelineGenerator()
+        pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
+        pipeline_run = SKDHPipelineRunner(pipeline)
         for name, header_and_data_file_path in head_df_paths.items():
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
             self.preprocess_data(ds)
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
-            skdh_input_metrics = self.generate_skdh_metrics(ds, skdh_output_path)
+            skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
-            print('yerp')
+            del ds
+            gc.collect()
+            memory_usage = ps.memory_info()
+            print(memory_usage)
+            print('\n')
         input_metrics = self.finalize_metric_formatting(input_metrics)
         return self.rc.scale_input_data(input_metrics)
 
@@ -139,10 +151,7 @@ class ModelTrainer:
             self.custom_metric_names
         )
 
-    def generate_skdh_metrics(self, dataset, output_path):
-        pipeline_gen = SKDHPipelineGenerator()
-        pipeline = pipeline_gen.generate_pipeline(output_path)
-        pipeline_run = SKDHPipelineRunner(pipeline)
+    def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner):
         results = []
         for user_data in dataset.get_dataset():
             print(user_data.get_clinical_demo_data().get_id())
