@@ -1,12 +1,11 @@
 import os
-import sys
 import psutil
 import numpy as np
 import glob
 import wfdb
 import gc
-import joblib
 import time
+from pympler import asizeof
 from typing import List
 
 from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import DatasetBuilder
@@ -69,39 +68,31 @@ class ModelTrainer:
     def generate_input_metrics(self, skdh_output_path):
         pid = os.getpid()
         ps = psutil.Process(pid)
-
         head_df_paths = self._generate_header_and_data_file_paths()
         input_metrics = self.initialize_input_metrics()
         pipeline_gen = SKDHPipelineGenerator()
         pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         pipeline_run = SKDHPipelineRunner(pipeline)
         for name, header_and_data_file_path in head_df_paths.items():
-            pid1 = os.getpid()
-            ps1 = psutil.Process(pid1)
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
+            print(str(asizeof.asizeof(ds)))
             self.preprocess_data(ds)
+            print(str(asizeof.asizeof(ds)))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
-            print(str(sys.getsizeof(ds)))
-            print(str(sys.getsizeof(custom_input_metrics)))
-            print(str(sys.getsizeof(skdh_input_metrics)))
-            print(str(sys.getsizeof(input_metrics)))
             del ds
             gc.collect()
             memory_usage = ps.memory_info()
-            memory_usage1 = ps1.memory_info()
             print('\n')
             print('\n')
             print(memory_usage)
-            print(memory_usage1)
             print('\n')
             print('\n')
         input_metrics = self.finalize_metric_formatting(input_metrics)
         return self.rc.scale_input_data(input_metrics)
-
 
     def create_dataset(self, header_and_data_file_path):
         dataset = []
@@ -204,6 +195,7 @@ class ModelTrainer:
             lpf_data_all_axis.append(lpf_data)
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
+        print('hah')
 
     def _generate_imu_data_instance(self, data):
         activity_code = ''
@@ -323,7 +315,6 @@ def main():
         [
             MetricNames.SIGNAL_MAGNITUDE_AREA,
             MetricNames.COEFFICIENT_OF_VARIANCE,
-            MetricNames.SIGNAL_ENERGY,
             MetricNames.STANDARD_DEVIATION,
             MetricNames.MEAN,
             MetricNames.ZERO_CROSSING,
