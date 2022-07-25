@@ -75,15 +75,17 @@ class ModelTrainer:
         pipeline_run = SKDHPipelineRunner(pipeline)
         for name, header_and_data_file_path in head_df_paths.items():
             # Load the data and compute the input metrics for the file
+            print(str(asizeof.asizeof(ds)))
             ds = self.create_dataset(header_and_data_file_path)
-            print(str(int(asizeof.asizeof(ds) / 100000000)))
+            print(str(asizeof.asizeof(ds) / 100000000))
             self.preprocess_data(ds)
-            print(str(int(asizeof.asizeof(ds) / 100000000)))
+            print(str(asizeof.asizeof(ds) / 100000000))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
+            print(str(asizeof.asizeof(input_metrics)))
             gc.collect()
             memory_usage = ps.memory_info()
             print('\n')
@@ -104,7 +106,7 @@ class ModelTrainer:
         wfdb_record = wfdb.rdrecord(data_path)
         id = wfdb_record.record_name
         print(id)
-        data = np.array(wfdb_record.p_signal)
+        data = np.array(wfdb_record.p_signal, dtype=np.float16)
         data = np.float16(data)
         # Convert acceleration data from g to m/s^2
         data[:, 0:3] = data[:, 0:3] * 9.80665
@@ -203,9 +205,9 @@ class ModelTrainer:
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
         ap_acc_data = np.array(data[2])
-        yaw_gyr_data = np.array(data[3])
-        pitch_gyr_data = np.array(data[4])
-        roll_gyr_data = np.array(data[5])
+        yaw_gyr_data = []
+        pitch_gyr_data = []
+        roll_gyr_data = []
         time = np.linspace(0, len(v_acc_data) / int(self.sampling_frequency),
                            len(v_acc_data))
         return IMUData(activity_code, activity_description, v_acc_data,
