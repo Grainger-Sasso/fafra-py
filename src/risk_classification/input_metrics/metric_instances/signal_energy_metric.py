@@ -20,7 +20,7 @@ class Metric(RiskClassificationInputMetric):
         data_array = np.abs(data_array)
         #return the sum of the squared result to find the signal energy metric
         data_array = np.square(data_array)
-        return np.sum(data_array)                         
+        return np.sum(data_array, dtype=np.float64)
 
 
 

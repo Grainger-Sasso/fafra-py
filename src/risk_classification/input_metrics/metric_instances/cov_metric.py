@@ -14,4 +14,4 @@ class Metric(RiskClassificationInputMetric):
         super().__init__(METRIC_NAME, METRIC_DATA_TYPE)
 
     def generate_metric(self, **kwargs):
-        return np.std(kwargs['data']) / np.mean(kwargs['data'])
+        return np.std(kwargs['data'], dtype=np.float64) / np.mean(kwargs['data'])

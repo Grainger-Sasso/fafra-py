@@ -76,9 +76,9 @@ class ModelTrainer:
         for name, header_and_data_file_path in head_df_paths.items():
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
-            print(str(asizeof.asizeof(ds)))
+            print(str(int(asizeof.asizeof(ds) / 100000000)))
             self.preprocess_data(ds)
-            print(str(asizeof.asizeof(ds)))
+            print(str(int(asizeof.asizeof(ds) / 100000000)))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
             input_metrics = self.format_input_metrics(input_metrics,
@@ -89,6 +89,7 @@ class ModelTrainer:
             print('\n')
             print('\n')
             print(memory_usage)
+            print(input_metrics.get_metrics())
             print('\n')
             print('\n')
         input_metrics = self.finalize_metric_formatting(input_metrics)
@@ -195,7 +196,6 @@ class ModelTrainer:
             lpf_data_all_axis.append(lpf_data)
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
-        print('hah')
 
     def _generate_imu_data_instance(self, data):
         activity_code = ''
@@ -318,6 +318,7 @@ def main():
             MetricNames.STANDARD_DEVIATION,
             MetricNames.MEAN,
             MetricNames.ZERO_CROSSING,
+            MetricNames.SIGNAL_ENERGY,
             MetricNames.ROOT_MEAN_SQUARE,
             MetricNames.FAST_FOURIER_TRANSFORM
         ]
