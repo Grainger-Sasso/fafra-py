@@ -81,8 +81,8 @@ class ModelTrainer:
             print(str(asizeof.asizeof(ds) / 100000000))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
-            # input_metrics = self.format_input_metrics(input_metrics,
-            #                                           custom_input_metrics, skdh_input_metrics)
+            input_metrics = self.format_input_metrics(input_metrics,
+                                                      custom_input_metrics, skdh_input_metrics)
             del ds
             print(str(asizeof.asizeof(input_metrics)))
             gc.collect()
