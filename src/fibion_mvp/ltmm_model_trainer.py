@@ -5,6 +5,7 @@ import glob
 import wfdb
 import gc
 import time
+import json
 from pympler import asizeof
 from typing import List
 
@@ -43,12 +44,10 @@ class ModelTrainer:
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         self.height = 1.75
 
-    def generate_model(self, skdh_output_path, model_output_path, file_name):
-        time0 = time.time()
-        input_metrics = self.generate_input_metrics(skdh_output_path)
-        print(time.time() - time0)
-        print(input_metrics.get_metrics())
-        print('HUH?')
+    def generate_model(self, skdh_output_path, im_path, model_output_path, file_name):
+        input_metrics = self.read_parse_im(im_path)
+        input_metrics = self.finalize_metric_formatting(input_metrics)
+        return self.rc.scale_input_data(input_metrics)
         # Scale input metrics
         # Preprocess data
         # self.preprocess_data()
@@ -65,7 +64,12 @@ class ModelTrainer:
         # # Export traning data
         # pass
 
-    def generate_input_metrics(self, skdh_output_path):
+    def read_parse_im(self, im_path):
+        pass
+
+    def generate_input_metrics(self, skdh_output_path, im_path):
+        time0 = time.time()
+
         pid = os.getpid()
         ps = psutil.Process(pid)
         head_df_paths = self._generate_header_and_data_file_paths()
@@ -84,17 +88,31 @@ class ModelTrainer:
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
-            print(str(asizeof.asizeof(input_metrics)))
             gc.collect()
             memory_usage = ps.memory_info()
             print('\n')
             print('\n')
             print(memory_usage)
             print(input_metrics.get_metrics())
+            print(input_metrics.get_labels())
             print('\n')
             print('\n')
-        input_metrics = self.finalize_metric_formatting(input_metrics)
-        return self.rc.scale_input_data(input_metrics)
+        self.export_metrics(input_metrics, im_path)
+        print(time.time() - time0)
+        print(input_metrics.get_metrics())
+
+    def export_metrics(self, input_metrics: InputMetrics, output_path):
+        metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(output_path, metric_file_name)
+        new_im = {}
+        for name, metric in input_metrics.get_metrics().items():
+            if isinstance(name, MetricNames):
+                new_im[name.value] = metric
+            else:
+                new_im[name] = metric
+        metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
+        with open(full_path, 'w') as f:
+            json.dump(metric_data, f)
 
     def create_dataset(self, header_and_data_file_path):
         dataset = []
@@ -162,7 +180,6 @@ class ModelTrainer:
     def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner):
         results = []
         for user_data in dataset.get_dataset():
-            print(user_data.get_clinical_demo_data().get_id())
             # Get the data from the user data in correct format
             # Get the time axis from user data
             # Get sampling rate
@@ -226,7 +243,7 @@ class ModelTrainer:
         return input_metrics
 
     def finalize_metric_formatting(self, input_metrics: InputMetrics):
-        new_ims = InputMetrics
+        new_ims = InputMetrics()
         for name, metric in input_metrics.get_metrics().items():
             im = InputMetric(name, np.array(metric))
             new_ims.set_metric(name, im)
@@ -300,6 +317,7 @@ class ModelTrainer:
 def main():
     dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
+    metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
     seg = False
     epoch = 0.0
     # metric_names = tuple(
@@ -334,8 +352,10 @@ def main():
             'PARAM:cadence: std'
         ]
     mt = ModelTrainer(dp, cdp, seg, epoch, custom_metric_names, gait_metric_names)
-    mt.generate_model('','','')
-    print('yup')
+    mt.generate_input_metrics(
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
+    )
 
 
 if __name__ == '__main__':
