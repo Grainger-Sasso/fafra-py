@@ -75,15 +75,14 @@ class ModelTrainer:
         pipeline_run = SKDHPipelineRunner(pipeline)
         for name, header_and_data_file_path in head_df_paths.items():
             # Load the data and compute the input metrics for the file
-            print(str(asizeof.asizeof(ds)))
             ds = self.create_dataset(header_and_data_file_path)
             print(str(asizeof.asizeof(ds) / 100000000))
             self.preprocess_data(ds)
             print(str(asizeof.asizeof(ds) / 100000000))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
-            input_metrics = self.format_input_metrics(input_metrics,
-                                                      custom_input_metrics, skdh_input_metrics)
+            # input_metrics = self.format_input_metrics(input_metrics,
+            #                                           custom_input_metrics, skdh_input_metrics)
             del ds
             print(str(asizeof.asizeof(input_metrics)))
             gc.collect()
@@ -113,6 +112,8 @@ class ModelTrainer:
         header_data = wfdb.rdheader(header_path)
         if wfdb_record.comments[0][4:]:
             age = float(wfdb_record.comments[0][4:])
+        else:
+            age = 70.0
         sex = wfdb_record.comments[1][4:]
         if id.casefold()[0] == 'f':
             faller_status = True
@@ -129,6 +130,7 @@ class ModelTrainer:
         imu_data = self._generate_imu_data_instance(data.T)
         dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
                                 {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        del data
         return Dataset('LTMM', self.dataset_path, self.clinical_demo_path, dataset, {})
 
     def _generate_header_and_data_file_paths(self):
@@ -319,10 +321,8 @@ def main():
             MetricNames.COEFFICIENT_OF_VARIANCE,
             MetricNames.STANDARD_DEVIATION,
             MetricNames.MEAN,
-            MetricNames.ZERO_CROSSING,
             MetricNames.SIGNAL_ENERGY,
-            MetricNames.ROOT_MEAN_SQUARE,
-            MetricNames.FAST_FOURIER_TRANSFORM
+            MetricNames.ROOT_MEAN_SQUARE
         ]
     )
     gait_metric_names = [
