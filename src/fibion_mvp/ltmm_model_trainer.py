@@ -18,7 +18,7 @@ from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.fibion_mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
-# from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 # from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
@@ -53,15 +53,24 @@ class ModelTrainer:
         metrics = input_metrics['metrics'][0]
         labels = input_metrics['labels']
         input_metrics = self.finalize_metric_formatting(metrics, labels)
+        eval_results = self.rc.train_model(input_metrics)
+        self.test_model(input_metrics)
         # Scale input metrics
-        input_metrics = self.rc.scale_input_data(input_metrics)
-        # Train model
-        self.train_model(input_metrics)
-        # Export model and scaler
-        model_path, scaler_path = self.export_model(model_output_path, model_name, scaler_name)
-        model = self.import_model(model_path)
-        scaler = self.import_model(scaler_path)
-        return None
+        # input_metrics = self.rc.scale_input_data(input_metrics)
+        # # Train model
+        # self.train_model(input_metrics)
+        # # Export model and scaler
+        # model_path, scaler_path = self.export_model(model_output_path, model_name, scaler_name)
+        # model = self.import_model(model_path)
+        # scaler = self.import_model(scaler_path)
+        # return None
+
+    def test_model(self, input_metrics):
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
+        x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
+        self.rc.train_model(x_train, y_train)
+        acc = self.rc.score_model(x_test, y_test)
+        print('ok')
 
     def read_parse_im(self, im_path):
         with open(im_path, 'r') as f:
