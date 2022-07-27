@@ -6,6 +6,8 @@ import wfdb
 import gc
 import time
 import json
+import joblib
+from itertools import repeat
 from pympler import asizeof
 from typing import List
 
@@ -16,7 +18,8 @@ from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.fibion_mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
-from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+# from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
+# from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
@@ -38,38 +41,70 @@ class ModelTrainer:
         self.custom_metric_names = custom_metric_names
         self.gait_metric_names: List[str] = gait_metric_names
         self.rc = LightGBMRiskClassifier({})
+        # self.rc = KNNRiskClassifier()
         self.sampling_frequency = 100.0
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         self.height = 1.75
 
-    def generate_model(self, skdh_output_path, im_path, model_output_path, file_name):
+    def generate_model(self, im_path, model_output_path, model_name, scaler_name):
         input_metrics = self.read_parse_im(im_path)
-        input_metrics = self.finalize_metric_formatting(input_metrics)
-        return self.rc.scale_input_data(input_metrics)
+        metrics = input_metrics['metrics'][0]
+        labels = input_metrics['labels']
+        input_metrics = self.finalize_metric_formatting(metrics, labels)
         # Scale input metrics
-        # Preprocess data
-        # self.preprocess_data()
-        # # Generate custom metrics
-        # custom_input_metrics: InputMetrics = self.generate_custom_metrics()
-        # # print(custom_input_metrics)
-        # # Generate SKDH metrics
-        # skdh_input_metrics = self.generate_skdh_metrics(skdh_output_path)
-        # # print(skdh_input_metrics)
-        # # Format input metrics
-        # input_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics)
-        # # Train model on input metrics
-        # # Export model, scaler
-        # # Export traning data
-        # pass
+        input_metrics = self.rc.scale_input_data(input_metrics)
+        # Train model
+        self.train_model(input_metrics)
+        # Export model and scaler
+        model_path, scaler_path = self.export_model(model_output_path, model_name, scaler_name)
+        model = self.import_model(model_path)
+        scaler = self.import_model(scaler_path)
+        return None
 
     def read_parse_im(self, im_path):
-        pass
+        with open(im_path, 'r') as f:
+            data = json.load(f)
+        return data
+
+    def finalize_metric_formatting(self, metrics, labels):
+        new_ims = InputMetrics()
+        for name, metric in metrics.items():
+            new_metric = []
+            new_metric.extend(repeat(metric, 5))
+            new_metric = [item for sublist in new_metric for item in sublist]
+            im = InputMetric(name, np.array(metric))
+            # im = InputMetric(name, np.array(new_metric))
+            new_ims.set_metric(name, im)
+        new_labels = []
+        new_labels.extend(repeat(labels, 5))
+        new_labels = [item for sublist in new_labels for item in sublist]
+        new_ims.set_labels(np.array(labels))
+        # new_ims.set_labels(np.array(new_labels))
+        return new_ims
+
+    def train_model(self, input_metrics):
+        x, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
+        self.rc.train_model(x, y, metric_names=names)
+
+    def export_model(self, model_output_path, model_name, scaler_name):
+        model_name = model_name + time.strftime("%Y%m%d-%H%M%S") + '.pkl'
+        scaler_name = scaler_name + time.strftime("%Y%m%d-%H%M%S") + '.bin'
+        model_path = os.path.join(model_output_path, model_name)
+        scaler_path = os.path.join(model_output_path, scaler_name)
+        # self.rc.model.save_model(model_path)
+        joblib.dump(self.rc.get_model(), model_path)
+        joblib.dump(self.rc.get_scaler(), scaler_path)
+        return model_path, scaler_path
+
+    def import_model(self, model_path):
+        model = joblib.load(model_path)
+        return model
 
     def generate_input_metrics(self, skdh_output_path, im_path):
         time0 = time.time()
-
         pid = os.getpid()
         ps = psutil.Process(pid)
         head_df_paths = self._generate_header_and_data_file_paths()
@@ -93,13 +128,12 @@ class ModelTrainer:
             print('\n')
             print('\n')
             print(memory_usage)
-            print(input_metrics.get_metrics())
-            print(input_metrics.get_labels())
             print('\n')
             print('\n')
-        self.export_metrics(input_metrics, im_path)
+        full_path = self.export_metrics(input_metrics, im_path)
         print(time.time() - time0)
         print(input_metrics.get_metrics())
+        return full_path
 
     def export_metrics(self, input_metrics: InputMetrics, output_path):
         metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
@@ -113,6 +147,7 @@ class ModelTrainer:
         metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
         with open(full_path, 'w') as f:
             json.dump(metric_data, f)
+        return full_path
 
     def create_dataset(self, header_and_data_file_path):
         dataset = []
@@ -242,14 +277,6 @@ class ModelTrainer:
         input_metrics.set_labels([])
         return input_metrics
 
-    def finalize_metric_formatting(self, input_metrics: InputMetrics):
-        new_ims = InputMetrics()
-        for name, metric in input_metrics.get_metrics().items():
-            im = InputMetric(name, np.array(metric))
-            new_ims.set_metric(name, im)
-        new_ims.set_labels(np.array(input_metrics.get_labels()))
-        return new_ims
-
     def format_input_metrics(self, input_metrics,
                              custom_input_metrics: InputMetrics,
                              skdh_input_metrics):
@@ -352,10 +379,16 @@ def main():
             'PARAM:cadence: std'
         ]
     mt = ModelTrainer(dp, cdp, seg, epoch, custom_metric_names, gait_metric_names)
-    mt.generate_input_metrics(
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
-    )
+    # full_path = mt.generate_input_metrics(
+    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
+    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
+    # )
+    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    model_output_path = ''
+    file_name = ''
+    model_name = 'lgbm_skdh_ltmm_rcm_'
+    scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    mt.generate_model(im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':
