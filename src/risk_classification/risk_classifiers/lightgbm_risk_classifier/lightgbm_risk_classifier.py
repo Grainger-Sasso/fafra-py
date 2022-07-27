@@ -46,13 +46,13 @@ class LightGBMRiskClassifier(Classifier):
         self.current_dataset = None
 
     # train lightgbm risk classifier using 33% holdout cross-validation
-    def train_model(self,  x, y, **kwargs):
+    def train_model_optuna(self,  x, y, **kwargs):
         self.current_dataset = [x, y]
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         # train lightgbm
         study = optuna.create_study(direction="minimize")
         study.optimize(self.opt_objective, n_trials=500)
-        optuna.visualization.plot_optimization_history(study)
+        # optuna.visualization.plot_optimization_history(study)
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
         lgbdata = lgb.Dataset(x, label=y)
@@ -62,6 +62,44 @@ class LightGBMRiskClassifier(Classifier):
         print("in LightGMB",trial.params,model.params)
         self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
+
+    def train_model(self, input_metrics, **kwargs):
+        x_train, x_test, y_train, y_test = self.split_input_metrics(input_metrics)
+        x_train, x_test = self.scale_train_test_data(x_train, x_test)
+        lgb_train = lgb.Dataset(x_train, y_train)
+        lgb_eval = lgb.Dataset(x_test, y_test, reference=lgb_train)
+        params = {
+            'boosting_type': 'gbdt',
+            'objective': 'binary',
+            'num_leaves': 40,
+            'learning_rate': 0.1,
+            'feature_fraction': 0.9
+                  }
+        eval_results = {}
+        gbm = lgb.train(params,
+                        lgb_train,
+                        num_boost_round=200,
+                        valid_sets=[lgb_train, lgb_eval],
+                        valid_names=['train', 'valid'],
+                        evals_result=eval_results
+        )
+        self.set_model(gbm)
+        return eval_results
+
+    # def train_model(self, x, y, **kwargs):
+    #     lgb_train = lgb.Dataset(x, y)
+    #     params = {
+    #         'boosting_type': 'gbdt',
+    #         'objective': 'binary',
+    #         'num_leaves': 40,
+    #         'learning_rate': 0.1,
+    #         'feature_fraction': 0.9
+    #               }
+    #     gbm = lgb.train(params,
+    #                     lgb_train,
+    #                     num_boost_round=200,
+    #     )
+    #     self.set_model(gbm)
 
     def make_prediction(self, samples, **kwargs):
         raw_predictions = self.model.predict(samples)
