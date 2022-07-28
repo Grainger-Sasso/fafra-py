@@ -119,8 +119,10 @@ class ModelTrainer:
         head_df_paths = self._generate_header_and_data_file_paths()
         input_metrics = self.initialize_input_metrics()
         pipeline_gen = SKDHPipelineGenerator()
-        pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
-        pipeline_run = SKDHPipelineRunner(pipeline)
+        full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
+        full_pipeline_run = SKDHPipelineRunner(full_pipeline)
+        gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
+        gait_pipeline_run = SKDHPipelineRunner(gait_pipeline)
         for name, header_and_data_file_path in head_df_paths.items():
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
@@ -128,7 +130,7 @@ class ModelTrainer:
             self.preprocess_data(ds)
             print(str(asizeof.asizeof(ds) / 100000000))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
-            skdh_input_metrics = self.generate_skdh_metrics(ds, pipeline_run)
+            skdh_input_metrics = self.generate_skdh_metrics(ds, gait_pipeline_run)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
@@ -169,8 +171,9 @@ class ModelTrainer:
         print(id)
         data = np.array(wfdb_record.p_signal, dtype=np.float16)
         data = np.float16(data)
+        # DO NOT CONVERT FOR SKDH PIPELINE DATA MAKE SURE DATA IS IN 'g'
         # Convert acceleration data from g to m/s^2
-        data[:, 0:3] = data[:, 0:3] * 9.80665
+        # data[:, 0:3] = data[:, 0:3] * 9.80665
         header_data = wfdb.rdheader(header_path)
         if wfdb_record.comments[0][4:]:
             age = float(wfdb_record.comments[0][4:])
@@ -189,11 +192,49 @@ class ModelTrainer:
         imu_metadata = IMUMetadata(header_data, self.sampling_frequency, self.units)
         trial = ''
         clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height, trial)
-        imu_data = self._generate_imu_data_instance(data.T)
-        dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
-                                {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        if self.segment_dataset:
+            # TODO: track the segmented data with a linked list
+            # Segment the data and build a UserData object for each epoch
+            data_segments = self.segment_data(data, self.epoch_size, self.sampling_frequency)
+            for segment in data_segments:
+                imu_data = self._generate_imu_data_instance(segment)
+                dataset.append(
+                    UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
+                             {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        else:
+            # Build a UserData object for the whole data
+            imu_data = self._generate_imu_data_instance(data)
+            dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
+                                    {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         del data
         return Dataset('LTMM', self.dataset_path, self.clinical_demo_path, dataset, {})
+
+    def segment_data(self, data, epoch_size, sampling_frequency):
+        """
+        Segments data into epochs of a given duration starting from the beginning of the data
+        :param: data: data to be segmented
+        :param epoch_size: duration of epoch to segment data (in seconds)
+        :return: data segments of given epoch duration
+        """
+        total_time = len(data.T[0])/sampling_frequency
+        # Calculate number of segments from given epoch size
+        num_of_segs = int(total_time / epoch_size)
+        # Check to see if data can be segmented at least one segment of given epoch size
+        if num_of_segs > 0:
+            data_segments = []
+            # Counter for the number of segments to be created
+            segment_count = range(0, num_of_segs+1)
+            # Create segmentation indices
+            seg_ixs = [int(seg * sampling_frequency * epoch_size) for seg in segment_count]
+            for seg_num in segment_count:
+                if seg_num != segment_count[-1]:
+                    data_segments.append(data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
+                else:
+                    continue
+        else:
+            raise ValueError(f'Data of total time {str(total_time)}s can not be '
+                             f'segmented with given epoch size {str(epoch_size)}s')
+        return data_segments
 
     def _generate_header_and_data_file_paths(self):
         header_and_data_file_paths = dict()
@@ -354,8 +395,8 @@ def main():
     dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
-    seg = False
-    epoch = 0.0
+    seg = True
+    epoch = 60.0
     # metric_names = tuple(
     #     [
     #         MetricNames.AUTOCORRELATION,
@@ -388,16 +429,16 @@ def main():
             'PARAM:cadence: std'
         ]
     mt = ModelTrainer(dp, cdp, seg, epoch, custom_metric_names, gait_metric_names)
-    # full_path = mt.generate_input_metrics(
-    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
-    # )
-    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
-    model_output_path = ''
+    full_path = mt.generate_input_metrics(
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
+    )
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    # model_output_path = ''
     file_name = ''
-    model_name = 'lgbm_skdh_ltmm_rcm_'
-    scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    mt.generate_model(im_path, model_output_path, model_name, scaler_name)
+    # model_name = 'lgbm_skdh_ltmm_rcm_'
+    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    # mt.generate_model(im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':

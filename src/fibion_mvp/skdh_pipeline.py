@@ -28,6 +28,12 @@ class SKDHPipelineGenerator:
         pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_result_file)
         return pipeline
 
+    def generate_gait_pipeline(self, output_path):
+        pipeline = Pipeline()
+        gait_result_file = os.path.join(output_path, 'segmented_gait_results.csv')
+        pipeline.add(Gait(), save_file=gait_result_file)
+        return pipeline
+
 
 class SKDHPipelineRunner:
     def __init__(self, pipeline: Pipeline):
@@ -58,12 +64,22 @@ class SKDHPipelineRunner:
     def run_pipeline(self, data, time, fs, day_ends=np.array([])):
         # TODO: list data shape here
         data = np.ascontiguousarray(data)
+        # TODO: configure user height
         results = self.pipeline.run(time=time, accel=data, fs=fs, height=1.77, day_ends={(12, 24): day_ends})
         gait_metrics = self.parse_results(results, 'Gait', self.gait_metric_names)
         gait_metrics = self.parse_gait_metrics(gait_metrics)
         act_metrics = self.parse_results(results, 'ActivityLevelClassification', self.act_metric_names)
         sleep_metrics = self.parse_results(results, 'Sleep', self.sleep_metric_names)
         return {'gait_metrics': gait_metrics, 'act_metrics': act_metrics, 'sleep_metrics': sleep_metrics}
+
+    def run_gait_pipeline(self, data, time, fs, day_ends=np.array([])):
+        # TODO: list data shape here
+        data = np.ascontiguousarray(data)
+        # TODO: configure user height
+        results = self.pipeline.run(time=time, accel=data, fs=fs, height=1.77, day_ends={(12, 24): day_ends})
+        gait_metrics = self.parse_results(results, 'Gait', self.gait_metric_names)
+        gait_metrics = self.parse_gait_metrics(gait_metrics)
+        return {'gait_metrics': gait_metrics}
 
     def parse_results(self, results, results_type, metric_names):
         results_act = results[results_type]
