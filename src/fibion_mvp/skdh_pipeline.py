@@ -44,7 +44,8 @@ class SKDHPipelineRunner:
             'PARAM:cadence',
             'Bout Steps',
             'Bout Duration',
-            'Bout N'
+            'Bout N',
+            'Bout Starts'
         ]
         self.act_metric_names = [
             'wake sed 5s epoch [min]',
@@ -104,15 +105,19 @@ class SKDHPipelineRunner:
             # Replace value in metric dict
             new_gait_metrics[name + ': mean'] = metric_mean
             new_gait_metrics[name + ': std'] = metric_std
-
-        step_sum, duration_sum = self.parse_bouts(gait_metrics)
+        bout_steps, bout_durs, bout_starts = self.parse_bouts(gait_metrics)
+        step_sum = np.array(bout_steps).sum()
+        duration_sum = np.array(bout_durs).sum()
         new_gait_metrics['Bout Steps: sum'] = step_sum
         new_gait_metrics['Bout Duration: sum'] = duration_sum
+        new_gait_metrics['Bout Starts'] = bout_starts
+        new_gait_metrics['Bout Duration'] = bout_durs
         return new_gait_metrics
 
     def parse_bouts(self, gait_metrics):
         bout_steps = []
         bout_durs = []
+        bout_starts = []
         bout_n = gait_metrics['Bout N']
         current_ix = 0
         for ix, bout in enumerate(bout_n):
@@ -120,6 +125,6 @@ class SKDHPipelineRunner:
                 current_ix = bout
                 bout_steps.append(gait_metrics['Bout Steps'][ix])
                 bout_durs.append(gait_metrics['Bout Duration'][ix])
-        step_sum = np.array(bout_steps).sum()
-        duration_sum = np.array(bout_durs).sum()
-        return step_sum, duration_sum
+                bout_starts.append(gait_metrics['Bout Starts'][ix])
+
+        return bout_steps, bout_durs, bout_starts

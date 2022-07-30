@@ -114,8 +114,6 @@ class ModelTrainer:
 
     def generate_input_metrics(self, skdh_output_path, im_path):
         time0 = time.time()
-        ltmm_dsb = DatasetBuilder()
-        # ltmm_dsb.build_dataset(self.dataset_path, self.clinical_demo_path, True, 60.0)
         pid = os.getpid()
         ps = psutil.Process(pid)
         head_df_paths = self._generate_header_and_data_file_paths()
@@ -132,7 +130,9 @@ class ModelTrainer:
             self.preprocess_data(ds)
             print(str(asizeof.asizeof(ds) / 100000000))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
-            skdh_input_metrics = self.generate_skdh_metrics(ds, gait_pipeline_run)
+            skdh_input_metrics = self.generate_skdh_metrics(ds, gait_pipeline_run, True)
+            bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds)
+            walk_data = self.get_walk_imu_data(bout_ixs, ds)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
@@ -147,6 +147,28 @@ class ModelTrainer:
         print(time.time() - time0)
         print(input_metrics.get_metrics())
         return full_path
+
+    def get_walk_imu_data(self, bout_ixs, ds):
+        walk_data = []
+        walk_time = []
+        imu_data = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.LPF)
+        acc_data = imu_data.get_triax_acc_data()
+        acc_data = np.array([acc_data['vertical'], acc_data['mediolateral'], acc_data['anteroposterior']])
+        for bout_ix in bout_ixs:
+            walk_data.append(acc_data[:, bout_ix[0]:bout_ix[1]])
+        return walk_data
+
+    def get_walk_bout_ixs(self, skdh_results, ds):
+        bout_starts = skdh_results['Bout Starts']
+        bout_durs = skdh_results['Bout Duration']
+        t0 = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()[0]
+        bout_ixs = []
+        for start, dur in zip(bout_starts, bout_durs):
+            # Calculate the start and stop ixs of the bout
+            st_ix = int((start - t0) * self.sampling_frequency)
+            end_ix = int(((start + dur) - t0) * self.sampling_frequency)
+            bout_ixs.append([st_ix, end_ix])
+        return bout_ixs
 
     def export_metrics(self, input_metrics: InputMetrics, output_path):
         metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
@@ -264,7 +286,7 @@ class ModelTrainer:
             self.custom_metric_names
         )
 
-    def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner):
+    def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
         for user_data in dataset.get_dataset():
             # Get the data from the user data in correct format
@@ -281,8 +303,10 @@ class ModelTrainer:
             fs = user_data.get_imu_metadata().get_sampling_frequency()
             # TODO: create function to translate the time axis into day ends
             day_ends = np.array([[0, int(len(time) - 1)]])
-            results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
-            # results.append(pipeline_run.run_pipeline(data, time, fs))
+            if gait:
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
+            else:
+                results.append(pipeline_run.run_pipeline(data, time, fs))
         return results
 
     def preprocess_data(self, dataset):
@@ -397,8 +421,8 @@ def main():
     dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
-    seg = True
-    epoch = 60.0
+    seg = False
+    epoch = 0.0
     # metric_names = tuple(
     #     [
     #         MetricNames.AUTOCORRELATION,
