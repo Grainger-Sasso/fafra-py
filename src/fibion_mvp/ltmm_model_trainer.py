@@ -114,6 +114,8 @@ class ModelTrainer:
 
     def generate_input_metrics(self, skdh_output_path, im_path):
         time0 = time.time()
+        ltmm_dsb = DatasetBuilder()
+        # ltmm_dsb.build_dataset(self.dataset_path, self.clinical_demo_path, True, 60.0)
         pid = os.getpid()
         ps = psutil.Process(pid)
         head_df_paths = self._generate_header_and_data_file_paths()
@@ -193,9 +195,9 @@ class ModelTrainer:
         trial = ''
         clinical_demo_data = ClinicalDemographicData(id, age, sex, faller_status, self.height, trial)
         if self.segment_dataset:
-            # TODO: track the segmented data with a linked list
+            # TODO: fix dataset segmentation
             # Segment the data and build a UserData object for each epoch
-            data_segments = self.segment_data(data, self.epoch_size, self.sampling_frequency)
+            data_segments = self.segment_data(data.T, self.epoch_size, self.sampling_frequency)
             for segment in data_segments:
                 imu_data = self._generate_imu_data_instance(segment)
                 dataset.append(
@@ -203,7 +205,7 @@ class ModelTrainer:
                              {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         else:
             # Build a UserData object for the whole data
-            imu_data = self._generate_imu_data_instance(data)
+            imu_data = self._generate_imu_data_instance(data.T)
             dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
         del data
@@ -216,7 +218,7 @@ class ModelTrainer:
         :param epoch_size: duration of epoch to segment data (in seconds)
         :return: data segments of given epoch duration
         """
-        total_time = len(data.T[0])/sampling_frequency
+        total_time = len(data[0])/sampling_frequency
         # Calculate number of segments from given epoch size
         num_of_segs = int(total_time / epoch_size)
         # Check to see if data can be segmented at least one segment of given epoch size
@@ -228,7 +230,7 @@ class ModelTrainer:
             seg_ixs = [int(seg * sampling_frequency * epoch_size) for seg in segment_count]
             for seg_num in segment_count:
                 if seg_num != segment_count[-1]:
-                    data_segments.append(data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
+                    data_segments.append(data[:, seg_ixs[seg_num]: seg_ixs[seg_num+1]])
                 else:
                     continue
         else:

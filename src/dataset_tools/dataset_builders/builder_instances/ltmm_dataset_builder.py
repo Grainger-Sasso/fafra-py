@@ -68,9 +68,9 @@ class DatasetBuilder(DatasetBuilder):
             if segment_dataset:
                 #TODO: track the segmented data with a linked list
                 # Segment the data and build a UserData object for each epoch
-                data_segments = self.segment_data(data, epoch_size, self.sampling_frequency)
+                data_segments = self.segment_data(data.T, epoch_size, self.sampling_frequency)
                 for segment in data_segments:
-                    imu_data = self._generate_imu_data_instance(segment, self.sampling_frequency)
+                    imu_data = self._generate_imu_data_instance(segment.T, self.sampling_frequency)
                     dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                             {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
             else:
