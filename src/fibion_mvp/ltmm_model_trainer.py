@@ -289,8 +289,6 @@ class LTMMMetricGenerator:
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
             time = imu_data.get_time()
-            # Adding time to make this a realistic epoch
-            time = time + 1658333118.0
             fs = user_data.get_imu_metadata().get_sampling_frequency()
             # TODO: create function to translate the time axis into day ends
             day_ends = np.array([[0, int(len(time) - 1)]])
@@ -367,6 +365,8 @@ class LTMMMetricGenerator:
         roll_gyr_data = []
         time = np.linspace(0, len(v_acc_data) / int(self.sampling_frequency),
                            len(v_acc_data))
+        # Adding time to make this a realistic epoch
+        time = time + 1658333118.0
         return IMUData(activity_code, activity_description, v_acc_data,
                        ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
                        roll_gyr_data, time)
@@ -424,21 +424,21 @@ def main():
             'PARAM:cadence: std'
         ]
 
-    # # Run metric generation
-    # mg = LTMMMetricGenerator(dp, cdp, seg,
-    #              epoch, custom_metric_names, gait_metric_names)
-    # full_path = mg.generate_input_metrics(
-    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
-    # )
+    # Run metric generation
+    mg = LTMMMetricGenerator(dp, cdp, seg,
+                 epoch, custom_metric_names, gait_metric_names)
+    full_path = mg.generate_input_metrics(
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
+    )
 
-    # Run im scaling and model training/export
-    mt = ModelTrainer(dp, cdp, seg, epoch, custom_metric_names, gait_metric_names)
-    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
-    model_output_path = ''
-    model_name = 'lgbm_skdh_ltmm_rcm_'
-    scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    mt.generate_model(im_path, model_output_path, model_name, scaler_name)
+    # # Run im scaling and model training/export
+    # mt = ModelTrainer(dp, cdp, seg, epoch, custom_metric_names, gait_metric_names)
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    # model_output_path = ''
+    # model_name = 'lgbm_skdh_ltmm_rcm_'
+    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    # mt.generate_model(im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':
