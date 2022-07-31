@@ -123,24 +123,24 @@ class LTMMMetricGenerator:
         # self.dataset = self.build_dataset()
         self.custom_metric_names = custom_metric_names
         self.gait_metric_names: List[str] = gait_metric_names
+        self.head_df_paths = self._generate_header_and_data_file_paths()
         self.sampling_frequency = 100.0
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         self.height = 1.75
 
-    def generate_input_metrics(self, skdh_output_path, im_path):
+    def generate_input_metrics(self, skdh_output_path, im_path, seg_gait=True):
         time0 = time.time()
         pid = os.getpid()
         ps = psutil.Process(pid)
-        head_df_paths = self._generate_header_and_data_file_paths()
         input_metrics = self.initialize_input_metrics()
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline)
         gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline)
-        for name, header_and_data_file_path in head_df_paths.items():
+        for name, header_and_data_file_path in self.head_df_paths.items():
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
             print(str(asizeof.asizeof(ds) / 100000000))
@@ -148,8 +148,14 @@ class LTMMMetricGenerator:
             print(str(asizeof.asizeof(ds) / 100000000))
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, gait_pipeline_run, True)
-            bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds)
-            walk_data = self.get_walk_imu_data(bout_ixs, ds)
+            # If data is to be segmented along gait data, regenerate dataset using walking data and
+            if seg_gait:
+                bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds)
+                walk_data = self.get_walk_imu_data(bout_ixs, ds)
+                # Create new dataset from the walking data segments
+                walk_ds = self.gen_walk_ds(walk_data, ds)
+                self.preprocess_data(walk_ds)
+
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
@@ -164,6 +170,22 @@ class LTMMMetricGenerator:
         print(time.time() - time0)
         print(input_metrics.get_metrics())
         return full_path
+
+    def gen_walk_ds(self, walk_data, ds) -> Dataset:
+        dataset = []
+        user_data = ds.get_dataset()[0]
+        imu_data_file_path: str = user_data.get_imu_data_file_path()
+        imu_data_file_name: str = user_data.get_imu_data_file_name()
+        imu_metadata_file_path: str = user_data.get_imu_metadata_file_path()
+        imu_metadata = user_data.get_imu_metadata()
+        trial = ''
+        clinical_demo_data = user_data.get_clinical_demo_data()
+        for walk_bout in walk_data:
+            # Build a UserData object for the whole data
+            imu_data = self._generate_imu_data_instance(walk_bout)
+            dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
+                                    {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        walk_ds = Dataset('LTMM', self.dataset_path, self.clinical_demo_path, dataset, {})
 
     def get_walk_imu_data(self, bout_ixs, ds):
         walk_data = []
@@ -182,10 +204,11 @@ class LTMMMetricGenerator:
         t0 = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()[0]
         bout_ixs = []
         for start, dur in zip(bout_starts, bout_durs):
-            # Calculate the start and stop ixs of the bout
-            st_ix = int((start - t0) * self.sampling_frequency)
-            end_ix = int(((start + dur) - t0) * self.sampling_frequency)
-            bout_ixs.append([st_ix, end_ix])
+            if dur > 4.0:
+                # Calculate the start and stop ixs of the bout
+                st_ix = int((start - t0) * self.sampling_frequency)
+                end_ix = int(((start + dur) - t0) * self.sampling_frequency)
+                bout_ixs.append([st_ix, end_ix])
         return bout_ixs
 
     def _generate_header_and_data_file_paths(self):
@@ -275,7 +298,7 @@ class LTMMMetricGenerator:
         return mg.generate_metrics(
             dataset.get_dataset(),
             self.custom_metric_names
-        )\
+        )
 
     def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
