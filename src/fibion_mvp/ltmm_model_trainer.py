@@ -130,7 +130,7 @@ class LTMMMetricGenerator:
                       'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
         self.height = 1.75
 
-    def generate_input_metrics(self, skdh_output_path, im_path, seg_gait=True):
+    def generate_input_metrics(self, skdh_output_path, im_path, seg_gait=True, min_gait_dur=30.0):
         time0 = time.time()
         pid = os.getpid()
         ps = psutil.Process(pid)
@@ -150,12 +150,20 @@ class LTMMMetricGenerator:
             skdh_input_metrics = self.generate_skdh_metrics(ds, gait_pipeline_run, True)
             # If data is to be segmented along gait data, regenerate dataset using walking data and
             if seg_gait:
-                bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds)
+                bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, min_gait_dur)
                 walk_data = self.get_walk_imu_data(bout_ixs, ds)
                 # Create new dataset from the walking data segments
                 walk_ds = self.gen_walk_ds(walk_data, ds)
+                walk_ds_len = 0
+                for user_data in walk_ds.get_dataset():
+                    walk_ds_len += len(user_data.get_imu_data(IMUDataFilterType.RAW).v_acc_data)
+                print(walk_ds_len)
+                ds_len = len(ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).v_acc_data)
+                print(ds_len)
+                print(walk_ds_len/ds_len)
                 self.preprocess_data(walk_ds)
-
+                custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds)
+                skdh_input_metrics = self.generate_skdh_metrics(walk_ds, gait_pipeline_run, True)
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
@@ -185,7 +193,7 @@ class LTMMMetricGenerator:
             imu_data = self._generate_imu_data_instance(walk_bout)
             dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, self.clinical_demo_path,
                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
-        walk_ds = Dataset('LTMM', self.dataset_path, self.clinical_demo_path, dataset, {})
+        return Dataset('LTMM', self.dataset_path, self.clinical_demo_path, dataset, {})
 
     def get_walk_imu_data(self, bout_ixs, ds):
         walk_data = []
@@ -197,14 +205,14 @@ class LTMMMetricGenerator:
             walk_data.append(acc_data[:, bout_ix[0]:bout_ix[1]])
         return walk_data
 
-    def get_walk_bout_ixs(self, skdh_results, ds):
+    def get_walk_bout_ixs(self, skdh_results, ds, min_gait_dur):
         gait_results = skdh_results[0]['gait_metrics']
         bout_starts = gait_results['Bout Starts']
         bout_durs = gait_results['Bout Duration']
         t0 = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()[0]
         bout_ixs = []
         for start, dur in zip(bout_starts, bout_durs):
-            if dur > 4.0:
+            if dur > min_gait_dur:
                 # Calculate the start and stop ixs of the bout
                 st_ix = int((start - t0) * self.sampling_frequency)
                 end_ix = int(((start + dur) - t0) * self.sampling_frequency)

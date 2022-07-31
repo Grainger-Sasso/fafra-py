@@ -61,6 +61,7 @@ class SKDHPipelineRunner:
             'number of wake bouts',
             'sleep average hazard',
         ]
+        self.param_fail_count = 0
 
     def run_pipeline(self, data, time, fs, day_ends=np.array([])):
         # TODO: list data shape here
@@ -89,7 +90,9 @@ class SKDHPipelineRunner:
             if name in results_act.keys():
                 act_metrics[name] = results_act[name]
             else:
-                raise ValueError(f'{name} not valid activity metric name: {results_act.keys()}')
+                print(f'{name} not found in results: {results_act.keys()}')
+                act_metrics[name] = np.array([np.nan])
+                self.param_fail_count += 1
         return act_metrics
 
     def parse_gait_metrics(self, gait_metrics):
