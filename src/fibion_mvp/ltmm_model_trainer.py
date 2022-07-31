@@ -63,7 +63,7 @@ class ModelTrainer:
         # model_path, scaler_path = self.export_model(model_output_path, model_name, scaler_name)
         # model = self.import_model(model_path)
         # scaler = self.import_model(scaler_path)
-        # return None
+        # return model_path, scaler_path
 
     def test_model(self, input_metrics):
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
@@ -76,6 +76,11 @@ class ModelTrainer:
         with open(im_path, 'r') as f:
             data = json.load(f)
         return data
+
+    def train_model(self, input_metrics):
+        x, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
+        self.rc.train_model(x, y, metric_names=names)
 
     def finalize_metric_formatting(self, metrics, labels):
         new_ims = InputMetrics()
@@ -93,11 +98,6 @@ class ModelTrainer:
         # new_ims.set_labels(np.array(new_labels))
         return new_ims
 
-    def train_model(self, input_metrics):
-        x, names = input_metrics.get_metric_matrix()
-        y = input_metrics.get_labels()
-        self.rc.train_model(x, y, metric_names=names)
-
     def export_model(self, model_output_path, model_name, scaler_name):
         model_name = model_name + time.strftime("%Y%m%d-%H%M%S") + '.pkl'
         scaler_name = scaler_name + time.strftime("%Y%m%d-%H%M%S") + '.bin'
@@ -111,6 +111,23 @@ class ModelTrainer:
     def import_model(self, model_path):
         model = joblib.load(model_path)
         return model
+
+
+class LTMMMetricGenerator:
+    def __init__(self, dataset_path, clinical_demo_path, segment_dataset,
+                 epoch_size, custom_metric_names, gait_metric_names: List[str]):
+        self.dataset_path = dataset_path
+        self.clinical_demo_path = clinical_demo_path
+        self.segment_dataset = segment_dataset
+        self.epoch_size = epoch_size
+        # self.dataset = self.build_dataset()
+        self.custom_metric_names = custom_metric_names
+        self.gait_metric_names: List[str] = gait_metric_names
+        self.sampling_frequency = 100.0
+        self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
+                      'anteroposterior-acc': 'm/s^2',
+                      'yaw': '°/s', 'pitch': '°/s', 'roll': '°/s'}
+        self.height = 1.75
 
     def generate_input_metrics(self, skdh_output_path, im_path):
         time0 = time.time()
@@ -159,8 +176,9 @@ class ModelTrainer:
         return walk_data
 
     def get_walk_bout_ixs(self, skdh_results, ds):
-        bout_starts = skdh_results['Bout Starts']
-        bout_durs = skdh_results['Bout Duration']
+        gait_results = skdh_results[0]['gait_metrics']
+        bout_starts = gait_results['Bout Starts']
+        bout_durs = gait_results['Bout Duration']
         t0 = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()[0]
         bout_ixs = []
         for start, dur in zip(bout_starts, bout_durs):
@@ -170,19 +188,33 @@ class ModelTrainer:
             bout_ixs.append([st_ix, end_ix])
         return bout_ixs
 
-    def export_metrics(self, input_metrics: InputMetrics, output_path):
-        metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
-        full_path = os.path.join(output_path, metric_file_name)
-        new_im = {}
-        for name, metric in input_metrics.get_metrics().items():
-            if isinstance(name, MetricNames):
-                new_im[name.value] = metric
-            else:
-                new_im[name] = metric
-        metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
-        with open(full_path, 'w') as f:
-            json.dump(metric_data, f)
-        return full_path
+    def _generate_header_and_data_file_paths(self):
+        header_and_data_file_paths = dict()
+        data_file_paths = {}
+        header_file_paths = {}
+        # Get all data file paths
+        for data_file_path in glob.glob(os.path.join(self.dataset_path, '*.dat')):
+            data_file_name = os.path.splitext(os.path.basename(data_file_path))[0]
+            data_file_paths[data_file_name] = data_file_path
+        # Get all header file paths
+        for header_file_path in glob.glob(os.path.join(self.dataset_path, '*.hea')):
+            header_file_name = os.path.splitext(os.path.basename(header_file_path))[0]
+            header_file_paths[header_file_name] = header_file_path
+        # Match corresponding data and header files
+        for name, path in data_file_paths.items():
+            corresponding_header_file_path = header_file_paths[name]
+            header_and_data_file_paths[name] = {'data_file_path': path,
+                                                     'header_file_path': corresponding_header_file_path}
+        return header_and_data_file_paths
+
+    def initialize_input_metrics(self):
+        input_metrics = InputMetrics()
+        for name in self.custom_metric_names:
+            input_metrics.set_metric(name, [])
+        for name in self.gait_metric_names:
+            input_metrics.set_metric(name, [])
+        input_metrics.set_labels([])
+        return input_metrics
 
     def create_dataset(self, header_and_data_file_path):
         dataset = []
@@ -233,6 +265,55 @@ class ModelTrainer:
         del data
         return Dataset('LTMM', self.dataset_path, self.clinical_demo_path, dataset, {})
 
+    def preprocess_data(self, dataset):
+        for user_data in dataset.get_dataset():
+            # Filter the data
+            self.apply_lp_filter(user_data)
+
+    def generate_custom_metrics(self, dataset) -> InputMetrics:
+        mg = MetricGenerator()
+        return mg.generate_metrics(
+            dataset.get_dataset(),
+            self.custom_metric_names
+        )\
+
+    def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
+        results = []
+        for user_data in dataset.get_dataset():
+            # Get the data from the user data in correct format
+            # Get the time axis from user data
+            # Get sampling rate
+            # Generate day ends for the time axes
+            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
+            data = imu_data.get_triax_acc_data()
+            data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
+            data = data.T
+            time = imu_data.get_time()
+            # Adding time to make this a realistic epoch
+            time = time + 1658333118.0
+            fs = user_data.get_imu_metadata().get_sampling_frequency()
+            # TODO: create function to translate the time axis into day ends
+            day_ends = np.array([[0, int(len(time) - 1)]])
+            if gait:
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
+            else:
+                results.append(pipeline_run.run_pipeline(data, time, fs))
+        return results
+
+    def export_metrics(self, input_metrics: InputMetrics, output_path):
+        metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(output_path, metric_file_name)
+        new_im = {}
+        for name, metric in input_metrics.get_metrics().items():
+            if isinstance(name, MetricNames):
+                new_im[name.value] = metric
+            else:
+                new_im[name] = metric
+        metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
+        with open(full_path, 'w') as f:
+            json.dump(metric_data, f)
+        return full_path
+
     def segment_data(self, data, epoch_size, sampling_frequency):
         """
         Segments data into epochs of a given duration starting from the beginning of the data
@@ -259,60 +340,6 @@ class ModelTrainer:
             raise ValueError(f'Data of total time {str(total_time)}s can not be '
                              f'segmented with given epoch size {str(epoch_size)}s')
         return data_segments
-
-    def _generate_header_and_data_file_paths(self):
-        header_and_data_file_paths = dict()
-        data_file_paths = {}
-        header_file_paths = {}
-        # Get all data file paths
-        for data_file_path in glob.glob(os.path.join(self.dataset_path, '*.dat')):
-            data_file_name = os.path.splitext(os.path.basename(data_file_path))[0]
-            data_file_paths[data_file_name] = data_file_path
-        # Get all header file paths
-        for header_file_path in glob.glob(os.path.join(self.dataset_path, '*.hea')):
-            header_file_name = os.path.splitext(os.path.basename(header_file_path))[0]
-            header_file_paths[header_file_name] = header_file_path
-        # Match corresponding data and header files
-        for name, path in data_file_paths.items():
-            corresponding_header_file_path = header_file_paths[name]
-            header_and_data_file_paths[name] = {'data_file_path': path,
-                                                     'header_file_path': corresponding_header_file_path}
-        return header_and_data_file_paths
-
-    def generate_custom_metrics(self, dataset) -> InputMetrics:
-        mg = MetricGenerator()
-        return mg.generate_metrics(
-            dataset.get_dataset(),
-            self.custom_metric_names
-        )
-
-    def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
-        results = []
-        for user_data in dataset.get_dataset():
-            # Get the data from the user data in correct format
-            # Get the time axis from user data
-            # Get sampling rate
-            # Generate day ends for the time axes
-            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
-            data = imu_data.get_triax_acc_data()
-            data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
-            data = data.T
-            time = imu_data.get_time()
-            # Adding time to make this a realistic epoch
-            time = time + 1658333118.0
-            fs = user_data.get_imu_metadata().get_sampling_frequency()
-            # TODO: create function to translate the time axis into day ends
-            day_ends = np.array([[0, int(len(time) - 1)]])
-            if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
-            else:
-                results.append(pipeline_run.run_pipeline(data, time, fs))
-        return results
-
-    def preprocess_data(self, dataset):
-        for user_data in dataset.get_dataset():
-            # Filter the data
-            self.apply_lp_filter(user_data)
 
     def apply_lp_filter(self, user_data):
         filter = MotionFilters()
@@ -344,15 +371,6 @@ class ModelTrainer:
                        ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
                        roll_gyr_data, time)
 
-    def initialize_input_metrics(self):
-        input_metrics = InputMetrics()
-        for name in self.custom_metric_names:
-            input_metrics.set_metric(name, [])
-        for name in self.gait_metric_names:
-            input_metrics.set_metric(name, [])
-        input_metrics.set_labels([])
-        return input_metrics
-
     def format_input_metrics(self, input_metrics,
                              custom_input_metrics: InputMetrics,
                              skdh_input_metrics):
@@ -366,58 +384,9 @@ class ModelTrainer:
         input_metrics.get_labels().extend(custom_input_metrics.get_labels())
         return input_metrics
 
-    # def build_dataset(self):
-    #     db = DatasetBuilder()
-    #     return db.build_dataset(
-    #         self.dataset_path,
-    #         self.clinical_demo_path,
-    #         self.segment_dataset,
-    #         self.epoch_size
-    #     )
-    #
-    # def format_input_metrics(self, custom_input_metrics: InputMetrics,
-    #                          skdh_input_metrics):
-    #     custom_metrics = custom_input_metrics.get_metric_matrix()
-    #     custom_metrics = np.reshape(custom_metrics, (1, -1))
-    #     model_gait_metrics = {
-    #         'PARAM:gait speed: mean': [],
-    #         'PARAM:gait speed: std': [],
-    #         'BOUTPARAM:gait symmetry index: mean': [],
-    #         'BOUTPARAM:gait symmetry index: std': [],
-    #         'PARAM:cadence: mean': [],
-    #         'PARAM:cadence: std': []
-    #     }
-    #     for user_metrics in skdh_input_metrics:
-    #         gait_metrics = user_metrics['gait_metrics']
-    #         for name, val in gait_metrics.items():
-    #             if name in model_gait_metrics.keys():
-    #                 model_gait_metrics[name].append(val)
-    #     for name, val in model_gait_metrics.items():
-    #         im = InputMetric(name, np.array(val))
-    #         custom_input_metrics.set_metric(name, im)
-    #     print(model_gait_metrics)
-
-        # Scale the input metrics
-    #
-    # def train_model(self, input_metrics, input_metric_names):
-    #     x, names = input_metrics.get_metric_matrix()
-    #     y = input_metrics.get_labels()
-    #     self.rc.train_model(x, y, metric_names=input_metric_names)
-
-    # def export_model(self, model_name, scaler_name):
-    #     model_path = os.path.join(self.output_path, model_name)
-    #     scaler_path = os.path.join(self.output_path, scaler_name)
-    #     # self.rc.model.save_model(model_path)
-    #     joblib.dump(self.rc.get_model(), model_path)
-    #     joblib.dump(self.rc.get_scaler(), scaler_path)
-    #     return model_path
-    #
-    # def import_model(self, model_path):
-    #     model = joblib.load(model_path)
-    #     return model
-
 
 def main():
+    # Input params
     dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
@@ -454,17 +423,22 @@ def main():
             'PARAM:cadence: mean',
             'PARAM:cadence: std'
         ]
+
+    # # Run metric generation
+    # mg = LTMMMetricGenerator(dp, cdp, seg,
+    #              epoch, custom_metric_names, gait_metric_names)
+    # full_path = mg.generate_input_metrics(
+    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
+    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
+    # )
+
+    # Run im scaling and model training/export
     mt = ModelTrainer(dp, cdp, seg, epoch, custom_metric_names, gait_metric_names)
-    full_path = mt.generate_input_metrics(
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
-    )
-    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
-    # model_output_path = ''
-    file_name = ''
-    # model_name = 'lgbm_skdh_ltmm_rcm_'
-    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    # mt.generate_model(im_path, model_output_path, model_name, scaler_name)
+    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    model_output_path = ''
+    model_name = 'lgbm_skdh_ltmm_rcm_'
+    scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    mt.generate_model(im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':
