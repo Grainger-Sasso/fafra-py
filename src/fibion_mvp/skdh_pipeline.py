@@ -30,23 +30,16 @@ class SKDHPipelineGenerator:
 
     def generate_gait_pipeline(self, output_path):
         pipeline = Pipeline()
-        gait_result_file = os.path.join(output_path, 'segmented_gait_results.csv')
-        pipeline.add(Gait(), save_file=gait_result_file)
+        # gait_result_file = os.path.join(output_path, 'segmented_gait_results.csv')
+        # pipeline.add(Gait(), save_file=gait_result_file)
+        pipeline.add(Gait())
         return pipeline
 
 
 class SKDHPipelineRunner:
-    def __init__(self, pipeline: Pipeline):
+    def __init__(self, pipeline: Pipeline, gait_metric_names):
         self.pipeline: Pipeline = pipeline
-        self.gait_metric_names = [
-            'PARAM:gait speed',
-            'BOUTPARAM:gait symmetry index',
-            'PARAM:cadence',
-            'Bout Steps',
-            'Bout Duration',
-            'Bout N',
-            'Bout Starts'
-        ]
+        self.gait_metric_names = gait_metric_names
         self.act_metric_names = [
             'wake sed 5s epoch [min]',
             'wake light 5s epoch [min]',
