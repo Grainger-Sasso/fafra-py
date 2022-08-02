@@ -125,6 +125,9 @@ class LTMMMetricGenerator:
         self.custom_metric_names = custom_metric_names
         self.gait_metric_names: List[str] = gait_metric_names
         self.head_df_paths = self._generate_header_and_data_file_paths()
+        self.running_analysis_total = 0
+        self.bout_segmented_total = 0
+        self.bout_seg_fail_total = 0
         self.sampling_frequency = 100.0
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
                       'anteroposterior-acc': 'm/s^2',
@@ -142,11 +145,13 @@ class LTMMMetricGenerator:
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
         input_metrics = None
         for name, header_and_data_file_path in self.head_df_paths.items():
+            self.running_analysis_total += 1
+            walk_ds = None
             # Load the data and compute the input metrics for the file
             ds = self.create_dataset(header_and_data_file_path)
-            print(str(asizeof.asizeof(ds) / 100000000))
+            print(f'Dataset size: {str(asizeof.asizeof(ds) / 100000000)}')
             self.preprocess_data(ds)
-            print(str(asizeof.asizeof(ds) / 100000000))
+            print(f'Dataset size: {str(asizeof.asizeof(ds) / 100000000)}')
             custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
             skdh_input_metrics = self.generate_skdh_metrics(ds, full_pipeline_run, False)
             if not input_metrics:
@@ -154,31 +159,38 @@ class LTMMMetricGenerator:
             # If data is to be segmented along gait data, regenerate dataset using walking data and
             if seg_gait:
                 bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, min_gait_dur)
-                walk_data = self.get_walk_imu_data(bout_ixs, ds)
-                # Create new dataset from the walking data segments
-                walk_ds = self.gen_walk_ds(walk_data, ds)
-                self.preprocess_data(walk_ds)
-                walk_ds_len = 0
-                for user_data in walk_ds.get_dataset():
-                    walk_ds_len += len(user_data.get_imu_data(IMUDataFilterType.RAW).v_acc_data)
-                print(walk_ds_len)
-                ds_len = len(ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).v_acc_data)
-                print(ds_len)
-                print(walk_ds_len/ds_len)
-                custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds)
-                skdh_input_metrics = self.generate_skdh_metrics(walk_ds, gait_pipeline_run, True)
+                if bout_ixs:
+                    self.bout_segmented_total += 1
+                    print(f'Percentage of data segmented by walking data: {(self.bout_segmented_total/self.running_analysis_total) * 100.0}')
+                    walk_data = self.get_walk_imu_data(bout_ixs, ds)
+                    # Create new dataset from the walking data segments
+                    walk_ds = self.gen_walk_ds(walk_data, ds)
+                    self.preprocess_data(walk_ds)
+                    walk_ds_len = 0
+                    for user_data in walk_ds.get_dataset():
+                        walk_ds_len += len(user_data.get_imu_data(IMUDataFilterType.RAW).v_acc_data)
+                    ds_len = len(ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).v_acc_data)
+                    print(f'Percentage of walking-segmented data to recorded data: {(walk_ds_len/ds_len) * 100.0}')
+                    custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds)
+                    skdh_input_metrics = self.generate_skdh_metrics(walk_ds, gait_pipeline_run, True)
+                else:
+                    print(f'Unable to segment file for {min_gait_dur}, percentage of failed segmentations: {(self.bout_seg_fail_total/self.running_analysis_total) * 100.0}')
             input_metrics = self.format_input_metrics(input_metrics,
                                                       custom_input_metrics, skdh_input_metrics)
             del ds
+            if walk_ds:
+                del walk_ds
             gc.collect()
             memory_usage = ps.memory_info()
-            print('\n')
-            print('\n')
             print(memory_usage)
             print('\n')
             print('\n')
         full_path = self.export_metrics(input_metrics, im_path)
         print(time.time() - time0)
+        print(
+            f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
+        print(
+            f'Percentage of failed segmentations: {(self.bout_seg_fail_total / self.running_analysis_total) * 100.0}')
         print(input_metrics.get_metrics())
         return full_path
 
@@ -515,7 +527,8 @@ def main():
                  epoch, custom_metric_names, gait_metric_names, final_skdh_metric_names)
     full_path = mg.generate_input_metrics(
         '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/'
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/',
+        seg_gait=True
     )
 
     # # Run im scaling and model training/export

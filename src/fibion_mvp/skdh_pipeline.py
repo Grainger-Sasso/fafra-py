@@ -83,7 +83,6 @@ class SKDHPipelineRunner:
             if name in results_act.keys():
                 act_metrics[name] = results_act[name]
             else:
-                print(f'{name} not found in results: {results_act.keys()}')
                 act_metrics[name] = np.array([np.nan])
                 self.param_fail_count += 1
         return act_metrics
@@ -104,8 +103,8 @@ class SKDHPipelineRunner:
         bout_steps, bout_durs, bout_starts = self.parse_bouts(gait_metrics)
         step_sum = np.array(bout_steps).sum()
         duration_sum = np.array(bout_durs).sum()
-        new_gait_metrics['Bout Steps: sum'] = step_sum
-        new_gait_metrics['Bout Duration: sum'] = duration_sum
+        new_gait_metrics['Bout Steps: sum'] = float(step_sum)
+        new_gait_metrics['Bout Duration: sum'] = float(duration_sum)
         new_gait_metrics['Bout Starts'] = bout_starts
         new_gait_metrics['Bout Duration'] = bout_durs
         return new_gait_metrics
