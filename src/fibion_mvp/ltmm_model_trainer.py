@@ -39,13 +39,17 @@ class ModelTrainer:
     def generate_model(self, im_path, model_output_path, model_name, scaler_name):
         input_metrics = self.read_parse_im(im_path)
         x, names = input_metrics.get_metric_matrix()
+        names = [name.replace(':', '_') for name in names]
+        names = [name.replace(' ', '_') for name in names]
+        names = [name.replace('__', '_') for name in names]
+        # names = [name.replace for name in names]
         y = input_metrics.get_labels()
         # Train scaler on training data
         self.rc.scaler.fit(x)
         # Transform traning data
         x_train_t = self.rc.scaler.transform(x)
         # Train model on training data
-        self.rc.train_model_optuna(x_train_t, y)
+        self.rc.train_model_optuna(x_train_t, y, names=names)
         # Export model, scaler
         model_path, scaler_path = self.export_classifier(model_output_path, model_name, scaler_name)
         return model_path, scaler_path
@@ -64,9 +68,12 @@ class ModelTrainer:
     def benchmark_existing_classifier(self, model_path, scaler_path, metric_path):
         im_val = InputMetricValidator()
         classifier = self.import_classifier(model_path, scaler_path)
-        input_metrics = self.read_parse_im(metric_path)
-        results = im_val.perform_permutation_feature_importance(classifier, input_metrics, show_plot=True)
-        return results
+        metric_names = classifier.get_model().feature_name()
+        feature_importance = classifier.get_model().feature_importance()
+        plt.bar(self.rc.get_model().feature_name(), self.rc.get_model().feature_importance())
+        # input_metrics = self.read_parse_im(metric_path)
+        # results = im_val.perform_permutation_feature_importance(classifier, input_metrics, show_plot=True)
+        # return results
 
     def test_model(self, input_metrics):
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
@@ -537,18 +544,18 @@ def main():
     mt = ModelTrainer()
 
     #Benchmarking
-    model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_rcm_20220803-125901.pkl'
-    scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_scaler_20220803-125901.bin'
-    metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/model_input_metrics_20220802-011442.json'
-    mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
+    # model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_rcm_20220803-125901.pkl'
+    # scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_scaler_20220803-125901.bin'
+    # metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/model_input_metrics_20220802-011442.json'
+    # mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
 
     # Model IO
-    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
-    # walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
-    # model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/models/lgbm/'
-    # model_name = 'lgbm_skdh_ltmm_rcm_'
-    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    # mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
+    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
+    model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/models/lgbm/'
+    model_name = 'lgbm_skdh_ltmm_rcm_'
+    scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':

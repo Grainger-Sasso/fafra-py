@@ -55,7 +55,7 @@ class LightGBMRiskClassifier(Classifier):
         # optuna.visualization.plot_optimization_history(study)
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
-        lgbdata = lgb.Dataset(x, label=y)
+        lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
         trial.params["objective"]="binary"
         self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
