@@ -21,9 +21,10 @@ class InputMetricValidator:
         pass
 
     def perform_permutation_feature_importance(self, model: Classifier,
-                                               input_metrics: InputMetrics, y,
+                                               input_metrics: InputMetrics,
                                                show_plot=False):
         x_test, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
         r = permutation_importance(model.get_model(), x_test, y, scoring='accuracy',n_repeats=50)
         importance = r.importances_mean
         y_pos = np.arange(len(importance))

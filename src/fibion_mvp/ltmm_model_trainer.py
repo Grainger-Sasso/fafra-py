@@ -12,7 +12,7 @@ from pympler import asizeof
 from typing import List
 from matplotlib import pyplot as plt
 
-from src.dataset_tools.dataset_builders.builder_instances.ltmm_dataset_builder import DatasetBuilder
+from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
@@ -38,39 +38,35 @@ class ModelTrainer:
 
     def generate_model(self, im_path, model_output_path, model_name, scaler_name):
         input_metrics = self.read_parse_im(im_path)
-        metrics = input_metrics['metrics'][0]
-        labels = input_metrics['labels']
-        input_metrics = self.finalize_metric_formatting(metrics, labels)
-        # Split IM
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
+        x, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
         # Train scaler on training data
-        self.rc.scaler.fit(x_train)
+        self.rc.scaler.fit(x)
         # Transform traning data
-        x_train_t = self.rc.scaler.transform(x_train)
+        x_train_t = self.rc.scaler.transform(x)
         # Train model on training data
-        self.rc.train_model_optuna(x_train_t, y_train)
+        self.rc.train_model_optuna(x_train_t, y)
         # Export model, scaler
-        model_path, scaler_path = self.export_model_scaler(model_output_path, model_name, scaler_name)
+        model_path, scaler_path = self.export_classifier(model_output_path, model_name, scaler_name)
+        return model_path, scaler_path
+
+    def run_existing_model(self, model_path, scaler_path, x, y):
         # Import model, scaler
-        im_model, im_scaler = self.import_model_scaler(model_path, scaler_path)
-        im_lgbm_classifier = LightGBMRiskClassifier({})
-        im_lgbm_classifier.set_model(im_model)
-        im_lgbm_classifier.set_scaler(im_scaler)
+        classifier = self.import_classifier(model_path, scaler_path)
         # Transform test data
-        x_test_t = im_lgbm_classifier.get_scaler().transform(x_test)
+        x_test_t = classifier.get_scaler().transform(x)
         # Make predictions
-        pred = im_lgbm_classifier.make_prediction(x_test_t)
-        # Scale input metrics
-        rc = im_lgbm_classifier.create_classification_report(y_test, pred)
-        print('yes')
-        # input_metrics = self.rc.scale_input_data(input_metrics)
-        # # Train model
-        # self.train_model(input_metrics)
-        # # Export model and scaler
-        # model_path, scaler_path = self.export_model(model_output_path, model_name, scaler_name)
-        # model = self.import_model(model_path)
-        # scaler = self.import_model(scaler_path)
-        # return model_path, scaler_path
+        pred = classifier.make_prediction(x_test_t)
+        # Score predictions
+        score = classifier.create_classification_report(y, pred)
+        return pred, score
+
+    def benchmark_existing_classifier(self, model_path, scaler_path, metric_path):
+        im_val = InputMetricValidator()
+        classifier = self.import_classifier(model_path, scaler_path)
+        input_metrics = self.read_parse_im(metric_path)
+        results = im_val.perform_permutation_feature_importance(classifier, input_metrics, show_plot=True)
+        return results
 
     def test_model(self, input_metrics):
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
@@ -82,8 +78,11 @@ class ModelTrainer:
 
     def read_parse_im(self, im_path):
         with open(im_path, 'r') as f:
-            data = json.load(f)
-        return data
+            input_metrics = json.load(f)
+        metrics = input_metrics['metrics'][0]
+        labels = input_metrics['labels']
+        metrics = self.finalize_metric_formatting(metrics, labels)
+        return metrics
 
     def train_model_optuna(self, input_metrics):
         x, names = input_metrics.get_metric_matrix()
@@ -98,7 +97,7 @@ class ModelTrainer:
         new_ims.set_labels(np.array(labels))
         return new_ims
 
-    def export_model_scaler(self, model_output_path, model_name, scaler_name):
+    def export_classifier(self, model_output_path, model_name, scaler_name):
         model_name = model_name + time.strftime("%Y%m%d-%H%M%S") + '.pkl'
         scaler_name = scaler_name + time.strftime("%Y%m%d-%H%M%S") + '.bin'
         model_path = os.path.join(model_output_path, model_name)
@@ -108,10 +107,13 @@ class ModelTrainer:
         joblib.dump(self.rc.get_scaler(), scaler_path)
         return model_path, scaler_path
 
-    def import_model_scaler(self, model_path, scaler_path):
+    def import_classifier(self, model_path, scaler_path):
         model = joblib.load(model_path)
         scaler = joblib.load(scaler_path)
-        return model, scaler
+        classifier = LightGBMRiskClassifier({})
+        classifier.set_model(model)
+        classifier.set_scaler(scaler)
+        return classifier
 
 
 class LTMMMetricGenerator:
@@ -452,7 +454,7 @@ def main():
     # Input params
     dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
-    metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
+    metric_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
     seg = False
     epoch = 0.0
     # metric_names = tuple(
@@ -533,12 +535,20 @@ def main():
 
     # Run im scaling and model training/export
     mt = ModelTrainer()
-    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
-    walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
-    model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/models/lgbm/'
-    model_name = 'lgbm_skdh_ltmm_rcm_'
-    scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
+
+    #Benchmarking
+    model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_rcm_20220803-125901.pkl'
+    scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_scaler_20220803-125901.bin'
+    metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/model_input_metrics_20220802-011442.json'
+    mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
+
+    # Model IO
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    # walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
+    # model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/models/lgbm/'
+    # model_name = 'lgbm_skdh_ltmm_rcm_'
+    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    # mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':
