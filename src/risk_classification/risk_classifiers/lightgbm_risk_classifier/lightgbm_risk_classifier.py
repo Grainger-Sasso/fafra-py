@@ -108,7 +108,7 @@ class LightGBMRiskClassifier(Classifier):
     def score_model(self, x_test, y_test, **kwargs):
         raw_predictions = self.model.predict(x_test)
         predictions = np.rint(raw_predictions)
-        return accuracy_score(y_test, predictions)
+        return accuracy_score(y_test, predictions), predictions
 
     # Train lightgbm risk classifier using k-fold cross-validation with 5 being the default value of k.
     # See lightgbm_tuner_cv.py from https://github.com/optuna/optuna-examples/tree/main/lightgbm to see how I implemented k-fold CV training.
