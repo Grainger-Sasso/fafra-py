@@ -68,10 +68,19 @@ class ModelTrainer:
     def benchmark_existing_classifier(self, model_path, scaler_path, metric_path):
         im_val = InputMetricValidator()
         classifier = self.import_classifier(model_path, scaler_path)
+        input_metrics = self.read_parse_im(metric_path)
         metric_names = classifier.get_model().feature_name()
         feature_importance = classifier.get_model().feature_importance()
-        plt.bar(self.rc.get_model().feature_name(), self.rc.get_model().feature_importance())
-        # input_metrics = self.read_parse_im(metric_path)
+        plt.bar(classifier.get_model().feature_name(), classifier.get_model().feature_importance())
+        plt.show()
+        plt.close()
+        shap_results = im_val.perform_shap_values_gbm(classifier, input_metrics)
+        shap_plot = shap_results['plots'][0]
+        shap_plot.show()
+        pdp_results = im_val.perform_partial_dependence_plot_lightGBM(classifier, input_metrics)
+        pdp_plot = pdp_results['plots'][0]
+        pdp_plot.show()
+        print('done')
         # results = im_val.perform_permutation_feature_importance(classifier, input_metrics, show_plot=True)
         # return results
 
@@ -544,18 +553,18 @@ def main():
     mt = ModelTrainer()
 
     #Benchmarking
-    # model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_rcm_20220803-125901.pkl'
-    # scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/lgbm_skdh_ltmm_scaler_20220803-125901.bin'
-    # metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_1/model_input_metrics_20220802-011442.json'
-    # mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
+    model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
+    scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+    metric_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/model_input_metrics_20220802-011442.json'
+    mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
 
-    # Model IO
-    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
-    walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
-    model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/models/lgbm/'
-    model_name = 'lgbm_skdh_ltmm_rcm_'
-    scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
+    # Model Gen
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    # walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
+    # model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/'
+    # model_name = 'lgbm_skdh_ltmm_rcm_'
+    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    # mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':
