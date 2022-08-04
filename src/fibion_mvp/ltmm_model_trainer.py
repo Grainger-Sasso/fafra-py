@@ -77,9 +77,9 @@ class ModelTrainer:
         shap_results = im_val.perform_shap_values_gbm(classifier, input_metrics)
         shap_plot = shap_results['plots'][0]
         shap_plot.show()
-        pdp_results = im_val.perform_partial_dependence_plot_lightGBM(classifier, input_metrics)
-        pdp_plot = pdp_results['plots'][0]
-        pdp_plot.show()
+        # pdp_results = im_val.perform_partial_dependence_plot_lightGBM(classifier, input_metrics)
+        # pdp_plot = pdp_results['plots'][0]
+        # pdp_plot.show()
         print('done')
         # results = im_val.perform_permutation_feature_importance(classifier, input_metrics, show_plot=True)
         # return results
