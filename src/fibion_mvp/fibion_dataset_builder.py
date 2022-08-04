@@ -45,6 +45,14 @@ class FibionDatasetBuilder(DatasetBuilder):
         dataset_name = 'Fibion'
         return Dataset(dataset_name, dataset_path, clinical_demo_path, dataset_user_data, {})
 
+    def build_single_user(self, data_path, demo_data):
+        dataset = None
+        dataset_user_data = []
+        user_data = self.read_hex_file(data_path, demo_data, False, 0.0)
+        dataset_user_data.extend(user_data)
+        dataset_name = 'Fibion'
+        return Dataset(dataset_name, data_path, '', dataset_user_data, {})
+
     def read_hex_file(self, hex_file_path, demo_data, segment_dataset, epoch_size):
         with open(hex_file_path, 'rb') as f:
             hexdata = f.read().hex()
