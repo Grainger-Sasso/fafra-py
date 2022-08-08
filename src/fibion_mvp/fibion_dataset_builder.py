@@ -26,7 +26,7 @@ DATASET_NAME = DatasetNames.FIBION
 class FibionDatasetBuilder(DatasetBuilder):
     def __init__(self, timezone=tz.gettz("America/New_York")):
         super().__init__(DATASET_NAME)
-        self.sampling_frequency = 12.5
+        self.sampling_frequency = 25.0
         # Original units: g,g,g
         # Converted to: m/s^2,m/s^2,m/s^2
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
