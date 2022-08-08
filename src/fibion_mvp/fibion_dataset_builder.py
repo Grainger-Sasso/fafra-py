@@ -125,7 +125,8 @@ class FibionDatasetBuilder(DatasetBuilder):
         swe_time_s = (int(hex_str, 16) / 1000)
         # TODO: enable proper tz conversion; disabled now because of runtime
         # local_time_s = self.convert_tz(swe_time_s)
-        local_time_s = swe_time_s - (3600 * 6)
+        # local_time_s = swe_time_s - (3600 * 6)
+        local_time_s =swe_time_s
         return local_time_s
 
     def convert_tz(self, from_s_swe):

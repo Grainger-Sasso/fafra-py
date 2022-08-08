@@ -536,7 +536,7 @@ class FibionMetricGenerator:
 
 def main():
     # Grainger VM paths
-    dataset_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/bin/fibion_test_bin_04_10_2022.bin'
+    dataset_path = '/home/grainger/Desktop/datasets/fibion/25hz_device/test_Sheedy_2022-08-05.bin'
     activity_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/activity/fibion_test_activity_04_10_2022.csv'
 
     # Grainger desktop paths
@@ -575,7 +575,7 @@ def main():
                                 MetricNames.ZERO_CROSSING,
                                 MetricNames.SIGNAL_MAGNITUDE_AREA])
 
-    fib_fafra.perform_risk_assessment(dataset_path, demo_data)
+    fib_fafra.perform_risk_assessment(dataset_path, demo_data ,'', '', '')
 
 
 if __name__ == '__main__':
