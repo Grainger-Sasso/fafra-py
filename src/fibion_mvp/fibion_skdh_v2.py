@@ -43,7 +43,6 @@ class FaFRA_SKDH:
         self.dataset_path = dataset_path
         self.activity_path = activity_path
         self.output_path = output_path
-        self.dataset = self.load_dataset(self.dataset_path, demo_data)
         self.filter = MotionFilters()
         self.mg = MetricGenerator()
         self.gse = GaitAnalyzerV2()
@@ -61,18 +60,34 @@ class FaFRA_SKDH:
     def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path):
         # Load in the accelerometer data
         ds = self.load_dataset(data_path, demographic_data)
+        # Calculate day ends
+        day_ends = self.get_day_ends(ds)
         # Generate custom metrics and SKDH metrics on the user data
         metric_gen = FibionMetricGenerator()
-        fibion_metrics = metric_gen.generate_input_metrics(ds, skdh_metric_path, custom_metric_path)
+        fibion_metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
         # Assess risk levels using risk model
         pass
 
     def load_dataset(self, dataset_path, demo_data):
         fdb = FibionDatasetBuilder()
         ds = fdb.build_single_user(dataset_path, demo_data)
-        print('done')
+        ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).time = np.array(ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time())
+        print('Fibion dataset build...')
         return ds
 
+    def get_day_ends(self, ds):
+        time = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()
+        current_ix = 0
+        iter_ix = 0
+        day_end_pairs = []
+        while iter_ix + 1 <= len(time) - 1:
+            if datetime.fromtimestamp(time[iter_ix]).time().hour > datetime.fromtimestamp(
+                    time[iter_ix + 1]).time().hour:
+                day_end_pairs.append([current_ix, iter_ix])
+                current_ix = iter_ix
+            iter_ix += 1
+        day_end_pairs.append([current_ix, len(time) - 1])
+        return day_end_pairs
 
 class FibionMetricGenerator:
     def __init__(self):
@@ -129,7 +144,7 @@ class FibionMetricGenerator:
             ]
 
 
-    def generate_input_metrics(self, ds, skdh_output_path, im_path, seg_gait=True, min_gait_dur=30.0):
+    def generate_input_metrics(self, ds, day_ends, skdh_output_path, im_path, seg_gait=True, min_gait_dur=30.0):
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
@@ -137,7 +152,7 @@ class FibionMetricGenerator:
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
         input_metrics = InputMetrics()
         self.preprocess_data(ds)
-        skdh_input_metrics = self.generate_skdh_metrics(ds, full_pipeline_run, False)
+        skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
         # If the data is to be segmented along walking data
         if seg_gait:
@@ -150,7 +165,7 @@ class FibionMetricGenerator:
                 walk_ds = self.gen_walk_ds(walk_data, ds)
                 self.preprocess_data(walk_ds)
                 custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds)
-                skdh_input_metrics = self.generate_skdh_metrics(walk_ds, gait_pipeline_run, True)
+                skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
             else:
                 print('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
         input_metrics = self.format_input_metrics(input_metrics,
@@ -215,7 +230,7 @@ class FibionMetricGenerator:
             self.custom_metric_names
         )
 
-    def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
+    def generate_skdh_metrics(self, dataset, day_ends, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
         for user_data in dataset.get_dataset():
             # Get the data from the user data in correct format
@@ -229,7 +244,7 @@ class FibionMetricGenerator:
             time = imu_data.get_time()
             fs = user_data.get_imu_metadata().get_sampling_frequency()
             # TODO: create function to translate the time axis into day ends
-            day_ends = np.array([[0, int(len(time) - 1)]])
+            # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
                 results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
             else:
@@ -379,6 +394,7 @@ def main():
 
     custom_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/custom_skdh'
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/skdh'
+    day_ends = np.array([])
     fib_fafra.perform_risk_assessment(dataset_path, demo_data , custom_path, skdh_path)
 
 

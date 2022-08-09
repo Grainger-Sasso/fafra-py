@@ -16,6 +16,7 @@ class SKDHPipelineGenerator:
         # gait_plot_file = os.path.join(output_path, 'gait_plot.pdf')
         # pipeline.add(Gait(), save_file=gait_result_file, plot_file=gait_plot_file)
         pipeline.add(Gait(), save_file=gait_result_file)
+        pipeline.add(Gait())
         act_result_file = os.path.join(output_path, 'activity_results.csv')
         act_plot_file = os.path.join(output_path, 'activity_plot.pdf')
         act = ActivityLevelClassification(cutpoints='esliger_lumbar_adult')
