@@ -144,7 +144,6 @@ class FibionMetricGenerator:
                 'BOUTPARAM:phase coordination index'
             ]
 
-
     def generate_input_metrics(self, ds, day_ends, skdh_output_path, im_path, seg_gait=True, min_gait_dur=30.0):
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
@@ -154,6 +153,7 @@ class FibionMetricGenerator:
         input_metrics = InputMetrics()
         self.preprocess_data(ds)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
+        self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
         # If the data is to be segmented along walking data
         if seg_gait:
@@ -172,6 +172,13 @@ class FibionMetricGenerator:
         input_metrics = self.format_input_metrics(input_metrics,
                                                   custom_input_metrics, skdh_input_metrics)
         full_path = self.export_metrics(input_metrics, im_path)
+        return full_path
+
+    def export_skdh_results(self, results, path):
+        result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(path, result_file_name)
+        with open(full_path, 'w') as f:
+            json.dump(results, f)
         return full_path
 
     def gen_walk_ds(self, walk_data, ds) -> Dataset:

@@ -42,6 +42,9 @@ class SKDHPipelineRunner:
         self.pipeline: Pipeline = pipeline
         self.gait_metric_names = gait_metric_names
         self.act_metric_names = [
+            "N hours",
+            "N wear hours",
+            "N wear wake hours",
             'wake sed 5s epoch [min]',
             'wake light 5s epoch [min]',
             'wake mod 5s epoch [min]',
@@ -49,6 +52,11 @@ class SKDHPipelineRunner:
             'wake sed avg duration',
         ]
         self.sleep_metric_names = [
+            "Day N",
+            "Date",
+            "TSO Start Timestamp",
+            "TSO Start",
+            "TSO Duration",
             'average sleep duration',
             'total sleep time',
             'percent time asleep',
