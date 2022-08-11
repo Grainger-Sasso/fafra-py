@@ -367,8 +367,28 @@ class LTMMMetricGenerator:
     def export_skdh_results(self, results, path):
         result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
         full_path = os.path.join(path, result_file_name)
+        new_results = {}
+        for name, item in results[0].items():
+            new_results[name] = {}
+            for nest_name, nest_item in item.items():
+                if type(nest_item) is np.float64:
+                    new_results[name][nest_name] = float(nest_item)
+                elif type(nest_item) is np.ndarray:
+                    new_list = []
+                    for val in nest_item:
+                        if type(val) is np.int64:
+                            new_list.append(int(val))
+                        elif type(val) is np.float64:
+                            new_list.append(float(val))
+                        else:
+                            new_list.append(val)
+                    new_results[name][nest_name] = new_list
+                elif type(nest_item) is np.int64:
+                    new_results[name][nest_name] = int(nest_item)
+                else:
+                    new_results[name][nest_name] = nest_item
         with open(full_path, 'w') as f:
-            json.dump(results, f)
+            json.dump(new_results, f)
         return full_path
 
     def export_metrics(self, input_metrics: InputMetrics, output_path):
