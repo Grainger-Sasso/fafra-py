@@ -1,3 +1,4 @@
+import os
 import time
 import numpy as np
 import pandas as pd
@@ -6,6 +7,10 @@ import bisect
 from matplotlib import pyplot as plt
 from datetime import datetime
 from dateutil import parser, tz
+from skdh import Pipeline
+from skdh.gait import Gait
+from skdh.sleep import Sleep
+from skdh.activity import ActivityLevelClassification
 import joblib
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
@@ -22,10 +27,11 @@ from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
 
 
-class FibionFaFRA:
-    def __init__(self, dataset_path, activity_path, demo_data, timezone=tz.gettz("America/New_York")):
+class FaFRA_SKDH:
+    def __init__(self, dataset_path, activity_path, demo_data, output_path, timezone=tz.gettz("America/New_York")):
         self.dataset_path = dataset_path
         self.activity_path = activity_path
+        self.output_path = output_path
         self.dataset = self.load_dataset(self.dataset_path, demo_data)
         self.activity_data = self.load_activity_data(activity_path, timezone)
         self.filter = MotionFilters()
@@ -44,7 +50,7 @@ class FibionFaFRA:
 
     def load_dataset(self, dataset_path, demo_data):
         fdb = FibionDatasetBuilder()
-        ds = fdb.build_dataset(dataset_path, demo_data, '')
+        ds = fdb.build_dataset(dataset_path, demo_data, '', segment_dataset=False)
         return ds
 
     def load_activity_data(self, activity_path, timezone):
@@ -65,19 +71,24 @@ class FibionFaFRA:
         act_data['converted_local_time'] = local_times
         return act_data
 
+    def generate_pipeline(self):
+        pipeline = Pipeline()
+        # gait_file = os.path.join(self.output_path, 'gait_results.csv')
+        # pipeline.add(Gait(), save_file=gait_file)
+        act_file = os.path.join(self.output_path, 'activity_results.csv')
+        pipeline.add(ActivityLevelClassification(), save_file=act_file)
+        # sleep_file = os.path.join(self.output_path, 'sleep_results.csv')
+        # pipeline.add(Sleep(), save_file=sleep_file)
+        return pipeline
+
     def perform_risk_analysis(self, input_metric_names=tuple(MetricNames.get_all_enum_entries())):
         t0 = time.time()
         # Preprocess subject data (low-pass filtering)
         self.preprocess_data()
-        print(f'{time.time() - t0}')
-        # Estimate subject gait speed
-        gait_speed = self.estimate_gait_speed(self.dataset)
-        # Get subject step count from activity chart
-        step_count = self.get_ac_step_count()
-        # Estimate subject activity levels
-        act_levels = self.estimate_activity_levels()
-        # Get sleep disturbances from activity chart
-        sleep_dis = self.get_ac_sleep_disturb()
+        # Generate SKDH pipeline
+        pipeline = self.generate_pipeline()
+        # Run SKDH Pipeline
+        self.run_pipeline(pipeline)
         # Estimate subject fall risk
         fall_risk_score = self.estimate_fall_risk(input_metric_names, gait_speed)
         # Evaluate user fall risk status
@@ -85,79 +96,15 @@ class FibionFaFRA:
         # Build risk report
         self.build_risk_report(fall_risk_score)
 
-    def estimate_gait_speed(self, dataset):
-        # Initialize gse variables
-        gait_speed_estimates = []
-        ga = GaitAnalyzerV2()
-        # GSE params
-        hpf = False
-        max_com_v_delta = 0.14
-        plot_gait_cycles = False
-        # For every epoch in the data
-        for user_data in self.dataset.get_dataset():
-            # If the epoch has walking bouts in it according to Fibion data
-            if self._check_walking_bout(user_data):
-                # Run the epoch through the GSE
-                gait_speed, fig, gait_params = self.gse.estimate_gait_speed(
-                    user_data, hpf, max_com_v_delta, plot_gait_cycles)
-                if not np.isnan(gait_speed):
-                    gait_speed_estimates.append(gait_speed)
-                # if fig and not np.isnan(gait_speed):
-                #     fig.show()
-                plt.close()
-        return np.array(gait_speed_estimates).mean()
-
-    def _check_walking_bout(self, user_data):
-        walking = False
-        t0 = user_data.get_imu_data(IMUDataFilterType.RAW).get_time()[0]
-        epoch_ix = bisect.bisect_right(self.activity_data['epoch'], t0) - 1
-        if epoch_ix > 0:
-            if self.activity_data[' activity/upright_walk/time'][epoch_ix] > 0:
-                print(t0)
-                print(self.activity_data['epoch'][epoch_ix])
-                print(self.activity_data['converted_local_time'][epoch_ix])
-                print('')
-                walking = True
-        return walking
-
-    def calc_gait_speeds_v2(self, dataset: Dataset, eval_percentages,
-                            results_location, write_out_estimates=False,
-                            hpf=False, max_com_v_delta=0.14,
-                            plot_gait_cycles=False):
-        # TODO: fix the parameters that control plotting and exporting data, also fix how figures are created
-        # Estimate the gait speed for every user/trial in dataset
-        truth_comparisons = []
-        all_gait_params = []
-        ga = GaitAnalyzerV2()
-        if write_out_estimates:
-            # Generate the directories based on evaluation percentages
-            percentage_dirs = self.generate_percentage_dirs(eval_percentages, results_location)
-        for user_data in dataset.get_dataset():
-            user_id = user_data.get_clinical_demo_data().get_id()
-            trial = user_data.get_clinical_demo_data().get_trial()
-            gait_speed, fig, gait_params = ga.estimate_gait_speed(user_data, hpf, max_com_v_delta,
-                                                plot_gait_cycles)
-            all_gait_params.append({'user_data': user_data, 'gait_params': gait_params})
-            result = {'id': user_id, 'trial': trial, 'gait_speed': gait_speed,
-                      'user_data': user_data}
-            if user_id in self.subj_gs_truth.keys():
-                comparison = self.compare_gs_to_truth_val(result)
-                truth_comparisons.append(comparison)
-                if write_out_estimates:
-                    self.write_out_gs2_comparison_results(comparison, fig,
-                                                          eval_percentages,
-                                                          percentage_dirs)
-            plt.close()
-        return truth_comparisons, all_gait_params
-
-    def get_ac_sleep_disturb(self):
-        pass
-
-    def estimate_activity_levels(self):
-        pass
-
-    def get_ac_step_count(self):
-        return self.activity_data[' activity/steps2/count'].sum()
+    def run_pipeline(self, pipeline: Pipeline):
+        # Get numpy 3D array of IMU data for each epoch in dataset
+        user_data = self.dataset.get_dataset()[0]
+        imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+        tri_acc = imu_data.get_triax_acc_data()
+        tri_acc = np.array([tri_acc['vertical'], tri_acc['mediolateral'], tri_acc['anteroposterior']])
+        time = imu_data.get_time()
+        pipeline.run(time=time, accel=tri_acc)
+        print('yahoo')
 
     def estimate_fall_risk(self, input_metric_names, gait_speed):
         # Import risk model
@@ -175,7 +122,6 @@ class FibionFaFRA:
         # Format input data for model prediction
         # Make fall risk prediction on trained model
         return self.rc.make_prediction(metrics)[0]
-
 
     def format_input_metrics_scaling(self, input_metrics, gait_speed):
         metrics, names = input_metrics.get_metric_matrix()
@@ -213,16 +159,17 @@ class FibionFaFRA:
         act_code = imu_data.get_activity_code()
         act_des = imu_data.get_activity_description()
         all_raw_data = imu_data.get_all_data()
+        time = imu_data.get_time()
         lpf_data_all_axis = []
         for data in all_raw_data:
             lpf_data = self.filter.apply_lpass_filter(data, 2, samp_freq) if data.any() else data
             lpf_data_all_axis.append(lpf_data)
         lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis,
                                                         samp_freq, act_code,
-                                                        act_des)
+                                                        act_des, time)
         user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
 
-    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des):
+    def _generate_imu_data_instance(self, data, sampling_freq, act_code, act_des, time):
         # TODO: Finish reformatting the imu data for new data instances after lpf
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
@@ -230,11 +177,10 @@ class FibionFaFRA:
         yaw_gyr_data = np.array(data[3])
         pitch_gyr_data = np.array(data[4])
         roll_gyr_data = np.array(data[5])
-        time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
-                           len(v_acc_data))
+        # time = np.linspace(0, len(v_acc_data) / int(sampling_freq),
+        #                    len(v_acc_data))
         return IMUData(act_code, act_des, v_acc_data, ml_acc_data, ap_acc_data,
                        yaw_gyr_data, pitch_gyr_data, roll_gyr_data, time)
-
 
 def main():
     # Grainger VM paths
@@ -248,9 +194,15 @@ def main():
     # Grainger laptop paths
     # dataset_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\bin'
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\export_2022-04-11T01_00_00.000000Z.csv'
+
+    # Output path
+    output_path = '/home/grainger/Desktop/skdh_testing/'
+
+
     demo_data = {'user_height': 1.88}
     # activity_path = r'C:\Users\gsass\Desktop\Fall Project Master\test_data\fibion\csv\2022-04-12_activity_file.csv'
-    fib_fafra = FibionFaFRA(dataset_path, activity_path, demo_data)
+    dataset_name = 'LTMM'
+    fib_fafra = FaFRA_SKDH(dataset_path, activity_path, demo_data, output_path)
     # input_metric_names = tuple([MetricNames.AUTOCORRELATION,
     #                             MetricNames.FAST_FOURIER_TRANSFORM,
     #                             MetricNames.MEAN,
@@ -271,7 +223,6 @@ def main():
                                 MetricNames.ZERO_CROSSING,
                                 MetricNames.SIGNAL_MAGNITUDE_AREA])
     fib_fafra.perform_risk_analysis(input_metric_names)
-
 
 if __name__ == '__main__':
     main()

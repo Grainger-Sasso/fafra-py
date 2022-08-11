@@ -94,9 +94,9 @@ class MetricGenerator:
             self._check_metric_data_type(data_type)
             data = self._get_metric_data_type(data_type, user_data)
             metric = mod.generate_metric(data=data, sampling_frequency=sampling_frequency)
-            if isinstance(metric, list) and all(isinstance(m, float) or isinstance(m, int) for m in metric):
+            if isinstance(metric, list) and all(m is not None for m in metric):
                 risk_metric.extend(metric)
-            elif isinstance(metric, int) or isinstance(metric, float):
+            elif not isinstance(metric, list) and metric is not None:
                 risk_metric.append(metric)
             labels.append(
                 int(user_data.get_clinical_demo_data().get_faller_status()))

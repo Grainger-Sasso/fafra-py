@@ -21,7 +21,9 @@ class MotionFilters:
         cutoff_freq = (cutoff_freq/(0.5*samp_freq))
         b, a = signal.butter(4, cutoff_freq, high_low_pass, analog=False)
         # Apply filter to input data
-        return np.array(signal.filtfilt(b, a, data))
+        return np.array(signal.filtfilt(b, a, data), dtype=np.float16)
+        #
+        # return np.array(signal.filtfilt(b, a, data))
 
     def downsample_data(self, current_data, current_sampling_rate, new_sampling_rate):
         current_num_samples = len(current_data)

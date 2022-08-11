@@ -14,11 +14,12 @@ class DatasetBuilder(ABC):
     def segment_data(self, data, epoch_size, sampling_frequency):
         """
         Segments data into epochs of a given duration starting from the beginning of the data
+        Data is in shape m x n where m is number of axes and n is number of samples
         :param: data: data to be segmented
         :param epoch_size: duration of epoch to segment data (in seconds)
         :return: data segments of given epoch duration
         """
-        total_time = len(data.T[0])/sampling_frequency
+        total_time = len(data[0])/sampling_frequency
         # Calculate number of segments from given epoch size
         num_of_segs = int(total_time / epoch_size)
         # Check to see if data can be segmented at least one segment of given epoch size
@@ -30,7 +31,7 @@ class DatasetBuilder(ABC):
             seg_ixs = [int(seg * sampling_frequency * epoch_size) for seg in segment_count]
             for seg_num in segment_count:
                 if seg_num != segment_count[-1]:
-                    data_segments.append(data[:][seg_ixs[seg_num]: seg_ixs[seg_num+1]])
+                    data_segments.append(data[:, seg_ixs[seg_num]: seg_ixs[seg_num+1]])
                 else:
                     continue
         else:

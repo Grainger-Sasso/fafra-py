@@ -26,7 +26,7 @@ DATASET_NAME = DatasetNames.FIBION
 class FibionDatasetBuilder(DatasetBuilder):
     def __init__(self, timezone=tz.gettz("America/New_York")):
         super().__init__(DATASET_NAME)
-        self.sampling_frequency = 12.5
+        self.sampling_frequency = 25.0
         # Original units: g,g,g
         # Converted to: m/s^2,m/s^2,m/s^2
         self.units = {'vertical-acc': 'm/s^2', 'mediolateral-acc': 'm/s^2',
@@ -44,6 +44,14 @@ class FibionDatasetBuilder(DatasetBuilder):
             dataset_user_data.extend(user_data)
         dataset_name = 'Fibion'
         return Dataset(dataset_name, dataset_path, clinical_demo_path, dataset_user_data, {})
+
+    def build_single_user(self, data_path, demo_data):
+        dataset = None
+        dataset_user_data = []
+        user_data = self.read_hex_file(data_path, demo_data, False, 0.0)
+        dataset_user_data.extend(user_data)
+        dataset_name = 'Fibion'
+        return Dataset(dataset_name, data_path, '', dataset_user_data, {})
 
     def read_hex_file(self, hex_file_path, demo_data, segment_dataset, epoch_size):
         with open(hex_file_path, 'rb') as f:
@@ -117,7 +125,8 @@ class FibionDatasetBuilder(DatasetBuilder):
         swe_time_s = (int(hex_str, 16) / 1000)
         # TODO: enable proper tz conversion; disabled now because of runtime
         # local_time_s = self.convert_tz(swe_time_s)
-        local_time_s = swe_time_s - (3600 * 6)
+        # local_time_s = swe_time_s - (3600 * 6)
+        local_time_s =swe_time_s
         return local_time_s
 
     def convert_tz(self, from_s_swe):

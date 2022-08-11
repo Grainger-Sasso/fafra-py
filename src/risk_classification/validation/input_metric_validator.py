@@ -21,9 +21,10 @@ class InputMetricValidator:
         pass
 
     def perform_permutation_feature_importance(self, model: Classifier,
-                                               input_metrics: InputMetrics, y,
+                                               input_metrics: InputMetrics,
                                                show_plot=False):
         x_test, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
         r = permutation_importance(model.get_model(), x_test, y, scoring='accuracy',n_repeats=50)
         importance = r.importances_mean
         y_pos = np.arange(len(importance))
@@ -84,6 +85,7 @@ class InputMetricValidator:
 
         # visualize the first prediction's explaination
         name = list([str(i) for i in input_metrics.get_metrics().keys()])
+        # name = m.feature_name()
         shap.summary_plot(shap_values, s,feature_names=name,show=False)
         shap_plot = pl.gcf()
         temp=np.array([np.array(xi) for xi in x_test])
@@ -101,26 +103,26 @@ class InputMetricValidator:
         '''
         x, names = input_metrics.get_metric_matrix()
     
-        na=[str(eachName.get_name()) for eachName in names]
-        dataframe = pd.DataFrame(x, columns = na)
+        # na=[str(eachName.get_name()) for eachName in names]
+        dataframe = pd.DataFrame(x, columns = names)
         
         # train model
         clf = model.get_model()
 
         fig0, axs0 = plt.subplots(5, 2)
-        display_full = PartialDependenceDisplay.from_estimator(clf,dataframe,na,random_state=42,ax=axs0,kind='both')
+        display_full = PartialDependenceDisplay.from_estimator(clf,dataframe,names,random_state=42,ax=axs0,kind='both')
         pl.clf()
 
         fig, axs = plt.subplots(5, 2)
         fig.tight_layout()
-        display = PartialDependenceDisplay.from_estimator(clf,dataframe,na,random_state=42,ax=axs)
+        display = PartialDependenceDisplay.from_estimator(clf,dataframe,names,random_state=42,ax=axs)
         pdp_plot = pl.gcf()
         pdp_metrics = {}
         col=0
         row=0
         j=0
 
-        for name, name_idx,pdp_value in zip(na, [u for u in range(len(na))],display_full.pd_results):
+        for name, name_idx,pdp_value in zip(names, [u for u in range(len(names))],display_full.pd_results):
             var_dict={}
             pdp_metrics[name] = [{p:pdp_value[p][0].tolist()} for p in pdp_value]#a dic with average and value as key
             var_list=np.var(pdp_metrics[name][1]["individual"],axis=0)
@@ -148,20 +150,20 @@ class InputMetricValidator:
         There is a sample jupyternotebook example in this page: https://github.com/SauceCat/PDPbox/blob/master/tutorials/pdpbox_binary_classification.ipynb
         '''
         x, names = input_metrics.get_metric_matrix()
-    
-        na=[eachName.get_name() for eachName in names]
-        dataframe = pd.DataFrame(x, columns = na)
-    
+
+        # na=[eachName.get_name() for eachName in names]
+        dataframe = pd.DataFrame(x, columns=names)
+
         # train model
         clf = model.get_model()
-        
+
         pdp_plot={}
         pdp_metrics={}
 
-        
-        for n in na:
+
+        for n in names:
             pdp_sex = pdp.pdp_isolate(
-                    model=clf, dataset=dataframe, model_features=na, feature=n,
+                    model=clf, dataset=dataframe, model_features=names, feature=n,
                     predict_kwds={"ignore_gp_model": True}
                 )
             #len o fpdp_plot_data is invalid, since it is pdp isolate objects
@@ -175,8 +177,8 @@ class InputMetricValidator:
             axess['pdp_ax'].plot(var_dict_df.T,marker='o', color='r')
             pdp_plot[n]=pl.gcf()
             pdp_metrics[n]=[pdp_sex.ice_lines.to_dict(),pdp_sex.pdp.tolist(),var_dict]
-            
-        for name, pdp_value in zip(na, pdp_metrics):
+
+        for name, pdp_value in zip(names, pdp_metrics):
             pdp_metrics[name] = pdp_metrics[pdp_value]#[{p:pdp_metrics[pdp_value][p].tolist()} for p in pdp_metrics[pdp_value]]#a dic with average and value as key
         dictionary = {'plots': pdp_plot, 'metrics': pdp_metrics}
         return dictionary
@@ -191,15 +193,15 @@ class InputMetricValidator:
         return s
     def perform_lime(self, model, input_metrics: InputMetrics, value):
         x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
-        cv, name = input_metrics.get_metric_matrix()
+        cv, names = input_metrics.get_metric_matrix()
 
-        na=[str(eachName.get_name()) for eachName in name]
-        dataframe = pd.DataFrame(x_test, columns = na)
+        # names=[str(eachName.get_name()) for eachName in name]
+        dataframe = pd.DataFrame(x_test, columns = names)
         m = model.get_model()
 
-        names = []  # without this, won't get feature names
-        for i in name:
-            names.append(str(i.get_value()))
+        # names = []  # without this, won't get feature names
+        # for i in origianl:
+        #     names.append(str(i.get_value()))
 
         explainer = lime.lime_tabular.LimeTabularExplainer(x_train, feature_names=names, random_state=42,discretize_continuous=True,mode='classification')
 
@@ -210,7 +212,7 @@ class InputMetricValidator:
         
         lime_metrics = {}
         lime_score_dict={value:exp.score}
-        for name, lime_value in zip(na, lime_score_dict):
+        for name, lime_value in zip(names, lime_score_dict):
             lime_metrics[value] = lime_score_dict[lime_value].tolist()
         dictionary = {'plots': [a], 'metrics': lime_metrics}
         return dictionary
