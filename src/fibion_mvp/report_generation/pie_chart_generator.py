@@ -12,7 +12,7 @@ class SKDHPieChartGenerator:
 
 
 def main():
-    skdh_path = ''
+    skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/skdh_results_20220815-171703.json'
     pcg = SKDHPieChartGenerator()
     pcg.gen_pie_charts(skdh_path)
 

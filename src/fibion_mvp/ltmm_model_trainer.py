@@ -373,6 +373,16 @@ class LTMMMetricGenerator:
             for nest_name, nest_item in item.items():
                 if type(nest_item) is np.float64:
                     new_results[name][nest_name] = float(nest_item)
+                elif type(nest_item) is list:
+                    new_list = []
+                    for val in nest_item:
+                        if type(val) is np.int64:
+                            new_list.append(int(val))
+                        elif type(val) is np.float64:
+                            new_list.append(float(val))
+                        else:
+                            new_list.append(val)
+                    new_results[name][nest_name] = new_list
                 elif type(nest_item) is np.ndarray:
                     new_list = []
                     for val in nest_item:
