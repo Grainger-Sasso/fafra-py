@@ -245,7 +245,7 @@ class FibionMetricGenerator:
             # Get the time axis from user data
             # Get sampling rate
             # Generate day ends for the time axes
-            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
+            imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
