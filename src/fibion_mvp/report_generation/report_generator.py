@@ -155,9 +155,11 @@ collection_period = '2020/12/12-2022/08/09'
 # Header
 current_y += margin_y
 pdf.set_fill_color(211, 211, 211)
+# Header rectangles and logo image
 pdf.rect(margin_x, current_y, rect_width, 30, style='DF')
 pdf.image("carapace_logo.jpg", margin_x + 6, current_y + 1, 28, 28)
 pdf.rect(margin_x + 45, current_y + 2, 120, 26, style='')
+# Required fields for header
 pdf.set_font("helvetica", "", 11)
 pdf.text(margin_x + 50, current_y + 7, "User Name: " + user_name)
 pdf.text(margin_x + 105, current_y + 7, "Report Generated: " + report_generated)
@@ -168,12 +170,14 @@ pdf.set_font("helvetica", "", 16)
 current_y += 30
 
 # Fall Risk Report
+# Report Header
 current_y += margin_y
 pdf.rect(margin_x, current_y, rect_width, rect_height, style='DF')
 pdf.text(margin_x + 75, current_y + 10, "Fall Risk Report")
 pdf.set_font("helvetica", "", 13)
 pdf.rect(margin_x + 5, current_y + 15, w=50, h=40, round_corners=True)
 pdf.text(margin_x + 15, current_y + 20, "Fall Risk Score")
+# Set color for fall-risk rectangles
 if fall_risk_score == 'high':
     pdf.set_fill_color(255, 0, 0)
 if fall_risk_score == 'medium':
@@ -190,6 +194,7 @@ pdf.text(margin_x + 21, current_y + 37, "MEDIUM")
 pdf.rect(margin_x + 15, current_y + 42, w=30, h=8, style=low_style)
 pdf.text(margin_x + 25, current_y + 47, "LOW")
 pdf.set_fill_color(211, 211, 211)
+# Fall risk indicators and its fields
 pdf.rect(margin_x + 80, current_y + 15, w=80, h=40, round_corners=True)
 pdf.text(margin_x + 100, current_y + 20, "Fall Risk Indicators")
 pdf.set_font("helvetica", "", 11)
