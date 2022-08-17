@@ -4,13 +4,19 @@ import json
 from matplotlib import pyplot as plt
 
 
-class SKDHPieChartGenerator:
+class SKDHPlotGenerator:
     def __init__(self):
         pass
 
-    def gen_pie_charts(self, skdh_results_path, output_path):
-        # Read in SKDH results file (JSON format)
+    def gen_skdh_plots(self, skdh_results_path, output_path):
+        # Read in skdh results
         skdh_results_data = self.read_json(skdh_results_path)
+        # Generate pie charts
+        act_pie_path, sleep_pie_path = self.gen_pie_charts(skdh_results_data, output_path)
+        # Generate activity heat maps
+        return act_pie_path, sleep_pie_path
+
+    def gen_pie_charts(self, skdh_results_data, output_path):
         # Grab activity and sleep data
         activity_data = skdh_results_data['act_metrics']
         sleep_data = skdh_results_data['sleep_metrics']
@@ -91,8 +97,8 @@ class SKDHPieChartGenerator:
 def main():
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/skdh_results_20220815-171703.json'
     output_path = '/home/grainger/Desktop/skdh_testing/fafra_results/reports/pie_charts/'
-    pcg = SKDHPieChartGenerator()
-    pcg.gen_pie_charts(skdh_path, output_path)
+    pcg = SKDHPlotGenerator()
+    pcg.gen_skdh_plots(skdh_path, output_path)
 
 
 if __name__ == '__main__':
