@@ -19,6 +19,7 @@ WIDTH = 210
 class PDF(FPDF):
     def __init__(self):
         super().__init__("P", "mm", "A4")
+        #define working space in A4 paper
         self.WIDTH = 210
         self.HEIGHT = 297
 
@@ -29,7 +30,8 @@ class PDF(FPDF):
         self.line(10.0, 235.0 + self.HEIGHT / 5, self.WIDTH - 10, 235.0 + self.HEIGHT / 5)  # bottom one
         self.line(10.0, 235.0, 10.0, 235.0 + self.HEIGHT / 5)  # left one
         self.line(self.WIDTH - 10, 235.0, self.WIDTH - 10, 235.0 + self.HEIGHT / 5)  # right one
-
+        
+        #the line in Acitivity Report's Active Minutes section
         self.line(76, 279.0 - 2 * HEIGHT / 4, 44, 300.0 - 2 * HEIGHT / 4)
 
     def texts(self, name):
@@ -50,7 +52,7 @@ class PDF(FPDF):
         self.set_font('Arial', '', 9)
         self.multi_cell(0, 10, "Index           Duration")
 
-        # index and duration field
+        # "index and duration" json score of Sleep Report Sleep Scores
         interval = 0
         for f_name in name:
             with open(f_name) as f:
@@ -61,13 +63,13 @@ class PDF(FPDF):
                 self.multi_cell(0, 10, d)
                 interval += 18
 
-        # pie chart title
+        # pie chart title of Sleep Report Sleep BreakDown
         self.set_xy(117.0, 255.0 - HEIGHT / 4)
         self.set_font('Arial', '', 18)
         self.multi_cell(0, 10, "Sleep Breakdown")
 
     def text_activity(self, name):
-        # Activity Report Section
+        # The following code defines the Activity Report Section
         self.set_font('Arial', '', 20)
         self.text(83, 115, "Activity Report")
         self.text(86, 241, "Daily Activity")
@@ -76,6 +78,7 @@ class PDF(FPDF):
         self.set_font('Arial', '', 14)
         self.multi_cell(0, 10, "Active Minutes")
         d = []
+        #load minutes data from json file
         for f_name in name:
             with open(f_name) as f:
                 data = json.load(f)
@@ -96,7 +99,7 @@ class PDF(FPDF):
 
     def page_body(self, images):
         # Determine how many plots there are per page and set positions
-        # and margins accordingly
+        # and margins accordingly, IMAGE are also processed here
         if len(images) == 3:
             self.image(images[2], 125, 273 - 2 * HEIGHT / 4, 37, 37)
             self.image(images[1], 125, 265.0 - HEIGHT / 4, 37, 37)
@@ -104,7 +107,7 @@ class PDF(FPDF):
             # self.image(images[0], -10, 235, self.WIDTH+20,self.HEIGHT/5)
 
     def print_page(self, images):
-        # Generates the report
+        # Generates the report by combining all sections text,json, image data
         self.page_body(images)
         self.texts(['./digit.json', './digit.json'])
         self.text_activity(['./digit.json', './digit.json'])
@@ -114,15 +117,12 @@ class PDF(FPDF):
 pdf = PDF()
 
 image_list = []
-# im=Image.open('./Daily Activity Summary.png')
 image_list.append('./Daily Activity Summary.png')
 image_list.append('./pie_graph.png')
 image_list.append('./pie_graph.png')
-# for elem in image_list:
-#     pdf.print_page(elem)
 pdf.add_page()
-# pdf.set_fill_color(223,218,218)
-# pdf.rect(10,40,190,60,style='F')
+#define background color for all sections, the boundary line and their color for 
+# ActivityReport and Sleep Report Section, the bar graph's boundary is defined in pdf.lines()
 pdf.set_fill_color(211, 211, 211)
 pdf.rect(x=20, y=255 - 2 * HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
 pdf.rect(x=20, y=245 - HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
@@ -131,6 +131,7 @@ pdf.print_page(image_list)
 pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
 pdf.rect(x=40, y=256 - HEIGHT / 4, w=45, h=45, round_corners=True)
 
+#Title section and Fall Risk Report Seciton
 pdf.set_font("helvetica", "", 16)
 
 # Key Layout Variables
