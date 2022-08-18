@@ -15,32 +15,21 @@ rcParams['axes.spines.right'] = False
 HEIGHT = 297
 WIDTH = 210
 
+
 class ReportGenerator:
     def __init__(self):
-        pass
+        self.margin_x = 20
+        self.margin_y = 5
+        self.rect_width = 170
+        self.rect_height = 60
+        self.current_x = 0
+        self.current_y = 0
 
-    def generate_report(self):
+    def generate_report(self, skdh_results_path, user_profile_path, test_data_path, fafra_path):
         pdf = PDF()
-
-        image_list = []
-        # im=Image.open('./Daily Activity Summary.png')
-        image_list.append(
-            '/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/Daily Activity Summary.png')
-        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/pie_graph.png')
-        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/pie_graph.png')
-        # for elem in image_list:
-        #     pdf.print_page(elem)
+        # WRITE IN FRAMEWORK FOR THE WHOLE REPORT
         pdf.add_page()
-        # pdf.set_fill_color(223,218,218)
-        # pdf.rect(10,40,190,60,style='F')
-        pdf.set_fill_color(211, 211, 211)
-        pdf.rect(x=20, y=255 - 2 * HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
-        pdf.rect(x=20, y=245 - HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
-
-        pdf.print_page(image_list)
-        pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
-        pdf.rect(x=40, y=256 - HEIGHT / 4, w=45, h=45, round_corners=True)
-
+        # Writes header
         pdf.set_font("helvetica", "", 16)
 
         # Key Layout Variables
@@ -51,16 +40,21 @@ class ReportGenerator:
         current_x = 0
         current_y = 0
 
-        # Variables from JSON
-        fall_risk_score = 'medium'
-        gait_speed = '10m/s'
-        cadence = '0/100'
-        steps_per_day = '120000'
+        # From user profile path
         user_name = 'such a long name'
-        report_generated = 'long ass report'
         user_id = '123456789'
+        # From test data path
+        report_generated = 'long ass report'
         useless_field = 'place holder'
+        test_id = ''
         collection_period = '2020/12/12-2022/08/09'
+        # From fafra path
+        fall_risk_score = 'medium'
+        results = self.get_results_params(skdh_results_path)
+        gait_speed = str(results['gait_metrics']['PARAM:gait speed: mean'])
+        cadence = str(results['gait_metrics']['PARAM:cadence: mean'])
+        steps_per_day = str(results['gait_metrics']['Bout Steps: sum'])
+
 
         # Header
         current_y += margin_y
@@ -78,7 +72,26 @@ class ReportGenerator:
         pdf.text(margin_x + 50, current_y + 23, "Data Collection Period: " + collection_period)
         pdf.set_font("helvetica", "", 16)
         current_y += 30
-
+        #####
+        # Writes in the general activity and sleep sections
+        pdf.set_fill_color(211, 211, 211)
+        pdf.rect(x=20, y=255 - 2 * HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
+        pdf.rect(x=20, y=245 - HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
+        pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
+        pdf.rect(x=40, y=256 - HEIGHT / 4, w=45, h=45, round_corners=True)
+        #####
+        # Fills in the detail of the sleep and activity sections, adds images
+        image_list = []
+        image_list.append(
+            '/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/Daily Activity Summary.png')
+        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/pie_graph.png')
+        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/pie_graph.png')
+        pdf.print_page(image_list)
+        # header
+        # fall risk section
+        # activity section
+        # sleep section
+        # WRITE IN THE PARAMETERIZED COMPONENTS
         # Fall Risk Report
         # Report Header
         current_y += margin_y
@@ -120,6 +133,12 @@ class ReportGenerator:
         current_y += rect_height
 
         pdf.output('/home/grainger/Desktop/skdh_testing/fafra_results/reports/whole_report/SalesReport.pdf')
+
+    def get_results_params(self, skdh_results_path):
+        # Read results JSON
+        with open(skdh_results_path, 'r') as f:
+            results = json.load(f)
+        return results
 
 
 class PDF(FPDF):
@@ -218,8 +237,9 @@ class PDF(FPDF):
 
 
 def main():
+    skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/skdh_results_20220815-171703.json'
     rg = ReportGenerator()
-    rg.generate_report()
+    rg.generate_report(skdh_path, '', '', '')
 
 
 if __name__ == '__main__':
