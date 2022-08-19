@@ -1,3 +1,4 @@
+import datetime
 import csv
 import numpy as np
 
@@ -54,27 +55,42 @@ def run_pipeline(path, output_path):
         x_data = []
         y_data = []
         z_data = []
+        time = []
         for row in reader:
-            x_data.append(float(row['X']))
-            y_data.append(float(row['Y']))
-            z_data.append(float(row['Z']))
+            x_data.append(float(row['x-axis (g)']))
+            y_data.append(float(row['y-axis (g)']))
+            z_data.append(float(row['z-axis (g)']))
+            time.append(float(row['epoc (ms)']) / 1000.0)
     data = np.array([x_data, y_data, z_data])
     data = data.T
+    time = np.array(time)
+    day_ends = [[]]
     fs = 100.0
-    time = np.linspace(0, (len(x_data) - 1) / fs, len(x_data))
     print(path)
     # push data into gait pipeline
     pipeline_gen = SKDHPipelineGenerator()
     gait_pipeline = pipeline_gen.generate_gait_pipeline(output_path)
     gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
-    results = gait_pipeline_run.run_gait_pipeline(data, time, fs, [[]])
+    results = gait_pipeline_run.run_gait_pipeline(data, time, fs, day_ends)
     print(results)
     # check results
     pass
 
+def get_day_ends(time):
+    current_ix = 0
+    iter_ix = 0
+    day_end_pairs = []
+    while iter_ix + 1 <= len(time) - 1:
+        if datetime.fromtimestamp(time[iter_ix]).time().hour > datetime.fromtimestamp(
+                time[iter_ix + 1]).time().hour:
+            day_end_pairs.append([current_ix, iter_ix])
+            current_ix = iter_ix
+        iter_ix += 1
+    day_end_pairs.append([current_ix, len(time) - 1])
+    return day_end_pairs
 
 def main():
-    path = '/home/grainger/Desktop/datasets/mbientlab/EA78C3D3F08A_MetaWear_acceleration_2022-08-17T08.06.49.448.csv'
+    path = '/home/grainger/Desktop/datasets/mbientlab/test/MetaWear_2022-08-18T21.41.59.608_C85D72EF7FA2_Accelerometer.csv'
     output_path = '/home/grainger/Desktop/datasets/mbientlab/output/'
     run_pipeline(path, output_path)
 
