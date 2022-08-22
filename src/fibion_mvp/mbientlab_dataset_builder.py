@@ -31,9 +31,8 @@ class MbientlabDatasetBuilder(DatasetBuilder):
 
     def build_dataset(self, dataset_path, demo_data, clinical_demo_path,
                       segment_dataset=True, epoch_size=60.0):
-        dataset_user_data = []
         # Build user data objects
-        dataset_user_data.append(self.build_single_user(dataset_path, {'user_height': 1.80}))
+        dataset_user_data = self.build_single_user(dataset_path, {'user_height': 1.80})
         # TODO: Set demographic data
         # Set dataset file
         dataset_name = 'Mbientlab'
@@ -63,10 +62,6 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         )]
         return user_data
 
-        dataset_user_data.append(user_data)
-        dataset_name = 'Fibion'
-        return Dataset(dataset_name, data_path, '', dataset_user_data, {})
-
     def read_mbient_file(self, path):
         with open(path, newline='') as f:
             reader = csv.DictReader(f, delimiter=',')
@@ -80,6 +75,10 @@ class MbientlabDatasetBuilder(DatasetBuilder):
                 z_data.append(float(row['z-axis (g)']))
                 time.append(float(row['epoc (ms)']) / 1000.0)
             f.close()
+        x_data = x_data[2383971:]
+        y_data = y_data[2383971:]
+        z_data = z_data[2383971:]
+        time = time[2383971:]
         x_data = np.array(x_data)
         y_data = np.array(y_data)
         z_data = np.array(z_data)

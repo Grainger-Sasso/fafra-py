@@ -21,6 +21,7 @@ import joblib
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.fibion_mvp.fibion_dataset_builder import FibionDatasetBuilder
+from src.fibion_mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
@@ -57,23 +58,32 @@ class FaFRA_SKDH:
         self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220706-112631.bin'
         self.rc = LightGBMRiskClassifier({})
 
-    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path):
+    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path, imu_data_type='mbientlab'):
         # Load in the accelerometer data
-        ds = self.load_dataset(data_path, demographic_data)
+        ds = self.load_dataset(data_path, demographic_data, imu_data_type)
         # Calculate day ends
-        day_ends = self.get_day_ends(ds)
+        # day_ends = self.get_day_ends(ds)
+        day_ends = day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         # Generate custom metrics and SKDH metrics on the user data
-        metric_gen = FibionMetricGenerator()
+        metric_gen = FaFRAMetricGenerator()
         fibion_metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
         # Assess risk levels using risk model
         # TEST COMMIT
         pass
 
-    def load_dataset(self, dataset_path, demo_data):
-        fdb = FibionDatasetBuilder()
-        ds = fdb.build_single_user(dataset_path, demo_data)
-        ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).time = np.array(ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time())
-        print('Fibion dataset build...')
+    def load_dataset(self, dataset_path, demo_data, imu_data_type):
+        if imu_data_type == 'mbientlab':
+            db = MbientlabDatasetBuilder()
+            ds = db.build_dataset(dataset_path, demo_data, '')
+            print('MbientLab dataset build...')
+        elif imu_data_type == 'fibion':
+            db = FibionDatasetBuilder()
+            ds = db.build_single_user(dataset_path, demo_data)
+            ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).time = np.array(
+                ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time())
+            print('Fibion dataset built...')
+        else:
+            raise ValueError(f'Incorrect IMU data type provided: {imu_data_type}')
         return ds
 
     def get_day_ends(self, ds):
@@ -90,7 +100,7 @@ class FaFRA_SKDH:
         day_end_pairs.append([current_ix, len(time) - 1])
         return day_end_pairs
 
-class FibionMetricGenerator:
+class FaFRAMetricGenerator:
     def __init__(self):
         self.custom_metric_names = tuple(
             [
@@ -392,6 +402,7 @@ class FibionMetricGenerator:
 def main():
     # Grainger VM paths
     dataset_path = '/home/grainger/Desktop/datasets/fibion/25hz_device/test_Sheedy_2022-08-05.bin'
+    mbient_data_path = r'/home/grainger/Desktop/datasets/mbientlab/test/MULTIDAY_MetaWear_2022-08-19T12.38.00.909_C85D72EF7FA2_Accelerometer.csv'
     activity_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/activity/fibion_test_activity_04_10_2022.csv'
 
     # Grainger desktop paths
@@ -433,7 +444,7 @@ def main():
     custom_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/custom_skdh'
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/skdh'
     day_ends = np.array([])
-    fib_fafra.perform_risk_assessment(dataset_path, demo_data , custom_path, skdh_path)
+    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data , custom_path, skdh_path)
 
 
 if __name__ == '__main__':
