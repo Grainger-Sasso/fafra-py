@@ -61,18 +61,31 @@ def run_pipeline(path, output_path):
             y_data.append(float(row['y-axis (g)']))
             z_data.append(float(row['z-axis (g)']))
             time.append(float(row['epoc (ms)']) / 1000.0)
+        f.close()
+    x_data = x_data[2383971:]
+    y_data = y_data[2383971:]
+    z_data = z_data[2383971:]
+    time = time[2383971:]
     data = np.array([x_data, y_data, z_data])
     data = data.T
     time = np.array(time)
-    day_ends = [[]]
+    day_ends = np.array([[0, 3836477], [3836477, (len(time) - 1)]])
     fs = 100.0
     print(path)
     # push data into gait pipeline
     pipeline_gen = SKDHPipelineGenerator()
-    gait_pipeline = pipeline_gen.generate_gait_pipeline(output_path)
-    gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
-    results = gait_pipeline_run.run_gait_pipeline(data, time, fs, day_ends)
-    print(results)
+    # gait_pipeline = pipeline_gen.generate_gait_pipeline(output_path)
+    # gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
+    # results = gait_pipeline_run.run_gait_pipeline(data, time, fs, day_ends)
+    pipeline = pipeline_gen.generate_pipeline(output_path)
+    pipeline_run = SKDHPipelineRunner(pipeline, gait_metric_names)
+    results = pipeline_run.run_pipeline(data, time, fs, day_ends)
+    for name, result in results.items():
+        print(name)
+        print(result)
+        for nest_name, nest_result in result.items():
+            print(nest_name)
+            print(nest_result)
     # check results
     pass
 
@@ -90,7 +103,7 @@ def get_day_ends(time):
     return day_end_pairs
 
 def main():
-    path = '/home/grainger/Desktop/datasets/mbientlab/test/MetaWear_2022-08-18T21.41.59.608_C85D72EF7FA2_Accelerometer.csv'
+    path = '/home/grainger/Desktop/datasets/mbientlab/test/MULTIDAY_MetaWear_2022-08-19T12.38.00.909_C85D72EF7FA2_Accelerometer.csv'
     output_path = '/home/grainger/Desktop/datasets/mbientlab/output/'
     run_pipeline(path, output_path)
 
