@@ -80,8 +80,11 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         z_data = z_data[2383971:]
         time = time[2383971:]
         x_data = np.array(x_data)
+        x_data = np.float16(x_data)
         y_data = np.array(y_data)
+        y_data = np.float16(y_data)
         z_data = np.array(z_data)
+        z_data = np.float16(z_data)
         time = np.array(time)
         return x_data, y_data, z_data, time
 

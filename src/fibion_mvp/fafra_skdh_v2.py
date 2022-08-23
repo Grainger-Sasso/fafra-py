@@ -67,6 +67,7 @@ class FaFRA_SKDH:
         # Generate custom metrics and SKDH metrics on the user data
         metric_gen = FaFRAMetricGenerator()
         fibion_metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
+        print('yes')
         # Assess risk levels using risk model
         # TEST COMMIT
         pass
@@ -99,6 +100,7 @@ class FaFRA_SKDH:
             iter_ix += 1
         day_end_pairs.append([current_ix, len(time) - 1])
         return day_end_pairs
+
 
 class FaFRAMetricGenerator:
     def __init__(self):
@@ -160,9 +162,10 @@ class FaFRAMetricGenerator:
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
         gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
-        input_metrics = InputMetrics()
+
         self.preprocess_data(ds)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
+        input_metrics = self.initialize_input_metrics(skdh_input_metrics)
         self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
         # If the data is to be segmented along walking data
@@ -179,9 +182,18 @@ class FaFRAMetricGenerator:
                 skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
             else:
                 print('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
+        print(input_metrics)
+        print(custom_input_metrics)
+        print(skdh_input_metrics)
+        print(len(skdh_input_metrics))
+        for metric in skdh_input_metrics:
+            print(metric)
         input_metrics = self.format_input_metrics(input_metrics,
                                                   custom_input_metrics, skdh_input_metrics)
+        print(input_metrics.get_metrics())
+        print(len(input_metrics.get_metrics()))
         full_path = self.export_metrics(input_metrics, im_path)
+        print(full_path)
         return full_path
 
     def export_skdh_results(self, results, path):
@@ -229,12 +241,13 @@ class FaFRAMetricGenerator:
         imu_metadata_file_path: str = user_data.get_imu_metadata_file_path()
         imu_metadata = user_data.get_imu_metadata()
         trial = ''
-        time = user_data.get_imu_data(IMUDataFilterType.RAW).get_time()
         dataset_path = ds.get_dataset_path()
         clinical_demo_path = ds.get_clinical_demo_path()
         clinical_demo_data = user_data.get_clinical_demo_data()
         for walk_bout in walk_data:
             # Build a UserData object for the whole data
+            time = np.linspace(0, len(np.array(walk_bout[0])) / int(imu_metadata.get_sampling_frequency()),
+                           len(np.array(walk_bout[0])))
             imu_data = self._generate_imu_data_instance(walk_bout, time)
             dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
@@ -294,7 +307,7 @@ class FaFRAMetricGenerator:
             # TODO: create function to translate the time axis into day ends
             # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs))
             else:
                 results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
         return results
@@ -361,9 +374,9 @@ class FaFRAMetricGenerator:
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
         ap_acc_data = np.array(data[2])
-        yaw_gyr_data = np.array(data[3])
-        pitch_gyr_data = np.array(data[4])
-        roll_gyr_data = np.array(data[5])
+        yaw_gyr_data = np.array([])
+        pitch_gyr_data = np.array([])
+        roll_gyr_data = np.array([])
         return IMUData(activity_code, activity_description, v_acc_data,
                        ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
                        roll_gyr_data, time)
@@ -378,8 +391,26 @@ class FaFRAMetricGenerator:
                     input_metrics.get_metric(name).append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
             input_metrics.get_metric(name).extend(metric.get_value().tolist())
+        final_metrics = InputMetrics()
+        for name, metric in input_metrics.get_metrics().items():
+            metric = np.array(metric)
+            metric = metric[~np.isnan(metric)]
+            metric_mean = metric.mean()
+            final_metrics.set_metric(name, metric_mean)
         input_metrics.get_labels().extend(custom_input_metrics.get_labels())
+        final_metrics.set_labels(input_metrics.get_labels())
+        return final_metrics
+
+    def initialize_input_metrics(self, skdh_input_metrics):
+        input_metrics = InputMetrics()
+        for name in self.custom_metric_names:
+            input_metrics.set_metric(name, [])
+        for name in skdh_input_metrics[0]['gait_metrics'].keys():
+            if name not in ['Bout Starts', 'Bout Duration']:
+                input_metrics.set_metric(name, [])
+        input_metrics.set_labels([])
         return input_metrics
+
 
     def plot_walk_data(self, walk_ds):
         freq = walk_ds.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
@@ -444,7 +475,7 @@ def main():
     custom_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/custom_skdh'
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/skdh'
     day_ends = np.array([])
-    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data , custom_path, skdh_path)
+    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data , skdh_path, custom_path)
 
 
 if __name__ == '__main__':
