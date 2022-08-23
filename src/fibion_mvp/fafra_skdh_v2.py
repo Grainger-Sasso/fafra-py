@@ -58,7 +58,7 @@ class FaFRA_SKDH:
         self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220706-112631.bin'
         self.rc = LightGBMRiskClassifier({})
 
-    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path, imu_data_type='mbientlab'):
+    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path, model_path, scaler_path, imu_data_type='mbientlab'):
         # Load in the accelerometer data
         ds = self.load_dataset(data_path, demographic_data, imu_data_type)
         # Calculate day ends
@@ -66,8 +66,13 @@ class FaFRA_SKDH:
         day_ends = day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         # Generate custom metrics and SKDH metrics on the user data
         metric_gen = FaFRAMetricGenerator()
-        fibion_metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
-        print('yes')
+        path, metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
+        # metrics = {"metrics": [{"sma": 5684.0631103515625, "cov": 0.07972064126298378, "std": 0.08061715722448112, "mean": 1.010986328125, "se": 5564.046325683594, "rms": 1.0142822265625, "PARAM:gait speed: mean": 0.8239671088093871, "PARAM:gait speed: std": 0.044765261012231314, "BOUTPARAM:gait symmetry index: mean": 0.7676332028836402, "BOUTPARAM:gait symmetry index: std": 0.003438609506065257, "PARAM:cadence: mean": 104.72948932441702, "PARAM:cadence: std": 4.186624922070641, "Bout Steps: mean": 38.004464285714285, "Bout Steps: std": 2.05752240267269, "Bout Duration: mean": 21.683035714285715, "Bout Duration: std": 1.089276566120836, "Bout N: mean": 1.0334821428571428, "Bout N: std": 0.060515364784490884, "Bout Starts: mean": 13.506696428571429, "Bout Starts: std": 2.72319141530209, "PARAM:stride time: mean": 1.15470404944687, "PARAM:stride time: std": 0.03649495933789282, "PARAM:stride time asymmetry: mean": -0.0014657286428059761, "PARAM:stride time asymmetry: std": 0.022568032803646724, "PARAM:stance time: mean": 0.7358104718743173, "PARAM:stance time: std": 0.028221579403790803, "PARAM:stance time asymmetry: mean": -2.373408837353817e-05, "PARAM:stance time asymmetry: std": 0.02615877675696673, "PARAM:swing time: mean": 0.42190154438280836, "PARAM:swing time: std": 0.018620921895707403, "PARAM:swing time asymmetry: mean": 8.592450484146373e-05, "PARAM:swing time asymmetry: std": 0.023034650217666423, "PARAM:step time: mean": 0.5787774925345458, "PARAM:step time: std": 0.023718435414781542, "PARAM:step time asymmetry: mean": -0.0004269219979692915, "PARAM:step time asymmetry: std": 0.026327685331106427, "PARAM:initial double support: mean": 0.15520912106727264, "PARAM:initial double support: std": 0.009487038182593386, "PARAM:initial double support asymmetry: mean": 0.00024082366732392177, "PARAM:initial double support asymmetry: std": 0.012191312369886536, "PARAM:terminal double support: mean": 0.15533371570027718, "PARAM:terminal double support: std": 0.008611994210791464, "PARAM:terminal double support asymmetry: mean": -0.00020961494645705165, "PARAM:terminal double support asymmetry: std": 0.011579802116538779, "PARAM:double support: mean": 0.3104266077332305, "PARAM:double support: std": 0.01328365214579084, "PARAM:double support asymmetry: mean": 0.0001978946998697179, "PARAM:double support asymmetry: std": 0.011780234377643528, "PARAM:single support: mean": 0.4236846005015926, "PARAM:single support: std": 0.02114958420906941, "PARAM:single support asymmetry: mean": -0.0008344316442960612, "PARAM:single support asymmetry: std": 0.02354894505532213, "PARAM:step length: mean": 0.4741583681952849, "PARAM:step length: std": 0.046668206697445876, "PARAM:step length asymmetry: mean": -0.0034886191276315586, "PARAM:step length asymmetry: std": 0.07336069895530065, "PARAM:stride length: mean": 0.9485873159068022, "PARAM:stride length: std": 0.05580781054130711, "PARAM:stride length asymmetry: mean": -0.006535574290192136, "PARAM:stride length asymmetry: std": 0.04727984795524197, "PARAM:gait speed asymmetry: mean": -0.004234233899815849, "PARAM:gait speed asymmetry: std": 0.03890404491011089, "PARAM:intra-step covariance - V: mean": 0.9785122744370086, "PARAM:intra-step covariance - V: std": 0.02095334087831291, "PARAM:intra-stride covariance - V: mean": 0.9703352801519978, "PARAM:intra-stride covariance - V: std": 0.04280852612274942, "PARAM:harmonic ratio - V: mean": 1.7886702922453732, "PARAM:harmonic ratio - V: std": 0.7764661975991594, "PARAM:stride SPARC: mean": -4.186293910645728, "PARAM:stride SPARC: std": 0.18420241405618507, "BOUTPARAM:phase coordination index: mean": 4.12110230471326, "BOUTPARAM:phase coordination index: std": 0.008082082635380265, "Bout Steps: sum": 36.125, "Bout Duration: sum": 20.625}], "labels": [0, 0, 0, 0, 0, 0, 0, 0]}
+        risk_model = self.import_classifier(model_path, scaler_path)
+        metrics = self.format_input_metrics_scaling(metrics)
+        metrics = risk_model.scaler.transform(metrics)
+        pred = risk_model.make_prediction(metrics)[0]
+        print(pred)
         # Assess risk levels using risk model
         # TEST COMMIT
         pass
@@ -100,6 +105,23 @@ class FaFRA_SKDH:
             iter_ix += 1
         day_end_pairs.append([current_ix, len(time) - 1])
         return day_end_pairs
+
+    def import_classifier(self, model_path, scaler_path):
+        model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
+        classifier = LightGBMRiskClassifier({})
+        classifier.set_model(model)
+        classifier.set_scaler(scaler)
+        return classifier
+
+    def format_input_metrics_scaling(self, input_metrics):
+        metrics = input_metrics.get_metrics()
+        new_metrics = []
+        for name, metric in metrics.items():
+            new_metrics.append(metric)
+        metrics = np.array(new_metrics)
+        metrics = np.reshape(metrics, (1, -1))
+        return metrics
 
 
 class FaFRAMetricGenerator:
@@ -194,7 +216,7 @@ class FaFRAMetricGenerator:
         print(len(input_metrics.get_metrics()))
         full_path = self.export_metrics(input_metrics, im_path)
         print(full_path)
-        return full_path
+        return full_path, input_metrics
 
     def export_skdh_results(self, results, path):
         result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
@@ -474,8 +496,10 @@ def main():
 
     custom_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/custom_skdh'
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/skdh'
+    model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
+    scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
     day_ends = np.array([])
-    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data , skdh_path, custom_path)
+    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data, skdh_path, custom_path, model_path, scaler_path)
 
 
 if __name__ == '__main__':
