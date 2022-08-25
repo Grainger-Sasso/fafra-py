@@ -83,9 +83,9 @@ class ReportGenerator:
         # Fills in the detail of the sleep and activity sections, adds images
         image_list = []
         image_list.append(
-            '/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/Daily Activity Summary.png')
-        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/pie_graph.png')
-        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/fibion_mvp/report_generation/pie_graph.png')
+            '/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/Daily Activity Summary.png')
+        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/pie_graph.png')
+        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/pie_graph.png')
         pdf.print_page(image_list)
         # header
         # fall risk section
