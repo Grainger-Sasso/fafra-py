@@ -4,6 +4,7 @@ import json
 from typing import List
 
 
+from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.mvp.report_generation.report_generator import ReportGenerator
 from src.mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
@@ -106,7 +107,10 @@ class DataLoader:
 
     def read_imu_data(self, data_type, imu_data_path, user_info):
         if data_type.lower() == 'mbientlab':
-            user_data:  = MbientlabDatasetBuilder().build_single_user(imu_data_path, user_info)
+            user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, user_info)
+            # TODO: may need to define ra data objects specific to the MVP
+        else:
+            raise ValueError(f'Unknown IMU datatype provided {data_type}')
         pass
 
 
