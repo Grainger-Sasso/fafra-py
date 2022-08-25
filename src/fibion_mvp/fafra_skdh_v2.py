@@ -21,6 +21,7 @@ import joblib
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.fibion_mvp.fibion_dataset_builder import FibionDatasetBuilder
+from src.fibion_mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
@@ -57,23 +58,38 @@ class FaFRA_SKDH:
         self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220706-112631.bin'
         self.rc = LightGBMRiskClassifier({})
 
-    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path):
+    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path, model_path, scaler_path, imu_data_type='mbientlab'):
         # Load in the accelerometer data
-        ds = self.load_dataset(data_path, demographic_data)
+        ds = self.load_dataset(data_path, demographic_data, imu_data_type)
         # Calculate day ends
-        day_ends = self.get_day_ends(ds)
+        # day_ends = self.get_day_ends(ds)
+        day_ends = day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         # Generate custom metrics and SKDH metrics on the user data
-        metric_gen = FibionMetricGenerator()
-        fibion_metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
+        metric_gen = FaFRAMetricGenerator()
+        path, metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
+        # metrics = {"metrics": [{"sma": 5684.0631103515625, "cov": 0.07972064126298378, "std": 0.08061715722448112, "mean": 1.010986328125, "se": 5564.046325683594, "rms": 1.0142822265625, "PARAM:gait speed: mean": 0.8239671088093871, "PARAM:gait speed: std": 0.044765261012231314, "BOUTPARAM:gait symmetry index: mean": 0.7676332028836402, "BOUTPARAM:gait symmetry index: std": 0.003438609506065257, "PARAM:cadence: mean": 104.72948932441702, "PARAM:cadence: std": 4.186624922070641, "Bout Steps: mean": 38.004464285714285, "Bout Steps: std": 2.05752240267269, "Bout Duration: mean": 21.683035714285715, "Bout Duration: std": 1.089276566120836, "Bout N: mean": 1.0334821428571428, "Bout N: std": 0.060515364784490884, "Bout Starts: mean": 13.506696428571429, "Bout Starts: std": 2.72319141530209, "PARAM:stride time: mean": 1.15470404944687, "PARAM:stride time: std": 0.03649495933789282, "PARAM:stride time asymmetry: mean": -0.0014657286428059761, "PARAM:stride time asymmetry: std": 0.022568032803646724, "PARAM:stance time: mean": 0.7358104718743173, "PARAM:stance time: std": 0.028221579403790803, "PARAM:stance time asymmetry: mean": -2.373408837353817e-05, "PARAM:stance time asymmetry: std": 0.02615877675696673, "PARAM:swing time: mean": 0.42190154438280836, "PARAM:swing time: std": 0.018620921895707403, "PARAM:swing time asymmetry: mean": 8.592450484146373e-05, "PARAM:swing time asymmetry: std": 0.023034650217666423, "PARAM:step time: mean": 0.5787774925345458, "PARAM:step time: std": 0.023718435414781542, "PARAM:step time asymmetry: mean": -0.0004269219979692915, "PARAM:step time asymmetry: std": 0.026327685331106427, "PARAM:initial double support: mean": 0.15520912106727264, "PARAM:initial double support: std": 0.009487038182593386, "PARAM:initial double support asymmetry: mean": 0.00024082366732392177, "PARAM:initial double support asymmetry: std": 0.012191312369886536, "PARAM:terminal double support: mean": 0.15533371570027718, "PARAM:terminal double support: std": 0.008611994210791464, "PARAM:terminal double support asymmetry: mean": -0.00020961494645705165, "PARAM:terminal double support asymmetry: std": 0.011579802116538779, "PARAM:double support: mean": 0.3104266077332305, "PARAM:double support: std": 0.01328365214579084, "PARAM:double support asymmetry: mean": 0.0001978946998697179, "PARAM:double support asymmetry: std": 0.011780234377643528, "PARAM:single support: mean": 0.4236846005015926, "PARAM:single support: std": 0.02114958420906941, "PARAM:single support asymmetry: mean": -0.0008344316442960612, "PARAM:single support asymmetry: std": 0.02354894505532213, "PARAM:step length: mean": 0.4741583681952849, "PARAM:step length: std": 0.046668206697445876, "PARAM:step length asymmetry: mean": -0.0034886191276315586, "PARAM:step length asymmetry: std": 0.07336069895530065, "PARAM:stride length: mean": 0.9485873159068022, "PARAM:stride length: std": 0.05580781054130711, "PARAM:stride length asymmetry: mean": -0.006535574290192136, "PARAM:stride length asymmetry: std": 0.04727984795524197, "PARAM:gait speed asymmetry: mean": -0.004234233899815849, "PARAM:gait speed asymmetry: std": 0.03890404491011089, "PARAM:intra-step covariance - V: mean": 0.9785122744370086, "PARAM:intra-step covariance - V: std": 0.02095334087831291, "PARAM:intra-stride covariance - V: mean": 0.9703352801519978, "PARAM:intra-stride covariance - V: std": 0.04280852612274942, "PARAM:harmonic ratio - V: mean": 1.7886702922453732, "PARAM:harmonic ratio - V: std": 0.7764661975991594, "PARAM:stride SPARC: mean": -4.186293910645728, "PARAM:stride SPARC: std": 0.18420241405618507, "BOUTPARAM:phase coordination index: mean": 4.12110230471326, "BOUTPARAM:phase coordination index: std": 0.008082082635380265, "Bout Steps: sum": 36.125, "Bout Duration: sum": 20.625}], "labels": [0, 0, 0, 0, 0, 0, 0, 0]}
+        risk_model = self.import_classifier(model_path, scaler_path)
+        metrics = self.format_input_metrics_scaling(metrics)
+        metrics = risk_model.scaler.transform(metrics)
+        pred = risk_model.make_prediction(metrics)[0]
+        print(pred)
         # Assess risk levels using risk model
         # TEST COMMIT
         pass
 
-    def load_dataset(self, dataset_path, demo_data):
-        fdb = FibionDatasetBuilder()
-        ds = fdb.build_single_user(dataset_path, demo_data)
-        ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).time = np.array(ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time())
-        print('Fibion dataset build...')
+    def load_dataset(self, dataset_path, demo_data, imu_data_type):
+        if imu_data_type == 'mbientlab':
+            db = MbientlabDatasetBuilder()
+            ds = db.build_dataset(dataset_path, demo_data, '')
+            print('MbientLab dataset build...')
+        elif imu_data_type == 'fibion':
+            db = FibionDatasetBuilder()
+            ds = db.build_single_user(dataset_path, demo_data)
+            ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).time = np.array(
+                ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time())
+            print('Fibion dataset built...')
+        else:
+            raise ValueError(f'Incorrect IMU data type provided: {imu_data_type}')
         return ds
 
     def get_day_ends(self, ds):
@@ -90,7 +106,25 @@ class FaFRA_SKDH:
         day_end_pairs.append([current_ix, len(time) - 1])
         return day_end_pairs
 
-class FibionMetricGenerator:
+    def import_classifier(self, model_path, scaler_path):
+        model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
+        classifier = LightGBMRiskClassifier({})
+        classifier.set_model(model)
+        classifier.set_scaler(scaler)
+        return classifier
+
+    def format_input_metrics_scaling(self, input_metrics):
+        metrics = input_metrics.get_metrics()
+        new_metrics = []
+        for name, metric in metrics.items():
+            new_metrics.append(metric)
+        metrics = np.array(new_metrics)
+        metrics = np.reshape(metrics, (1, -1))
+        return metrics
+
+
+class FaFRAMetricGenerator:
     def __init__(self):
         self.custom_metric_names = tuple(
             [
@@ -144,16 +178,17 @@ class FibionMetricGenerator:
                 'BOUTPARAM:phase coordination index'
             ]
 
-
     def generate_input_metrics(self, ds, day_ends, skdh_output_path, im_path, seg_gait=True, min_gait_dur=30.0):
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
         gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
-        input_metrics = InputMetrics()
+
         self.preprocess_data(ds)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
+        input_metrics = self.initialize_input_metrics(skdh_input_metrics)
+        self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(ds)
         # If the data is to be segmented along walking data
         if seg_gait:
@@ -169,9 +204,55 @@ class FibionMetricGenerator:
                 skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
             else:
                 print('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
+        print(input_metrics)
+        print(custom_input_metrics)
+        print(skdh_input_metrics)
+        print(len(skdh_input_metrics))
+        for metric in skdh_input_metrics:
+            print(metric)
         input_metrics = self.format_input_metrics(input_metrics,
                                                   custom_input_metrics, skdh_input_metrics)
+        print(input_metrics.get_metrics())
+        print(len(input_metrics.get_metrics()))
         full_path = self.export_metrics(input_metrics, im_path)
+        print(full_path)
+        return full_path, input_metrics
+
+    def export_skdh_results(self, results, path):
+        result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(path, result_file_name)
+        new_results = {}
+        for name, item in results[0].items():
+            new_results[name] = {}
+            for nest_name, nest_item in item.items():
+                if type(nest_item) is np.float64:
+                    new_results[name][nest_name] = float(nest_item)
+                elif type(nest_item) is list:
+                    new_list = []
+                    for val in nest_item:
+                        if type(val) is np.int64:
+                            new_list.append(int(val))
+                        elif type(val) is np.float64:
+                            new_list.append(float(val))
+                        else:
+                            new_list.append(val)
+                    new_results[name][nest_name] = new_list
+                elif type(nest_item) is np.ndarray:
+                    new_list = []
+                    for val in nest_item:
+                        if type(val) is np.int64:
+                            new_list.append(int(val))
+                        elif type(val) is np.float64:
+                            new_list.append(float(val))
+                        else:
+                            new_list.append(val)
+                    new_results[name][nest_name] = new_list
+                elif type(nest_item) is np.int64:
+                    new_results[name][nest_name] = int(nest_item)
+                else:
+                    new_results[name][nest_name] = nest_item
+        with open(full_path, 'w') as f:
+            json.dump(new_results, f)
         return full_path
 
     def gen_walk_ds(self, walk_data, ds) -> Dataset:
@@ -182,12 +263,13 @@ class FibionMetricGenerator:
         imu_metadata_file_path: str = user_data.get_imu_metadata_file_path()
         imu_metadata = user_data.get_imu_metadata()
         trial = ''
-        time = user_data.get_imu_data(IMUDataFilterType.RAW).get_time()
         dataset_path = ds.get_dataset_path()
         clinical_demo_path = ds.get_clinical_demo_path()
         clinical_demo_data = user_data.get_clinical_demo_data()
         for walk_bout in walk_data:
             # Build a UserData object for the whole data
+            time = np.linspace(0, len(np.array(walk_bout[0])) / int(imu_metadata.get_sampling_frequency()),
+                           len(np.array(walk_bout[0])))
             imu_data = self._generate_imu_data_instance(walk_bout, time)
             dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
@@ -238,7 +320,7 @@ class FibionMetricGenerator:
             # Get the time axis from user data
             # Get sampling rate
             # Generate day ends for the time axes
-            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
+            imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
@@ -247,7 +329,7 @@ class FibionMetricGenerator:
             # TODO: create function to translate the time axis into day ends
             # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs))
             else:
                 results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
         return results
@@ -314,9 +396,9 @@ class FibionMetricGenerator:
         v_acc_data = np.array(data[0])
         ml_acc_data = np.array(data[1])
         ap_acc_data = np.array(data[2])
-        yaw_gyr_data = np.array(data[3])
-        pitch_gyr_data = np.array(data[4])
-        roll_gyr_data = np.array(data[5])
+        yaw_gyr_data = np.array([])
+        pitch_gyr_data = np.array([])
+        roll_gyr_data = np.array([])
         return IMUData(activity_code, activity_description, v_acc_data,
                        ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
                        roll_gyr_data, time)
@@ -331,8 +413,26 @@ class FibionMetricGenerator:
                     input_metrics.get_metric(name).append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
             input_metrics.get_metric(name).extend(metric.get_value().tolist())
+        final_metrics = InputMetrics()
+        for name, metric in input_metrics.get_metrics().items():
+            metric = np.array(metric)
+            metric = metric[~np.isnan(metric)]
+            metric_mean = metric.mean()
+            final_metrics.set_metric(name, metric_mean)
         input_metrics.get_labels().extend(custom_input_metrics.get_labels())
+        final_metrics.set_labels(input_metrics.get_labels())
+        return final_metrics
+
+    def initialize_input_metrics(self, skdh_input_metrics):
+        input_metrics = InputMetrics()
+        for name in self.custom_metric_names:
+            input_metrics.set_metric(name, [])
+        for name in skdh_input_metrics[0]['gait_metrics'].keys():
+            if name not in ['Bout Starts', 'Bout Duration']:
+                input_metrics.set_metric(name, [])
+        input_metrics.set_labels([])
         return input_metrics
+
 
     def plot_walk_data(self, walk_ds):
         freq = walk_ds.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
@@ -355,6 +455,7 @@ class FibionMetricGenerator:
 def main():
     # Grainger VM paths
     dataset_path = '/home/grainger/Desktop/datasets/fibion/25hz_device/test_Sheedy_2022-08-05.bin'
+    mbient_data_path = r'/home/grainger/Desktop/datasets/mbientlab/test/MULTIDAY_MetaWear_2022-08-19T12.38.00.909_C85D72EF7FA2_Accelerometer.csv'
     activity_path = '/home/grainger/Desktop/datasets/fibion/io_test_data/activity/fibion_test_activity_04_10_2022.csv'
 
     # Grainger desktop paths
@@ -395,8 +496,10 @@ def main():
 
     custom_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/custom_skdh'
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/fibion/skdh'
+    model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
+    scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
     day_ends = np.array([])
-    fib_fafra.perform_risk_assessment(dataset_path, demo_data , custom_path, skdh_path)
+    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data, skdh_path, custom_path, model_path, scaler_path)
 
 
 if __name__ == '__main__':

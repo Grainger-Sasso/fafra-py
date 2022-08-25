@@ -62,7 +62,7 @@ PyYAML==5.4.1
 requests==2.25.1
 scikit-image==0.19.2
 scikit-learn==0.24.1
-scipy==1.8.1
+scipy~=1.5.4
 seaborn==0.11.1
 shap==0.40.0
 six==1.15.0
@@ -80,3 +80,5 @@ tqdm==4.62.2
 urllib3==1.26.4
 wcwidth==0.2.5
 wfdb==3.3.0
+fpdf==1.7.2
+fpdf2==2.5.5
