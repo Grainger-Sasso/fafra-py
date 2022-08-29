@@ -1,14 +1,20 @@
 import os
-import glob
+import numpy as np
 import json
 from typing import List
 
 
+from src.motion_analysis.filters.motion_filters import MotionFilters
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.metric_names import MetricNames
+from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.mvp.report_generation.report_generator import ReportGenerator
 from src.mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
+from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 
 
 class FaFRA:
@@ -81,9 +87,148 @@ class MetricGen:
         pass
 
     def generate_ra_metrics(self, assessment_path, custom_metric_names, gait_metric_names):
-        data = DataLoader().load_data(assessment_path)
+        ds = DataLoader().load_data(assessment_path)
+        # Preprocess data
+        self.preprocess_data(ds)
+        # TODO: Get day_ends from data, set output_path
+        day_ends = [[]]
+        skdh_output_path = ''
+        # Segment data along walking bouts
+        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, skdh_output_path)
+        # Generate metrics on walking data
+        custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds, custom_metric_names)
+        pipeline_gen = SKDHPipelineGenerator()
+        gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
+        gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
+        skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
+        # Format input metrics
+        # Export metrics
         print('yes')
 
+    def preprocess_data(self, dataset):
+        freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
+        for user_data in dataset.get_dataset():
+            # Filter the data
+            self.apply_lp_filter(user_data, freq)
+
+    def apply_lp_filter(self, user_data):
+        filter = MotionFilters()
+        imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
+        samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
+        act_code = imu_data.get_activity_code()
+        act_des = imu_data.get_activity_description()
+        all_raw_data = imu_data.get_all_data()
+        time = imu_data.get_time()
+        lpf_data_all_axis = []
+        for data in all_raw_data:
+            lpf_data = filter.apply_lpass_filter(data, 2, samp_freq) if data.any() else data
+            lpf_data_all_axis.append(lpf_data)
+        lpf_imu_data = self._generate_imu_data_instance(lpf_data_all_axis, time)
+        user_data.imu_data[IMUDataFilterType.LPF] = lpf_imu_data
+
+    def _generate_imu_data_instance(self, data, time):
+        activity_code = ''
+        activity_description = ''
+        v_acc_data = np.array(data[0])
+        ml_acc_data = np.array(data[1])
+        ap_acc_data = np.array(data[2])
+        yaw_gyr_data = np.array([])
+        pitch_gyr_data = np.array([])
+        roll_gyr_data = np.array([])
+        return IMUData(activity_code, activity_description, v_acc_data,
+                       ml_acc_data, ap_acc_data, yaw_gyr_data, pitch_gyr_data,
+                       roll_gyr_data, time)
+
+    def generate_skdh_metrics(self, dataset, day_ends, pipeline_run: SKDHPipelineRunner, gait=False):
+        results = []
+        for user_data in dataset.get_dataset():
+            # Get the data from the user data in correct format
+            # Get the time axis from user data
+            # Get sampling rate
+            # Generate day ends for the time axes
+            imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+            data = imu_data.get_triax_acc_data()
+            data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
+            data = data.T
+            time = imu_data.get_time()
+            fs = user_data.get_imu_metadata().get_sampling_frequency()
+            # TODO: create function to translate the time axis into day ends
+            # day_ends = np.array([[0, int(len(time) - 1)]])
+            if gait:
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs))
+            else:
+                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
+        return results
+
+    def segment_data_walk(self, ds, gait_metric_names, day_ends, skdh_output_path):
+        # Run initial pass of SKDH on data
+        pipeline_gen = SKDHPipelineGenerator()
+        # TODO: Set output path
+        full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
+        full_pipeline_run = SKDHPipelineRunner(full_pipeline, gait_metric_names)
+        skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
+        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 30.0)
+        if bout_ixs:
+            walk_data = self.get_walk_imu_data(bout_ixs, ds)
+            # Create new dataset from the walking data segments
+            walk_ds = self.gen_walk_ds(walk_data, ds)
+            self.preprocess_data(walk_ds)
+        else:
+            print('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
+        return walk_ds
+
+    def gen_walk_ds(self, walk_data, ds) -> Dataset:
+        dataset = []
+        user_data = ds.get_dataset()[0]
+        imu_data_file_path: str = user_data.get_imu_data_file_path()
+        imu_data_file_name: str = user_data.get_imu_data_file_name()
+        imu_metadata_file_path: str = user_data.get_imu_metadata_file_path()
+        imu_metadata = user_data.get_imu_metadata()
+        trial = ''
+        ds_name = ds.get_dataset_name()
+        dataset_path = ds.get_dataset_path()
+        clinical_demo_path = ds.get_clinical_demo_path()
+        clinical_demo_data = user_data.get_clinical_demo_data()
+        for walk_bout in walk_data:
+            # Build a UserData object for the whole data
+            time = np.linspace(0, len(np.array(walk_bout[0])) / int(imu_metadata.get_sampling_frequency()),
+                           len(np.array(walk_bout[0])))
+            imu_data = self._generate_imu_data_instance(walk_bout, time)
+            dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
+                                    {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
+        return Dataset(ds_name, dataset_path, clinical_demo_path, dataset, {})
+
+    def get_walk_bout_ixs(self, skdh_results, ds: Dataset, min_gait_dur):
+        gait_results = skdh_results[0]['gait_metrics']
+        bout_starts = gait_results['Bout Starts']
+        bout_durs = gait_results['Bout Duration']
+        t0 = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()[0]
+        bout_ixs = []
+        freq = ds.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
+        for start, dur in zip(bout_starts, bout_durs):
+            if dur > min_gait_dur:
+                # Calculate the start and stop ixs of the bout
+                st_ix = int((start - t0) * freq)
+                end_ix = int(((start + dur) - t0) * freq)
+                bout_ixs.append([st_ix, end_ix])
+        return bout_ixs
+
+    def get_walk_imu_data(self, bout_ixs, ds):
+        walk_data = []
+        walk_time = []
+        imu_data = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.LPF)
+        acc_data = imu_data.get_triax_acc_data()
+        acc_data = np.array([acc_data['vertical'], acc_data['mediolateral'], acc_data['anteroposterior']])
+        for bout_ix in bout_ixs:
+            walk_data.append(acc_data[:, bout_ix[0]:bout_ix[1]])
+        return walk_data
+
+    def generate_custom_metrics(self, dataset, custom_metric_names) -> InputMetrics:
+        mg = MetricGenerator()
+        return mg.generate_metrics(
+            dataset.get_dataset(),
+            custom_metric_names
+        )
 
 class DataLoader:
     def load_json_data(self, file_path):
