@@ -48,8 +48,8 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
                  'anteroposterior-acc': 'g'}
         # TODO: Use ID and hashmap system to map clinical demographic data to users
-        clinical_demo_data = ClinicalDemographicData('', 0.0, '', False, demo_data['user_height'],
-                                                     None)
+
+        clinical_demo_data = self.set_demo_data(demo_data)
         # TODO: get the correct sampling frequency
         imu_metadata = IMUMetadata(None, self.sampling_frequency, units)
         imu_data = IMUData('', '',
@@ -61,6 +61,18 @@ class MbientlabDatasetBuilder(DatasetBuilder):
             clinical_demo_file_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data
         )]
         return user_data
+
+    def set_demo_data(self, demo_data):
+        user_name = demo_data['user_name']
+        user_id = demo_data['user_ID']
+        age = demo_data['age']
+        height = demo_data['height']
+        weight = demo_data['weight']
+        sex = demo_data['sex']
+        demo = ClinicalDemographicData(
+            user_id, age, sex, None, height, None, user_name, weight
+        )
+        return demo
 
     def read_mbient_file(self, path):
         with open(path, newline='') as f:

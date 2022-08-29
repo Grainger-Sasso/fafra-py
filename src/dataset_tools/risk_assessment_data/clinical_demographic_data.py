@@ -3,13 +3,15 @@ from typing import Any
 
 class ClinicalDemographicData:
     def __init__(self, id: str, age: float, sex: str, faller_status: bool,
-                 height: float, trial: Any):
+                 height: float, trial: Any, name='', weight=0.0):
         self.id = id
         self.age = age
         self.sex = sex
         self.faller_status = faller_status
         self.height = height
         self.trial = trial
+        self.name = name
+        self.weight = weight
 
     def get_id(self):
         return self.id
@@ -28,3 +30,9 @@ class ClinicalDemographicData:
 
     def get_trial(self):
         return self.trial
+
+    def get_name(self):
+        return self.name
+
+    def get_weight(self):
+        return self.weight

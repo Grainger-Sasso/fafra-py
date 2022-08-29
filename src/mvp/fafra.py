@@ -4,6 +4,7 @@ import json
 from typing import List
 
 
+from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.mvp.report_generation.report_generator import ReportGenerator
@@ -81,6 +82,7 @@ class MetricGen:
 
     def generate_ra_metrics(self, assessment_path, custom_metric_names, gait_metric_names):
         data = DataLoader().load_data(assessment_path)
+        print('yes')
 
 
 class DataLoader:
@@ -103,15 +105,18 @@ class DataLoader:
         imu_data_filename = [filename for filename in os.listdir(collect_data_path) if filename.startswith("imu_data")][0]
         imu_data_path = os.path.join(collect_data_path, imu_data_filename)
         # Build dataset objects
-        pass
+        return self.build_dataset('mbientlab', imu_data_path, user_info)
 
-    def read_imu_data(self, data_type, imu_data_path, user_info):
+    def build_dataset(self, data_type, imu_data_path, user_info):
         if data_type.lower() == 'mbientlab':
             user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, user_info)
             # TODO: may need to define ra data objects specific to the MVP
         else:
             raise ValueError(f'Unknown IMU datatype provided {data_type}')
-        pass
+        dataset = Dataset(
+            'mbientlab', [imu_data_path], [], user_data, {}
+        )
+        return dataset
 
 
 class Model:
