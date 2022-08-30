@@ -32,7 +32,15 @@ class MbientlabDatasetBuilder(DatasetBuilder):
     def build_dataset(self, dataset_path, demo_data, clinical_demo_path,
                       segment_dataset=True, epoch_size=60.0):
         # Build user data objects
-        dataset_user_data = self.build_single_user(dataset_path, {'user_height': 1.80})
+        dataset_user_data = self.build_single_user(dataset_path, {
+            "user_name": "Grainger Sasso",
+            "user_ID": "abcd_efgh_1234_5678",
+            "age": 25,
+            "height": 1.88,
+            "weight": 83.91,
+            "sex": "M"
+
+        })
         # TODO: Set demographic data
         # Set dataset file
         dataset_name = 'Mbientlab'
@@ -70,7 +78,7 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         weight = demo_data['weight']
         sex = demo_data['sex']
         demo = ClinicalDemographicData(
-            user_id, age, sex, None, height, None, user_name, weight
+            user_id, age, sex, False, height, None, user_name, weight
         )
         return demo
 

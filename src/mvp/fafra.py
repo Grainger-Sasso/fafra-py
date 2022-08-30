@@ -92,7 +92,7 @@ class MetricGen:
         # Preprocess data
         self.preprocess_data(ds)
         # TODO: Get day_ends from data, set output_path
-        day_ends = [[]]
+        day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         skdh_output_path = ''
         # Segment data along walking bouts
         walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, skdh_output_path)
@@ -112,7 +112,7 @@ class MetricGen:
         freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
         for user_data in dataset.get_dataset():
             # Filter the data
-            self.apply_lp_filter(user_data, freq)
+            self.apply_lp_filter(user_data)
 
     def apply_lp_filter(self, user_data):
         filter = MotionFilters()
