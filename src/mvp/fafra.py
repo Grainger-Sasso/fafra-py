@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import json
+import time
 from typing import List
 
 
@@ -102,8 +103,10 @@ class MetricGen:
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
         # Format input metrics
+        input_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics, custom_metric_names)
         # Export metrics
-        print('yes')
+        full_path = self.export_metrics(input_metrics, assessment_path)
+        return full_path, input_metrics
 
     def preprocess_data(self, dataset):
         freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
@@ -229,6 +232,52 @@ class MetricGen:
             dataset.get_dataset(),
             custom_metric_names
         )
+
+    def format_input_metrics(self, custom_input_metrics: InputMetrics,
+                             skdh_input_metrics, custom_metric_names):
+        input_metrics = self.initialize_input_metrics(skdh_input_metrics, custom_metric_names)
+        for user_metrics in skdh_input_metrics:
+            gait_metrics = user_metrics['gait_metrics']
+            for name, val in gait_metrics.items():
+                if name not in ['Bout Starts', 'Bout Duration']:
+                    input_metrics.get_metric(name).append(val)
+        for name, metric in custom_input_metrics.get_metrics().items():
+            input_metrics.get_metric(name).extend(metric.get_value().tolist())
+        final_metrics = InputMetrics()
+        for name, metric in input_metrics.get_metrics().items():
+            metric = np.array(metric)
+            metric = metric[~np.isnan(metric)]
+            metric_mean = metric.mean()
+            final_metrics.set_metric(name, metric_mean)
+        input_metrics.get_labels().extend(custom_input_metrics.get_labels())
+        final_metrics.set_labels(input_metrics.get_labels())
+        return final_metrics
+
+    def initialize_input_metrics(self, skdh_input_metrics, custom_metric_names):
+        input_metrics = InputMetrics()
+        for name in custom_metric_names:
+            input_metrics.set_metric(name, [])
+        for name in skdh_input_metrics[0]['gait_metrics'].keys():
+            if name not in ['Bout Starts', 'Bout Duration']:
+                input_metrics.set_metric(name, [])
+        input_metrics.set_labels([])
+        return input_metrics
+
+    def export_metrics(self, input_metrics: InputMetrics, assessment_path):
+        output_path = os.path.join(assessment_path, 'generated_data', 'ra_model_metrics')
+        metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(output_path, metric_file_name)
+        new_im = {}
+        for name, metric in input_metrics.get_metrics().items():
+            if isinstance(name, MetricNames):
+                new_im[name.value] = metric
+            else:
+                new_im[name] = metric
+        metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
+        with open(full_path, 'w') as f:
+            json.dump(metric_data, f)
+        return full_path
+
 
 class DataLoader:
     def load_json_data(self, file_path):
