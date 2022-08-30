@@ -86,9 +86,6 @@ class FaFRA:
 
 
 class MetricGen:
-    def __init__(self):
-        pass
-
     def generate_ra_metrics(self, assessment_path, custom_metric_names, gait_metric_names):
         ds = DataLoader().load_data(assessment_path)
         # Preprocess data
@@ -316,9 +313,6 @@ class DataLoader:
 
 
 class Model:
-    def __init__(self):
-        pass
-
     def assess_fall_risk(self, model_path, scaler_path, metrics):
         risk_model = self.import_classifier(model_path, scaler_path)
         metrics = self.format_input_metrics_scaling(metrics)
@@ -342,7 +336,6 @@ class Model:
         metrics = np.array(new_metrics)
         metrics = np.reshape(metrics, (1, -1))
         return metrics
-
 
 
 def main():
