@@ -2,6 +2,7 @@ import os
 import numpy as np
 import json
 import time
+import joblib
 from typing import List
 
 
@@ -13,6 +14,7 @@ from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
+from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 from src.mvp.report_generation.report_generator import ReportGenerator
 from src.mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
 from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
@@ -71,13 +73,13 @@ class FaFRA:
             'PARAM:stride SPARC',
             'BOUTPARAM:phase coordination index'
         ]
-        self.ra_model_path = ''
 
-    def perform_risk_assessment(self, assessment_path):
+    def perform_risk_assessment(self, assessment_path, ra_model_path, ra_scaler_path):
         # Generate risk metrics
-        ra_metrics = MetricGen().generate_ra_metrics(assessment_path, self.custom_metric_names, self.gait_metric_names)
+        ra_metrics_path, ra_metrics = MetricGen().generate_ra_metrics(
+            assessment_path, self.custom_metric_names, self.gait_metric_names)
         # Assess risk using risk model
-        ra_results = Model().assess_fall_risk(self.ra_model_path)
+        ra_results = Model().assess_fall_risk(ra_model_path, ra_scaler_path, ra_metrics)
         # Generate risk report
         rg = ReportGenerator()
         rg.generate_report(assessment_path, '', '', '')
@@ -317,14 +319,38 @@ class Model:
     def __init__(self):
         pass
 
-    def assess_fall_risk(self, model_path):
-        pass
+    def assess_fall_risk(self, model_path, scaler_path, metrics):
+        risk_model = self.import_classifier(model_path, scaler_path)
+        metrics = self.format_input_metrics_scaling(metrics)
+        metrics = risk_model.scaler.transform(metrics)
+        prediction = risk_model.make_prediction(metrics)[0]
+        return prediction
+
+    def import_classifier(self, model_path, scaler_path):
+        model = joblib.load(model_path)
+        scaler = joblib.load(scaler_path)
+        classifier = LightGBMRiskClassifier({})
+        classifier.set_model(model)
+        classifier.set_scaler(scaler)
+        return classifier
+
+    def format_input_metrics_scaling(self, input_metrics):
+        metrics = input_metrics.get_metrics()
+        new_metrics = []
+        for name, metric in metrics.items():
+            new_metrics.append(metric)
+        metrics = np.array(new_metrics)
+        metrics = np.reshape(metrics, (1, -1))
+        return metrics
+
 
 
 def main():
     fafra = FaFRA()
-    path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
-    ra = fafra.perform_risk_assessment(path)
+    assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
+    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
+    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+    ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
 
 if __name__ == '__main__':
