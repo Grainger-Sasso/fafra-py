@@ -16,8 +16,12 @@ class PathHandler:
         self.risk_report_folder = ''
         self.skdh_pipeline_results_folder = ''
         self.ra_model_folder = ''
-        self.ra_model_metrics_folder = ''
+        self.ra_metrics_folder = ''
         self.build_paths()
+        # Set later during fafra runtime
+        self.ra_metrics_file = ''
+        self.skdh_pipeline_results_file = ''
+        self.ra_results_file = ''
 
     def build_paths(self):
         # Assessment data paths
@@ -32,4 +36,4 @@ class PathHandler:
         self.risk_report_folder = os.path.join(self.generated_data_folder, 'risk_report')
         self.skdh_pipeline_results_folder = os.path.join(self.generated_data_folder, 'skdh_pipeline_results')
         self.ra_model_folder = os.path.join(self.generated_data_folder, 'ra_model')
-        self.ra_model_metrics_folder = os.path.join(self.generated_data_folder, 'ra_model_metrics')
+        self.ra_metrics_folder = os.path.join(self.generated_data_folder, 'ra_model_metrics')

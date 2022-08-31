@@ -10,6 +10,9 @@ from fpdf import FPDF
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 
+
+from src.mvp.fafra_path_handler import PathHandler
+
 rcParams['axes.spines.top'] = False
 rcParams['axes.spines.right'] = False
 HEIGHT = 297
@@ -25,7 +28,7 @@ class ReportGenerator:
         self.current_x = 0
         self.current_y = 0
 
-    def generate_report(self, skdh_results_path, user_profile_path, test_data_path, fafra_path):
+    def generate_report(self, path_handler: PathHandler, ra_results):
         # Build path to skdh_results_... that are parsed out; used for gait, act, and sleep
         # Build path to User info; used for demographic information
         # Build path to assessment info; used for testing information

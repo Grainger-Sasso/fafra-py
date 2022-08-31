@@ -18,6 +18,7 @@ from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_
 from src.mvp.report_generation.report_generator import ReportGenerator
 from src.mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
 from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
+from src.mvp.fafra_path_handler import PathHandler
 
 
 class FaFRA:
@@ -75,25 +76,27 @@ class FaFRA:
         ]
 
     def perform_risk_assessment(self, assessment_path, ra_model_path, ra_scaler_path):
+        path_handler = PathHandler(assessment_path)
         # Generate risk metrics
         ra_metrics_path, ra_metrics = MetricGen().generate_ra_metrics(
-            assessment_path, self.custom_metric_names, self.gait_metric_names)
+            path_handler, self.custom_metric_names, self.gait_metric_names)
         # Assess risk using risk model
-        ra_results = Model().assess_fall_risk(ra_model_path, ra_scaler_path, ra_metrics)
+        ra_results_file, ra_results = Model().assess_fall_risk(ra_model_path, ra_scaler_path, ra_metrics, path_handler)
         # Generate risk report
         rg = ReportGenerator()
-        rg.generate_report(assessment_path, '', '', '')
+        rg.generate_report(path_handler, ra_results)
 
 
 class MetricGen:
-    def generate_ra_metrics(self, assessment_path, custom_metric_names, gait_metric_names):
-        ds = DataLoader().load_data(assessment_path)
+    def generate_ra_metrics(self, path_handler: PathHandler, custom_metric_names, gait_metric_names):
+        assessment_path = path_handler.assessment_folder
+        ds = DataLoader().load_data(path_handler)
         # Preprocess data
         self.preprocess_data(ds)
         # TODO: Get day_ends from data
         day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         # Segment data along walking bouts
-        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, assessment_path)
+        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
         # Generate metrics on walking data
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds, custom_metric_names)
         pipeline_gen = SKDHPipelineGenerator()
@@ -101,10 +104,11 @@ class MetricGen:
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
         # Format input metrics
-        input_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics, custom_metric_names)
+        ra_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics, custom_metric_names)
         # Export metrics
-        full_path = self.export_metrics(input_metrics, assessment_path)
-        return full_path, input_metrics
+        ra_metrics_path = self.export_metrics(ra_metrics, path_handler)
+        path_handler.ra_metrics_file = ra_metrics_path
+        return ra_metrics_path, ra_metrics
 
     def preprocess_data(self, dataset):
         freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
@@ -161,15 +165,16 @@ class MetricGen:
                 results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
         return results
 
-    def segment_data_walk(self, ds, gait_metric_names, day_ends, assessment_path):
-        skdh_output_path = ''
+    def segment_data_walk(self, ds, gait_metric_names, day_ends, path_handler):
+        skdh_output_path = path_handler.skdh_pipeline_results_folder
         # Run initial pass of SKDH on data
         pipeline_gen = SKDHPipelineGenerator()
         # TODO: Set output path
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
-        self.export_skdh_results(skdh_input_metrics, skdh_output_path)
+        skdh_pipeline_results_path = self.export_skdh_results(skdh_input_metrics, skdh_output_path)
+        path_handler.skdh_pipeline_results_file = skdh_pipeline_results_path
         bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 30.0)
         if bout_ixs:
             walk_data = self.get_walk_imu_data(bout_ixs, ds)
@@ -177,7 +182,7 @@ class MetricGen:
             walk_ds = self.gen_walk_ds(walk_data, ds)
             self.preprocess_data(walk_ds)
         else:
-            print('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
+            raise ValueError('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
         return walk_ds
 
     def export_skdh_results(self, results, path):
@@ -300,8 +305,8 @@ class MetricGen:
         input_metrics.set_labels([])
         return input_metrics
 
-    def export_metrics(self, input_metrics: InputMetrics, assessment_path):
-        output_path = os.path.join(assessment_path, 'generated_data', 'ra_model_metrics')
+    def export_metrics(self, input_metrics: InputMetrics, path_handler: PathHandler):
+        output_path = path_handler.ra_metrics_folder
         metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
         full_path = os.path.join(output_path, metric_file_name)
         new_im = {}
@@ -323,20 +328,18 @@ class DataLoader:
             data = json.load(f)
         return data
 
-    def load_data(self, assessment_path):
+    def load_data(self, path_handler: PathHandler):
         # Load in the assessment data file (contains device type of the IMU data)
-        assess_info_path = os.path.join(assessment_path, 'assessment_info.json')
+        assess_info_path = path_handler.assessment_info_file
         assess_info = self.load_json_data(assess_info_path)
         data_type = assess_info['device_type']
         # Load in the user data json file (contains demographic data of the user)
-        collect_data_path = os.path.join(assessment_path, 'collected_data')
-        user_info_path = os.path.join(collect_data_path, 'user_info.json')
+        user_info_path = path_handler.user_info_file
         user_info = self.load_json_data(user_info_path)
         # Load in the IMU data file based on type
-        imu_data_filename = [filename for filename in os.listdir(collect_data_path) if filename.startswith("imu_data")][0]
-        imu_data_path = os.path.join(collect_data_path, imu_data_filename)
+        imu_data_path = path_handler.imu_data_file
         # Build dataset objects
-        return self.build_dataset('mbientlab', imu_data_path, user_info)
+        return self.build_dataset(data_type, imu_data_path, user_info)
 
     def build_dataset(self, data_type, imu_data_path, user_info):
         if data_type.lower() == 'mbientlab':
@@ -351,12 +354,37 @@ class DataLoader:
 
 
 class Model:
-    def assess_fall_risk(self, model_path, scaler_path, metrics):
+    def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler):
         risk_model = self.import_classifier(model_path, scaler_path)
         metrics = self.format_input_metrics_scaling(metrics)
         metrics = risk_model.scaler.transform(metrics)
         prediction = risk_model.make_prediction(metrics)[0]
-        return prediction
+        if prediction:
+            if self.assess_elevated_risk(path_handler):
+                prediction = 2
+        results = {
+            'model_path': model_path,
+            'scaler_path': scaler_path,
+            'prediction': prediction,
+            'low-risk': 0,
+            'moderate-risk': 1,
+            'high-risk': 2
+        }
+        file_path = self.export_results(results, path_handler)
+        path_handler.ra_results_file = file_path
+        return file_path, results
+
+    def assess_elevated_risk(self, path_handler):
+        elevated_risk = False
+        # Load in the gait metrics and check gait speed against accepted standard of 0.6 m/s
+        results_file = path_handler.skdh_pipeline_results_file
+        with open(results_file, 'r') as f:
+            results_data = json.load(f)
+        gait_metrics = results_data['gait_metrics']
+        gait_speed = gait_metrics['PARAM:gait speed: mean']
+        if gait_speed < 0.6:
+            elevated_risk = True
+        return elevated_risk
 
     def import_classifier(self, model_path, scaler_path):
         model = joblib.load(model_path)
@@ -374,6 +402,14 @@ class Model:
         metrics = np.array(new_metrics)
         metrics = np.reshape(metrics, (1, -1))
         return metrics
+
+    def export_results(self, results, path_handler):
+        output_path = path_handler.ra_model_folder
+        file_name = 'ra_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(output_path, file_name)
+        with open(full_path, 'w') as f:
+            json.dump(results, f)
+        return full_path
 
 
 def main():
