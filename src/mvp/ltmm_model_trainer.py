@@ -159,7 +159,7 @@ class LTMMMetricGenerator:
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
-        gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
+        gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
         input_metrics = None
         for name, header_and_data_file_path in self.head_df_paths.items():

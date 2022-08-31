@@ -90,15 +90,14 @@ class MetricGen:
         ds = DataLoader().load_data(assessment_path)
         # Preprocess data
         self.preprocess_data(ds)
-        # TODO: Get day_ends from data, set output_path
+        # TODO: Get day_ends from data
         day_ends = np.array([[0, 3836477], [3836477, 7607840]])
-        skdh_output_path = ''
         # Segment data along walking bouts
-        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, skdh_output_path)
+        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, assessment_path)
         # Generate metrics on walking data
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds, custom_metric_names)
         pipeline_gen = SKDHPipelineGenerator()
-        gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
+        gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
         # Format input metrics
@@ -162,13 +161,15 @@ class MetricGen:
                 results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
         return results
 
-    def segment_data_walk(self, ds, gait_metric_names, day_ends, skdh_output_path):
+    def segment_data_walk(self, ds, gait_metric_names, day_ends, assessment_path):
+        skdh_output_path = ''
         # Run initial pass of SKDH on data
         pipeline_gen = SKDHPipelineGenerator()
         # TODO: Set output path
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
+        self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 30.0)
         if bout_ixs:
             walk_data = self.get_walk_imu_data(bout_ixs, ds)
@@ -178,6 +179,43 @@ class MetricGen:
         else:
             print('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
         return walk_ds
+
+    def export_skdh_results(self, results, path):
+        result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(path, result_file_name)
+        new_results = {}
+        for name, item in results[0].items():
+            new_results[name] = {}
+            for nest_name, nest_item in item.items():
+                if type(nest_item) is np.float64:
+                    new_results[name][nest_name] = float(nest_item)
+                elif type(nest_item) is list:
+                    new_list = []
+                    for val in nest_item:
+                        if type(val) is np.int64:
+                            new_list.append(int(val))
+                        elif type(val) is np.float64:
+                            new_list.append(float(val))
+                        else:
+                            new_list.append(val)
+                    new_results[name][nest_name] = new_list
+                elif type(nest_item) is np.ndarray:
+                    new_list = []
+                    for val in nest_item:
+                        if type(val) is np.int64:
+                            new_list.append(int(val))
+                        elif type(val) is np.float64:
+                            new_list.append(float(val))
+                        else:
+                            new_list.append(val)
+                    new_results[name][nest_name] = new_list
+                elif type(nest_item) is np.int64:
+                    new_results[name][nest_name] = int(nest_item)
+                else:
+                    new_results[name][nest_name] = nest_item
+        with open(full_path, 'w') as f:
+            json.dump(new_results, f)
+        return full_path
 
     def gen_walk_ds(self, walk_data, ds) -> Dataset:
         dataset = []

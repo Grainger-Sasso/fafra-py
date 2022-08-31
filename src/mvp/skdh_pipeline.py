@@ -29,10 +29,8 @@ class SKDHPipelineGenerator:
         pipeline.add(Sleep(day_window=(12, 24)), save_file=sleep_result_file)
         return pipeline
 
-    def generate_gait_pipeline(self, output_path):
+    def generate_gait_pipeline(self):
         pipeline = Pipeline()
-        # gait_result_file = os.path.join(output_path, 'segmented_gait_results.csv')
-        # pipeline.add(Gait(), save_file=gait_result_file)
         pipeline.add(Gait())
         return pipeline
 
