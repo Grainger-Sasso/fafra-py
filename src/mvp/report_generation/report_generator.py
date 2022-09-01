@@ -30,8 +30,14 @@ class ReportGenerator:
 
     def generate_report(self, path_handler: PathHandler, ra_results):
         # Build path to skdh_results_... that are parsed out; used for gait, act, and sleep
-        # Build path to User info; used for demographic information
+        skdh_results_path = path_handler.skdh_pipeline_results_file
+        skdh_results = self.parse_json(skdh_results_path)
         # Build path to assessment info; used for testing information
+        assessment_info_path = path_handler.assessment_info_file
+        assessment_info_data = self.parse_json(assessment_info_path)
+        # Build path to User info; used for demographic information
+        user_info_path = path_handler.user_info_file
+        user_info_data = self.parse_json(user_info_path)
         #
         pdf = PDF()
         # WRITE IN FRAMEWORK FOR THE WHOLE REPORT
@@ -48,19 +54,23 @@ class ReportGenerator:
         current_y = 0
 
         # From user profile path
-        user_name = 'such a long name'
-        user_id = '123456789'
+        user_name = user_info_data['user_name']
+        user_id = user_info_data['user_ID']
         # From test data path
-        report_generated = 'long ass report'
-        useless_field = 'place holder'
-        test_id = ''
-        collection_period = '2020/12/12-2022/08/09'
+        report_date = assessment_info_data['report_date']
+        report_date = report_date[5:7] + '/' + report_date[8:] + '/' + report_date[0:4]
+        report_generated = report_date
+        assessment_ID = assessment_info_data['assessment_ID']
+        recording_start = assessment_info_data['recording_start']
+        recording_start = recording_start[5:7] + '/' + recording_start[8:] + '/' + recording_start[0:4]
+        recording_end = assessment_info_data['recording_end']
+        recording_end = recording_end[5:7] + '/' + recording_end[8:] + '/' + recording_end[0:4]
+        collection_period = recording_start + '-' + recording_end
         # From fafra path
-        fall_risk_score = 'medium'
-        results = self.get_results_params(skdh_results_path)
-        gait_speed = str(results['gait_metrics']['PARAM:gait speed: mean'])
-        cadence = str(results['gait_metrics']['PARAM:cadence: mean'])
-        steps_per_day = str(results['gait_metrics']['Bout Steps: sum'])
+        fall_risk_score = self.set_fall_risk_value(ra_results)
+        gait_speed = str(round(skdh_results['gait_metrics']['PARAM:gait speed: mean'], 2)) + ' m/s'
+        cadence = str(round(skdh_results['gait_metrics']['PARAM:cadence: mean'], 2)) + '\n' + ' steps/min'
+        steps_per_day = str(round(skdh_results['gait_metrics']['Bout Steps: sum'] / 2, 2))
 
 
         # Header
@@ -71,11 +81,11 @@ class ReportGenerator:
         pdf.image("carapace_logo.jpg", margin_x + 6, current_y + 1, 28, 28)
         pdf.rect(margin_x + 45, current_y + 2, 120, 26, style='')
         # Required fields for header
-        pdf.set_font("helvetica", "", 11)
+        pdf.set_font("helvetica", "", 8)
         pdf.text(margin_x + 50, current_y + 7, "User Name: " + user_name)
         pdf.text(margin_x + 105, current_y + 7, "Report Generated: " + report_generated)
         pdf.text(margin_x + 50, current_y + 15, "User ID: " + user_id)
-        pdf.text(margin_x + 105, current_y + 15, "Useless field: " + useless_field)
+        pdf.text(margin_x + 105, current_y + 15, "Assessment ID: " + assessment_ID)
         pdf.text(margin_x + 50, current_y + 23, "Data Collection Period: " + collection_period)
         pdf.set_font("helvetica", "", 16)
         current_y += 30
@@ -93,7 +103,7 @@ class ReportGenerator:
             '/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/Daily Activity Summary.png')
         image_list.append('/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/pie_graph.png')
         image_list.append('/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/pie_graph.png')
-        pdf.print_page(image_list)
+        pdf.print_page(image_list, skdh_results)
         # header
         # fall risk section
         # activity section
@@ -141,11 +151,23 @@ class ReportGenerator:
 
         pdf.output('/home/grainger/Desktop/skdh_testing/fafra_results/reports/whole_report/SalesReport.pdf')
 
-    def get_results_params(self, skdh_results_path):
+    def parse_json(self, json_file_path):
         # Read results JSON
-        with open(skdh_results_path, 'r') as f:
-            results = json.load(f)
-        return results
+        with open(json_file_path, 'r') as f:
+            data = json.load(f)
+        return data
+
+    def set_fall_risk_value(self, ra_results):
+        prediction = ra_results['prediction']
+        if int(prediction) == 0:
+            fall_risk = 'low'
+        elif int(prediction) == 1:
+            fall_risk = 'medium'
+        elif int(prediction) == 2:
+            fall_risk = 'high'
+        else:
+            raise ValueError(f'Invalid risk assessment result: {prediction}')
+        return fall_risk
 
 
 class PDF(FPDF):
@@ -164,7 +186,7 @@ class PDF(FPDF):
 
         self.line(76, 279.0 - 2 * HEIGHT / 4, 44, 300.0 - 2 * HEIGHT / 4)
 
-    def texts(self, name):
+    def texts(self, skdh_data):
         # Sleep report section
         self.set_font('Arial', '', 22)
         self.text(85, 180, "Sleep Report")
@@ -180,25 +202,26 @@ class PDF(FPDF):
         # index
         self.set_xy(49.0, 270.0 - HEIGHT / 4)
         self.set_font('Arial', '', 9)
-        self.multi_cell(0, 10, "Index           Duration")
+        self.multi_cell(0, 10, "Index           Duration (Hours)")
 
         # index and duration field
         interval = 0
-        for f_name in name:
-            with open(f_name) as f:
-                data = json.load(f)
-            for d in data:
-                self.set_xy(53.0 + interval, 279.0 - HEIGHT / 4)
-                self.set_font('Arial', '', 16)
-                self.multi_cell(0, 10, d)
-                interval += 18
+        self.set_xy(53.0 + interval, 279.0 - HEIGHT / 4)
+        self.set_font('Arial', '', 16)
+        ri = self.compute_sleep_hazard_index(skdh_data)
+        self.multi_cell(0, 10, ri)
+        interval += 18
+        self.set_xy(53.0 + interval, 279.0 - HEIGHT / 4)
+        self.set_font('Arial', '', 16)
+        sd = self.compute_sleep_duration(skdh_data)
+        self.multi_cell(0, 10, sd)
 
         # pie chart title
         self.set_xy(117.0, 255.0 - HEIGHT / 4)
         self.set_font('Arial', '', 18)
         self.multi_cell(0, 10, "Sleep Breakdown")
 
-    def text_activity(self, name):
+    def text_activity(self, name, skdh_data):
         # Activity Report Section
         self.set_font('Arial', '', 20)
         self.text(83, 115, "Activity Report")
@@ -216,15 +239,30 @@ class PDF(FPDF):
         data = [k for k in d]
         self.set_xy(50.0, 279.0 - 2 * HEIGHT / 4)
         self.set_font('Arial', '', 22)
-        self.multi_cell(0, 10, data[0])
+        # Active minutes section
+        act_mins = self.compute_active_mins(skdh_data)
+        self.multi_cell(0, 10, act_mins)
         self.set_xy(65.0, 286.0 - 2 * HEIGHT / 4)
         self.set_font('Arial', '', 16)
-        self.multi_cell(0, 10, data[0])
+        # Recommended number of minutes
+        self.multi_cell(0, 10, '30')
         self.set_font('Arial', '', 10)
         self.text(58, 297.0 - 2 * HEIGHT / 4, "recommended")
         self.text(63, 302.0 - 2 * HEIGHT / 4, "minutes")
         self.set_font('Arial', '', 18)
         self.text(115.0, 270.0 - 2 * HEIGHT / 4, "Activity Breakdown")
+
+    def compute_active_mins(self, skdh_results):
+        total = sum(skdh_results['act_metrics']['wake mod 5s epoch [min]']) + sum(skdh_results['act_metrics']['wake vig 5s epoch [min]'])
+        return str(round(total / len(skdh_results['act_metrics']['wake mod 5s epoch [min]']), 2))
+
+    def compute_sleep_duration(self, skdh_results):
+        total = sum(skdh_results['sleep_metrics']['average sleep duration'])
+        return str(round(total / len(skdh_results['sleep_metrics']['average sleep duration']) / 60.0, 2))
+
+    def compute_sleep_hazard_index(self, skdh_results):
+        total = sum(skdh_results['sleep_metrics']['sleep average hazard'])
+        return str(round(total / len(skdh_results['sleep_metrics']['sleep average hazard']), 2))
 
     def page_body(self, images):
         # Determine how many plots there are per page and set positions
@@ -235,18 +273,31 @@ class PDF(FPDF):
             self.image(images[0], 0, 245, self.WIDTH, self.HEIGHT / 5 - 10)
             # self.image(images[0], -10, 235, self.WIDTH+20,self.HEIGHT/5)
 
-    def print_page(self, images):
+    def print_page(self, images, skdh_data):
         # Generates the report
         self.page_body(images)
-        self.texts(['./digit.json', './digit.json'])
-        self.text_activity(['./digit.json', './digit.json'])
+        self.texts(skdh_data)
+        self.text_activity(['./digit.json', './digit.json'], skdh_data)
         self.lines()
 
 
 def main():
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/skdh_results_20220815-171703.json'
+    assessment_path = assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
+    path_handler = PathHandler(assessment_path)
+    path_handler.ra_metrics_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/ra_model_metrics/model_input_metrics_20220831-171046.json'
+    path_handler.skdh_pipeline_results_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/skdh_pipeline_results/skdh_results_20220831-171046.json'
+    path_handler.ra_results_file = ''
+    ra_results = {
+        'model_path': '',
+        'scaler_path': '',
+        'prediction': 0,
+        'low-risk': 0,
+        'moderate-risk': 1,
+        'high-risk': 2
+    }
     rg = ReportGenerator()
-    rg.generate_report(skdh_path, '', '', '')
+    rg.generate_report(path_handler, ra_results)
 
 
 if __name__ == '__main__':
