@@ -10,7 +10,7 @@ from fpdf import FPDF
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 
-
+from src.mvp.report_generation.pie_chart_generator import SKDHPlotGenerator
 from src.mvp.fafra_path_handler import PathHandler
 
 rcParams['axes.spines.top'] = False
@@ -98,11 +98,17 @@ class ReportGenerator:
         pdf.rect(x=40, y=256 - HEIGHT / 4, w=45, h=45, round_corners=True)
         #####
         # Fills in the detail of the sleep and activity sections, adds images
+        # Generate the pie charts, pass their paths to this list
+        plt_gen = SKDHPlotGenerator()
+        base_path = path_handler.risk_report_folder
+        folder_path = os.path.join(base_path, 'report_subcomponents')
+        path_handler.ra_report_subcomponents_folder = folder_path
+        plt_gen.gen_skdh_plots(path_handler)
         image_list = []
         image_list.append(
             '/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/Daily Activity Summary.png')
-        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/pie_graph.png')
-        image_list.append('/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/pie_graph.png')
+        image_list.append(path_handler.ra_report_act_chart_file)
+        image_list.append(path_handler.ra_report_sleep_chart_file)
         pdf.print_page(image_list, skdh_results)
         # header
         # fall risk section
@@ -202,19 +208,42 @@ class PDF(FPDF):
         # index
         self.set_xy(49.0, 270.0 - HEIGHT / 4)
         self.set_font('Arial', '', 9)
-        self.multi_cell(0, 10, "Index           Duration (Hours)")
+        self.multi_cell(0, 10, "Index           Duration")
 
-        # index and duration field
+        # restlessness index and duration field
         interval = 0
         self.set_xy(53.0 + interval, 279.0 - HEIGHT / 4)
         self.set_font('Arial', '', 16)
-        ri = self.compute_sleep_hazard_index(skdh_data)
-        self.multi_cell(0, 10, ri)
+        restless_ix = self.compute_sleep_hazard_index(skdh_data)
+        ###
+        # Set color for fall-risk rectangles
+        if float(restless_ix) > 1.15:
+            self.set_fill_color(255, 0, 0)
+        elif 1.0 <= float(restless_ix) <= 1.15:
+            self.set_fill_color(255, 255, 0)
+        else:
+            self.set_fill_color(0, 255, 0)
+        high_style = 'DF' if float(restless_ix) > 1.15 else 'D'
+        medium_style = 'DF' if 1.0 <= float(restless_ix) <= 1.15 else 'D'
+        low_style = 'DF' if float(restless_ix) < 1.0 else 'D'
+        self.rect(44, 278.0 - HEIGHT / 4, w=20, h=6, style=high_style)
+        self.set_font('Arial', '', 12)
+        self.text(49, 283.0 - HEIGHT / 4, "HIGH")
+        self.rect(44, 285.0 - HEIGHT / 4, w=20, h=6, style=medium_style)
+        self.text(46, 290.0 - HEIGHT / 4, "MEDIUM")
+        self.rect(44, 292.0 - HEIGHT / 4, w=20, h=6, style=low_style)
+        self.text(50, 297.0 - HEIGHT / 4, "LOW")
+        self.set_fill_color(211, 211, 211)
+        ###
+
+
+        # self.multi_cell(0, 10, ri)
         interval += 18
-        self.set_xy(53.0 + interval, 279.0 - HEIGHT / 4)
-        self.set_font('Arial', '', 16)
+        self.set_xy(50.0 + interval, 279.0 - HEIGHT / 4)
+        self.set_font('Arial', '', 14)
         sd = self.compute_sleep_duration(skdh_data)
         self.multi_cell(0, 10, sd)
+        self.text(50.0 + interval, 290.0 - HEIGHT / 4, "hours")
 
         # pie chart title
         self.set_xy(117.0, 255.0 - HEIGHT / 4)
@@ -238,7 +267,7 @@ class PDF(FPDF):
                     d.append(k)
         data = [k for k in d]
         self.set_xy(50.0, 279.0 - 2 * HEIGHT / 4)
-        self.set_font('Arial', '', 22)
+        self.set_font('Arial', '', 18)
         # Active minutes section
         act_mins = self.compute_active_mins(skdh_data)
         self.multi_cell(0, 10, act_mins)

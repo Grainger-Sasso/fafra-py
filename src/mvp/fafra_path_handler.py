@@ -22,6 +22,9 @@ class PathHandler:
         self.ra_metrics_file = ''
         self.skdh_pipeline_results_file = ''
         self.ra_results_file = ''
+        self.ra_report_subcomponents_folder = ''
+        self.ra_report_act_chart_file = ''
+        self.ra_report_sleep_chart_file = ''
 
     def build_paths(self):
         # Assessment data paths
