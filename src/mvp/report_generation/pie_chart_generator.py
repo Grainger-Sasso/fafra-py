@@ -3,20 +3,30 @@ import time
 import json
 from matplotlib import pyplot as plt
 
+from src.mvp.fafra_path_handler import PathHandler
+
 
 class SKDHPlotGenerator:
     def __init__(self):
         pass
 
-    def gen_skdh_plots(self, skdh_results_path, output_path):
+    def gen_skdh_plots(self, path_handler: PathHandler):
+        # Build output path
+        output_path = path_handler.ra_report_subcomponents_folder
+        skdh_results_path = path_handler.skdh_pipeline_results_file
         # Read in skdh results
         skdh_results_data = self.read_json(skdh_results_path)
         # Generate pie charts
-        act_pie_path, sleep_pie_path = self.gen_pie_charts(skdh_results_data, output_path)
+        act_pie_path, sleep_pie_path = self.gen_pie_charts(skdh_results_data, output_path, path_handler)
         # Generate activity heat maps
         return act_pie_path, sleep_pie_path
 
-    def gen_pie_charts(self, skdh_results_data, output_path):
+    def create_output_path(self, path_handler):
+        base_path = path_handler.ra_model_folder
+        folder_path = os.path.join(base_path, 'report_subcomponents')
+        pass
+
+    def gen_pie_charts(self, skdh_results_data, output_path, path_handler):
         # Grab activity and sleep data
         activity_data = skdh_results_data['act_metrics']
         sleep_data = skdh_results_data['sleep_metrics']
@@ -26,6 +36,8 @@ class SKDHPlotGenerator:
         metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
         act_plot_path = os.path.join(output_path, str('activity_pie_chart_' + time.strftime("%Y%m%d-%H%M%S") + '.png'))
         sleep_plot_path = os.path.join(output_path, str('sleep_pie_chart_' + time.strftime("%Y%m%d-%H%M%S") + '.png'))
+        path_handler.ra_report_act_chart_file = act_plot_path
+        path_handler.ra_report_sleep_chart_file = sleep_plot_path
         act_fig.savefig(act_plot_path)
         sleep_fig.savefig(sleep_plot_path)
         return act_plot_path, sleep_plot_path

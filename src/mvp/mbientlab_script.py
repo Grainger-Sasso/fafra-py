@@ -2,8 +2,8 @@ import datetime
 import csv
 import numpy as np
 
-from src.fibion_mvp.skdh_pipeline import SKDHPipelineGenerator
-from src.fibion_mvp.skdh_pipeline import SKDHPipelineRunner
+from src.mvp.skdh_pipeline import SKDHPipelineGenerator
+from src.mvp.skdh_pipeline import SKDHPipelineRunner
 
 def run_pipeline(path, output_path):
     gait_metric_names = [

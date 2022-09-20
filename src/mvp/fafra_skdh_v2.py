@@ -20,8 +20,8 @@ from skdh.activity import ActivityLevelClassification
 import joblib
 
 from src.motion_analysis.filters.motion_filters import MotionFilters
-from src.fibion_mvp.fibion_dataset_builder import FibionDatasetBuilder
-from src.fibion_mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
+from src.mvp.fibion_dataset_builder import FibionDatasetBuilder
+from src.mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
@@ -36,7 +36,7 @@ from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_metadata import IMUMetadata
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.dataset_tools.risk_assessment_data.clinical_demographic_data import ClinicalDemographicData
-from src.fibion_mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
+from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 
 
 class FaFRA_SKDH:
@@ -182,7 +182,7 @@ class FaFRAMetricGenerator:
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
-        gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
+        gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
 
         self.preprocess_data(ds)

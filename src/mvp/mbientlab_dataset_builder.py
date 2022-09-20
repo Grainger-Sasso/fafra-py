@@ -32,7 +32,15 @@ class MbientlabDatasetBuilder(DatasetBuilder):
     def build_dataset(self, dataset_path, demo_data, clinical_demo_path,
                       segment_dataset=True, epoch_size=60.0):
         # Build user data objects
-        dataset_user_data = self.build_single_user(dataset_path, {'user_height': 1.80})
+        dataset_user_data = self.build_single_user(dataset_path, {
+            "user_name": "Grainger Sasso",
+            "user_ID": "abcd_efgh_1234_5678",
+            "age": 25,
+            "height": 1.88,
+            "weight": 83.91,
+            "sex": "M"
+
+        })
         # TODO: Set demographic data
         # Set dataset file
         dataset_name = 'Mbientlab'
@@ -48,8 +56,8 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
                  'anteroposterior-acc': 'g'}
         # TODO: Use ID and hashmap system to map clinical demographic data to users
-        clinical_demo_data = ClinicalDemographicData('', 0.0, '', False, demo_data['user_height'],
-                                                     None)
+
+        clinical_demo_data = self.set_demo_data(demo_data)
         # TODO: get the correct sampling frequency
         imu_metadata = IMUMetadata(None, self.sampling_frequency, units)
         imu_data = IMUData('', '',
@@ -61,6 +69,18 @@ class MbientlabDatasetBuilder(DatasetBuilder):
             clinical_demo_file_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data
         )]
         return user_data
+
+    def set_demo_data(self, demo_data):
+        user_name = demo_data['user_name']
+        user_id = demo_data['user_ID']
+        age = demo_data['age']
+        height = demo_data['height']
+        weight = demo_data['weight']
+        sex = demo_data['sex']
+        demo = ClinicalDemographicData(
+            user_id, age, sex, False, height, None, user_name, weight
+        )
+        return demo
 
     def read_mbient_file(self, path):
         with open(path, newline='') as f:

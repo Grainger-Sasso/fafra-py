@@ -18,7 +18,7 @@ from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.input_metrics.metric_names import MetricNames
-from src.fibion_mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
+from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 # from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 
@@ -159,7 +159,7 @@ class LTMMMetricGenerator:
         pipeline_gen = SKDHPipelineGenerator()
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
-        gait_pipeline = pipeline_gen.generate_gait_pipeline(skdh_output_path)
+        gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
         input_metrics = None
         for name, header_and_data_file_path in self.head_df_paths.items():
