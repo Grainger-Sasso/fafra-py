@@ -74,7 +74,7 @@ class SKDHPipelineRunner:
         sleep_metrics = self.parse_results(results, 'Sleep', self.sleep_metric_names)
         return {'gait_metrics': gait_metrics, 'act_metrics': act_metrics, 'sleep_metrics': sleep_metrics}
 
-    def run_gait_pipeline(self, data, time, fs, day_ends=np.array([])):
+    def run_gait_pipeline(self, data, time, fs, day_ends=np.array([]), format_results=True):
         # TODO: list data shape here
         data = np.ascontiguousarray(data)
         # TODO: configure user height
