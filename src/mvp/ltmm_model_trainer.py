@@ -203,6 +203,7 @@ class LTMMMetricGenerator:
             print('\n')
         full_path = self.export_metrics(input_metrics, im_path)
         print(time.time() - time0)
+        print(f'COMPLETE')
         print(
             f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
         print(
@@ -398,18 +399,11 @@ class LTMMMetricGenerator:
             json.dump(new_results, f)
         return full_path
 
-    def export_metrics(self, input_metrics: InputMetrics, output_path):
+    def export_metrics(self, input_metrics, output_path):
         metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
         full_path = os.path.join(output_path, metric_file_name)
-        new_im = {}
-        for name, metric in input_metrics.get_metrics().items():
-            if isinstance(name, MetricNames):
-                new_im[name.value] = metric
-            else:
-                new_im[name] = metric
-        metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
         with open(full_path, 'w') as f:
-            json.dump(metric_data, f)
+            json.dump(input_metrics, f)
         return full_path
 
     def segment_data(self, data, epoch_size, sampling_frequency):
@@ -474,16 +468,24 @@ class LTMMMetricGenerator:
     def format_input_metrics(self, input_metrics,
                              custom_input_metrics: InputMetrics,
                              skdh_input_metrics, user_name):
-        bout_metrics = {'name': user_name, 'label': custom_input_metrics.get_labels()[0]}
-        composite_metrics = {}
+        bout_metrics = {
+            'name': user_name,
+            'label': custom_input_metrics.get_labels()[0],
+            'bout_number': len(skdh_input_metrics)
+        }
+        new_composite_metrics = {}
         for user_metrics in skdh_input_metrics:
             gait_metrics = user_metrics['gait_metrics']
             for name, val in gait_metrics.items():
                 if name not in ['Bout Starts', 'Bout Duration']:
-                    composite_metrics[name] = val
+                    if name not in new_composite_metrics.keys():
+                        new_composite_metrics[name] = []
+                        new_composite_metrics[name].append(val)
+                    else:
+                        new_composite_metrics[name].append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
-            composite_metrics[name] = metric.get_value().tolist()
-        bout_metrics['metrics'] = composite_metrics
+            new_composite_metrics[name.value] = metric.get_value().tolist()
+        bout_metrics['metrics'] = new_composite_metrics
         input_metrics.append(bout_metrics)
 
     def plot_walk_data(self, walk_ds):
