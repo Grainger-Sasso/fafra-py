@@ -208,7 +208,6 @@ class LTMMMetricGenerator:
             f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
         print(
             f'Percentage of failed segmentations: {(self.bout_seg_fail_total / self.running_analysis_total) * 100.0}')
-        print(input_metrics.get_metrics())
         return full_path
 
     def gen_walk_ds(self, walk_data, ds) -> Dataset:
