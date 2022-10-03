@@ -92,8 +92,10 @@ class ReportGenerator:
         #####
         # Writes in the general activity and sleep sections
         pdf.set_fill_color(211, 211, 211)
-        pdf.rect(x=20, y=255 - 2 * HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
-        pdf.rect(x=20, y=245 - HEIGHT / 4, w=WIDTH - 40, h=60, style='DF')
+        # ACTIVITY BORDER
+        pdf.rect(x=20, y=253 - 2 * HEIGHT / 4, w=WIDTH - 40, h=90, style='DF')
+        # SLEEP BORDER
+        pdf.rect(x=20, y=201.5, w=WIDTH - 40, h=90, style='DF')
         pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
         pdf.rect(x=40, y=256 - HEIGHT / 4, w=45, h=45, round_corners=True)
         #####
@@ -104,11 +106,11 @@ class ReportGenerator:
         folder_path = os.path.join(base_path, 'report_subcomponents')
         path_handler.ra_report_subcomponents_folder = folder_path
         plt_gen.gen_skdh_plots(path_handler)
-        image_list = []
-        image_list.append(
-            '/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/Daily Activity Summary.png')
-        image_list.append(path_handler.ra_report_act_chart_file)
-        image_list.append(path_handler.ra_report_sleep_chart_file)
+        image_list = [
+            path_handler.ra_report_act_chart_file,
+            path_handler.ra_report_sleep_chart_file
+        ]
+
         pdf.print_page(image_list, skdh_results)
         # header
         # fall risk section
@@ -194,8 +196,9 @@ class PDF(FPDF):
 
     def texts(self, skdh_data):
         # Sleep report section
+
         self.set_font('Arial', '', 22)
-        self.text(85, 180, "Sleep Report")
+        self.text(85, 212, "Sleep Report")
         # sleepScore
         self.set_xy(47.0, 258.0 - HEIGHT / 4)
         self.set_font('Arial', '', 14)
@@ -254,7 +257,6 @@ class PDF(FPDF):
         # Activity Report Section
         self.set_font('Arial', '', 20)
         self.text(83, 115, "Activity Report")
-        self.text(86, 241, "Daily Activity")
         # Minutes section
         self.set_xy(45.0, 268.0 - 2 * HEIGHT / 4)
         self.set_font('Arial', '', 14)
@@ -296,23 +298,21 @@ class PDF(FPDF):
     def page_body(self, images):
         # Determine how many plots there are per page and set positions
         # and margins accordingly
-        if len(images) == 3:
-            self.image(images[2], 125, 273 - 2 * HEIGHT / 4, 37, 37)
-            self.image(images[1], 125, 265.0 - HEIGHT / 4, 37, 37)
-            self.image(images[0], 0, 245, self.WIDTH, self.HEIGHT / 5 - 10)
-            # self.image(images[0], -10, 235, self.WIDTH+20,self.HEIGHT/5)
+        if len(images) == 2:
+            self.image(images[1], 125, 273 - 2 * HEIGHT / 4, 37, 37)
+            self.image(images[0], 125, 265.0 - HEIGHT / 4, 37, 37)
 
     def print_page(self, images, skdh_data):
         # Generates the report
         self.page_body(images)
         self.texts(skdh_data)
         self.text_activity(['./digit.json', './digit.json'], skdh_data)
-        self.lines()
+        # self.lines()
 
 
 def main():
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/skdh_results_20220815-171703.json'
-    assessment_path = assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
+    assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
     path_handler = PathHandler(assessment_path)
     path_handler.ra_metrics_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/ra_model_metrics/model_input_metrics_20220831-171046.json'
     path_handler.skdh_pipeline_results_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/skdh_pipeline_results/skdh_results_20220831-171046.json'
