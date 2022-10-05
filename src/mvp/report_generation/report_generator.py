@@ -73,7 +73,7 @@ class ReportGenerator:
         steps_per_day = str(round(skdh_results['gait_metrics']['Bout Steps: sum'] / 2, 2))
 
 
-        # Header
+        #### Header
         current_y += margin_y
         pdf.set_fill_color(211, 211, 211)
         # Header rectangles and logo image
@@ -90,14 +90,7 @@ class ReportGenerator:
         pdf.set_font("helvetica", "", 16)
         current_y += 30
         #####
-        # Writes in the general activity and sleep sections
-        pdf.set_fill_color(211, 211, 211)
-        # ACTIVITY BORDER
-        pdf.rect(x=20, y=253 - 2 * HEIGHT / 4, w=WIDTH - 40, h=90, style='DF')
-        # SLEEP BORDER
-        pdf.rect(x=20, y=201.5, w=WIDTH - 40, h=90, style='DF')
-        pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
-        pdf.rect(x=40, y=256 - HEIGHT / 4, w=45, h=45, round_corners=True)
+
         #####
         # Fills in the detail of the sleep and activity sections, adds images
         # Generate the pie charts, pass their paths to this list
@@ -106,12 +99,18 @@ class ReportGenerator:
         folder_path = os.path.join(base_path, 'report_subcomponents')
         path_handler.ra_report_subcomponents_folder = folder_path
         plt_gen.gen_skdh_plots(path_handler)
-        image_list = [
+        images = [
             path_handler.ra_report_act_chart_file,
             path_handler.ra_report_sleep_chart_file
         ]
-
-        pdf.print_page(image_list, skdh_results)
+        
+        # Writes in the general activity and sleep sections
+        pdf.set_fill_color(211, 211, 211)
+        self.build_activity_section(pdf, images, skdh_results)
+        #####
+        # Sleep report section
+        self.build_sleep_section(pdf, skdh_results)
+        pdf.print_page(images, skdh_results)
         # header
         # fall risk section
         # activity section
@@ -157,7 +156,89 @@ class ReportGenerator:
         pdf.set_font("helvetica", "", 16)
         current_y += rect_height
 
-        pdf.output('/home/grainger/Desktop/skdh_testing/fafra_results/reports/whole_report/SalesReport.pdf')
+        pdf.output(os.path.join(path_handler.risk_report_folder, 'SalesReport.pdf'))
+
+    def build_activity_section(self, pdf, images, skdh_results):
+        # ACTIVITY BORDER, ACTIVITY MINS BORDER
+        pdf.rect(x=20, y=253 - 2 * HEIGHT / 4, w=WIDTH - 40, h=90, style='DF')
+        pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
+        # Activity Report Section
+        pdf.set_font('Arial', '', 20)
+        pdf.text(83, 115, "Activity Report")
+        # Minutes section
+        pdf.set_xy(45.0, 268.0 - 2 * HEIGHT / 4)
+        pdf.set_font('Arial', '', 14)
+        pdf.multi_cell(0, 10, "Active Minutes")
+        pdf.set_xy(50.0, 279.0 - 2 * HEIGHT / 4)
+        pdf.set_font('Arial', '', 18)
+        # Active minutes section
+        act_mins = pdf.compute_active_mins(skdh_results)
+        pdf.multi_cell(0, 10, act_mins)
+        pdf.set_xy(65.0, 286.0 - 2 * HEIGHT / 4)
+        pdf.set_font('Arial', '', 16)
+        # Recommended number of minutes
+        pdf.multi_cell(0, 10, '30')
+        pdf.set_font('Arial', '', 10)
+        pdf.text(58, 297.0 - 2 * HEIGHT / 4, "recommended")
+        pdf.text(63, 302.0 - 2 * HEIGHT / 4, "minutes")
+        pdf.set_font('Arial', '', 18)
+        pdf.text(115.0, 270.0 - 2 * HEIGHT / 4, "Activity Breakdown")
+        pdf.line(76, 279.0 - 2 * HEIGHT / 4, 44, 300.0 - 2 * HEIGHT / 4)
+    
+    def build_sleep_section(self, pdf, skdh_results):
+        sleep_start_y = 201.5
+        # SLEEP BORDER, SLEEP SCORES BORDER
+        pdf.rect(x=20, y=sleep_start_y, w=WIDTH - 40, h=90, style='DF')
+        pdf.set_font('Arial', '', 22)
+        pdf.text(85, sleep_start_y + 12, "Sleep Report")
+        # Sleep score
+        score_section_y = sleep_start_y + 30
+        pdf.rect(x=40, y=score_section_y, w=45, h=45, round_corners=True)
+        pdf.set_xy(47.0, score_section_y)
+        pdf.set_font('Arial', '', 14)
+        pdf.multi_cell(0, 10, "Sleep Scores")
+        # restlessness
+        pdf.set_xy(44.0, score_section_y + 8)
+        pdf.set_font('Arial', '', 9)
+        pdf.multi_cell(0, 10, "Restlessness      Sleep")
+        # index
+        pdf.set_xy(49.0, score_section_y + 12)
+        pdf.set_font('Arial', '', 9)
+        pdf.multi_cell(0, 10, "Index           Duration")
+
+        # restlessness index and duration field
+        restless_ix = pdf.compute_sleep_hazard_index(skdh_results)
+        ###
+        # Set color for fall-risk rectangles
+        if float(restless_ix) > 1.15:
+            pdf.set_fill_color(255, 0, 0)
+        elif 1.0 <= float(restless_ix) <= 1.15:
+            pdf.set_fill_color(255, 255, 0)
+        else:
+            pdf.set_fill_color(0, 255, 0)
+        high_style = 'DF' if float(restless_ix) > 1.15 else 'D'
+        medium_style = 'DF' if 1.0 <= float(restless_ix) <= 1.15 else 'D'
+        low_style = 'DF' if float(restless_ix) < 1.0 else 'D'
+        pdf.rect(44, score_section_y + 20, w=20, h=6, style=high_style)
+        pdf.set_font('Arial', '', 12)
+        pdf.text(49, score_section_y + 25, "HIGH")
+        pdf.rect(44, score_section_y + 28, w=20, h=6, style=medium_style)
+        pdf.text(46, score_section_y + 33, "MEDIUM")
+        pdf.rect(44, score_section_y + 36, w=20, h=6, style=low_style)
+        pdf.text(50, score_section_y + 41, "LOW")
+        pdf.set_fill_color(211, 211, 211)
+        ###
+        # Fill index colors
+        pdf.set_xy(68.0, score_section_y + 20)
+        pdf.set_font('Arial', '', 14)
+        sd = pdf.compute_sleep_duration(skdh_results)
+        pdf.multi_cell(0, 10, sd)
+        pdf.text(68.0, score_section_y + 31, "hours")
+
+        # pie chart title
+        pdf.set_xy(117.0, score_section_y)
+        pdf.set_font('Arial', '', 18)
+        pdf.multi_cell(0, 10, "Sleep Breakdown")
 
     def parse_json(self, json_file_path):
         # Read results JSON
@@ -192,96 +273,7 @@ class PDF(FPDF):
         self.line(10.0, 235.0, 10.0, 235.0 + self.HEIGHT / 5)  # left one
         self.line(self.WIDTH - 10, 235.0, self.WIDTH - 10, 235.0 + self.HEIGHT / 5)  # right one
 
-        self.line(76, 279.0 - 2 * HEIGHT / 4, 44, 300.0 - 2 * HEIGHT / 4)
 
-    def texts(self, skdh_data):
-        # Sleep report section
-
-        self.set_font('Arial', '', 22)
-        self.text(85, 212, "Sleep Report")
-        # sleepScore
-        self.set_xy(47.0, 258.0 - HEIGHT / 4)
-        self.set_font('Arial', '', 14)
-        self.multi_cell(0, 10, "Sleep Scores")
-        # restlessness
-        self.set_xy(44.0, 265.0 - HEIGHT / 4)
-        # self.set_text_color(76.0, 32.0, 250.0)
-        self.set_font('Arial', '', 9)
-        self.multi_cell(0, 10, "Restlessness      Sleep")
-        # index
-        self.set_xy(49.0, 270.0 - HEIGHT / 4)
-        self.set_font('Arial', '', 9)
-        self.multi_cell(0, 10, "Index           Duration")
-
-        # restlessness index and duration field
-        interval = 0
-        self.set_xy(53.0 + interval, 279.0 - HEIGHT / 4)
-        self.set_font('Arial', '', 16)
-        restless_ix = self.compute_sleep_hazard_index(skdh_data)
-        ###
-        # Set color for fall-risk rectangles
-        if float(restless_ix) > 1.15:
-            self.set_fill_color(255, 0, 0)
-        elif 1.0 <= float(restless_ix) <= 1.15:
-            self.set_fill_color(255, 255, 0)
-        else:
-            self.set_fill_color(0, 255, 0)
-        high_style = 'DF' if float(restless_ix) > 1.15 else 'D'
-        medium_style = 'DF' if 1.0 <= float(restless_ix) <= 1.15 else 'D'
-        low_style = 'DF' if float(restless_ix) < 1.0 else 'D'
-        self.rect(44, 278.0 - HEIGHT / 4, w=20, h=6, style=high_style)
-        self.set_font('Arial', '', 12)
-        self.text(49, 283.0 - HEIGHT / 4, "HIGH")
-        self.rect(44, 285.0 - HEIGHT / 4, w=20, h=6, style=medium_style)
-        self.text(46, 290.0 - HEIGHT / 4, "MEDIUM")
-        self.rect(44, 292.0 - HEIGHT / 4, w=20, h=6, style=low_style)
-        self.text(50, 297.0 - HEIGHT / 4, "LOW")
-        self.set_fill_color(211, 211, 211)
-        ###
-
-
-        # self.multi_cell(0, 10, ri)
-        interval += 18
-        self.set_xy(50.0 + interval, 279.0 - HEIGHT / 4)
-        self.set_font('Arial', '', 14)
-        sd = self.compute_sleep_duration(skdh_data)
-        self.multi_cell(0, 10, sd)
-        self.text(50.0 + interval, 290.0 - HEIGHT / 4, "hours")
-
-        # pie chart title
-        self.set_xy(117.0, 255.0 - HEIGHT / 4)
-        self.set_font('Arial', '', 18)
-        self.multi_cell(0, 10, "Sleep Breakdown")
-
-    def text_activity(self, name, skdh_data):
-        # Activity Report Section
-        self.set_font('Arial', '', 20)
-        self.text(83, 115, "Activity Report")
-        # Minutes section
-        self.set_xy(45.0, 268.0 - 2 * HEIGHT / 4)
-        self.set_font('Arial', '', 14)
-        self.multi_cell(0, 10, "Active Minutes")
-        d = []
-        for f_name in name:
-            with open(f_name) as f:
-                data = json.load(f)
-                for k in data:
-                    d.append(k)
-        data = [k for k in d]
-        self.set_xy(50.0, 279.0 - 2 * HEIGHT / 4)
-        self.set_font('Arial', '', 18)
-        # Active minutes section
-        act_mins = self.compute_active_mins(skdh_data)
-        self.multi_cell(0, 10, act_mins)
-        self.set_xy(65.0, 286.0 - 2 * HEIGHT / 4)
-        self.set_font('Arial', '', 16)
-        # Recommended number of minutes
-        self.multi_cell(0, 10, '30')
-        self.set_font('Arial', '', 10)
-        self.text(58, 297.0 - 2 * HEIGHT / 4, "recommended")
-        self.text(63, 302.0 - 2 * HEIGHT / 4, "minutes")
-        self.set_font('Arial', '', 18)
-        self.text(115.0, 270.0 - 2 * HEIGHT / 4, "Activity Breakdown")
 
     def compute_active_mins(self, skdh_results):
         total = sum(skdh_results['act_metrics']['wake mod 5s epoch [min]']) + sum(skdh_results['act_metrics']['wake vig 5s epoch [min]'])
@@ -299,14 +291,14 @@ class PDF(FPDF):
         # Determine how many plots there are per page and set positions
         # and margins accordingly
         if len(images) == 2:
-            self.image(images[1], 125, 273 - 2 * HEIGHT / 4, 37, 37)
-            self.image(images[0], 125, 265.0 - HEIGHT / 4, 37, 37)
+            # SLEEP
+            self.image(images[1], 125, 240, 70, 70)
+            # ACTIVITY
+            self.image(images[0], 100, 273 - 2 * HEIGHT / 4, 80, 60)
 
     def print_page(self, images, skdh_data):
         # Generates the report
         self.page_body(images)
-        self.texts(skdh_data)
-        self.text_activity(['./digit.json', './digit.json'], skdh_data)
         # self.lines()
 
 
