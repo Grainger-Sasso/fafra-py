@@ -81,7 +81,7 @@ class ReportGenerator:
         pdf.image("carapace_logo.jpg", margin_x + 6, current_y + 1, 28, 28)
         pdf.rect(margin_x + 45, current_y + 2, 120, 26, style='')
         # Required fields for header
-        pdf.set_font("helvetica", "", 8)
+        pdf.set_font("helvetica", "", 9)
         pdf.text(margin_x + 50, current_y + 7, "User Name: " + user_name)
         pdf.text(margin_x + 105, current_y + 7, "Report Generated: " + report_generated)
         pdf.text(margin_x + 50, current_y + 15, "User ID: " + user_id)
