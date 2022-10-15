@@ -72,7 +72,6 @@ class ReportGenerator:
         cadence = str(round(skdh_results['gait_metrics']['PARAM:cadence: mean'], 2)) + '\n' + ' steps/min'
         steps_per_day = str(round(skdh_results['gait_metrics']['Bout Steps: sum'] / 2, 2))
 
-
         #### Header
         current_y += margin_y
         pdf.set_fill_color(211, 211, 211)
@@ -110,7 +109,7 @@ class ReportGenerator:
         #####
         # Sleep report section
         self.build_sleep_section(pdf, skdh_results)
-        pdf.print_page(images, skdh_results)
+        # pdf.print_page(images, skdh_results)
         # header
         # fall risk section
         # activity section
@@ -159,31 +158,37 @@ class ReportGenerator:
         pdf.output(os.path.join(path_handler.risk_report_folder, 'SalesReport.pdf'))
 
     def build_activity_section(self, pdf, images, skdh_results):
+        act_start_y = 106
         # ACTIVITY BORDER, ACTIVITY MINS BORDER
-        pdf.rect(x=20, y=253 - 2 * HEIGHT / 4, w=WIDTH - 40, h=90, style='DF')
-        pdf.rect(x=40, y=265 - 2 * HEIGHT / 4, w=45, h=45, round_corners=True)
+        pdf.rect(x=20, y=act_start_y, w=WIDTH - 40, h=90, style='DF')
+        act_mins_y = act_start_y + 25
+        pdf.rect(x=40, y=act_mins_y, w=45, h=45, round_corners=True)
         # Activity Report Section
         pdf.set_font('Arial', '', 20)
         pdf.text(83, 115, "Activity Report")
         # Minutes section
-        pdf.set_xy(45.0, 268.0 - 2 * HEIGHT / 4)
+        pdf.set_xy(46.0, act_mins_y + 1)
         pdf.set_font('Arial', '', 14)
         pdf.multi_cell(0, 10, "Active Minutes")
-        pdf.set_xy(50.0, 279.0 - 2 * HEIGHT / 4)
+        pdf.set_xy(49.0, act_mins_y + 12)
         pdf.set_font('Arial', '', 18)
         # Active minutes section
         act_mins = pdf.compute_active_mins(skdh_results)
         pdf.multi_cell(0, 10, act_mins)
-        pdf.set_xy(65.0, 286.0 - 2 * HEIGHT / 4)
-        pdf.set_font('Arial', '', 16)
+        pdf.set_xy(64.0, act_mins_y + 22)
+        pdf.set_font('Arial', '', 18)
         # Recommended number of minutes
         pdf.multi_cell(0, 10, '30')
-        pdf.set_font('Arial', '', 10)
-        pdf.text(58, 297.0 - 2 * HEIGHT / 4, "recommended")
-        pdf.text(63, 302.0 - 2 * HEIGHT / 4, "minutes")
+        pdf.set_font('Arial', '', 11)
+        pdf.text(57, act_mins_y + 34, "recommended")
+        pdf.text(62, act_mins_y + 37, "minutes")
         pdf.set_font('Arial', '', 18)
-        pdf.text(115.0, 270.0 - 2 * HEIGHT / 4, "Activity Breakdown")
-        pdf.line(76, 279.0 - 2 * HEIGHT / 4, 44, 300.0 - 2 * HEIGHT / 4)
+        pdf.line(79, act_mins_y + 11, 47, act_mins_y + 32)
+        # Activity pie chart section
+        act_chart_y = 123
+        pdf.set_font('Arial', '', 16)
+        pdf.text(120.0, act_chart_y, "Activity Breakdown")
+        pdf.image(images[0], 110, act_chart_y + 2, 72, 70)
     
     def build_sleep_section(self, pdf, skdh_results):
         sleep_start_y = 201.5
@@ -193,7 +198,7 @@ class ReportGenerator:
         pdf.text(85, sleep_start_y + 12, "Sleep Report")
         # Sleep score
         score_section_y = sleep_start_y + 30
-        pdf.rect(x=40, y=score_section_y, w=45, h=45, round_corners=True)
+        pdf.rect(x=40, y=score_section_y, w=50, h=45, round_corners=True)
         pdf.set_xy(47.0, score_section_y)
         pdf.set_font('Arial', '', 14)
         pdf.multi_cell(0, 10, "Sleep Scores")
