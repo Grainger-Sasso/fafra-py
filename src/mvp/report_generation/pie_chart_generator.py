@@ -38,8 +38,8 @@ class SKDHPlotGenerator:
         sleep_plot_path = os.path.join(output_path, str('sleep_pie_chart_' + time.strftime("%Y%m%d-%H%M%S") + '.png'))
         path_handler.ra_report_act_chart_file = act_plot_path
         path_handler.ra_report_sleep_chart_file = sleep_plot_path
-        act_fig.savefig(act_plot_path, bbox_inches='tight')
-        sleep_fig.savefig(sleep_plot_path, bbox_inches='tight')
+        act_fig.savefig(act_plot_path, bbox_inches='tight', facecolor=act_fig.get_facecolor(), edgecolor='none')
+        sleep_fig.savefig(sleep_plot_path, bbox_inches='tight', facecolor=act_fig.get_facecolor(), edgecolor='none')
         return act_plot_path, sleep_plot_path
 
     def create_act_pie_chart(self, act_data):
@@ -63,7 +63,7 @@ class SKDHPlotGenerator:
             'Vigorous Activity'
         ]
         explode = [0.1, 0.1, 0.1, 0.1]
-        colors = ['gainsboro', 'skyblue', 'royalblue', 'green']
+        colors = ['lightcoral', 'skyblue', 'royalblue', 'green']
         if no_data_min > 0.0:
             act_times.append(no_data_min)
             labels.append('No data')
@@ -75,10 +75,12 @@ class SKDHPlotGenerator:
             new_labels.append(label + ' - ' + str(round(value * 100.0, 1)) + '%')
         fig1, ax1 = plt.subplots()
         # fig1.set_size_inches(5, 3)
-        ax1.pie(act_times, startangle=90, explode=explode, shadow=True, colors=colors)
+        # ax1.pie(act_times, startangle=90, explode=explode, shadow=True, colors=colors)
+        ax1.pie(act_times, startangle=90, colors=colors, wedgeprops={"edgecolor": "k", 'linewidth': 1, 'antialiased': True})
         ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
         ax1.legend(labels=new_labels, loc='lower center', prop={'size': 20},
                    bbox_to_anchor=(0.5, -0.2), ncol=2, fancybox=True, shadow=True)
+        fig1.set_facecolor('lightgray')
         return fig1, ax1
 
     def create_sleep_pie_chart(self, sleep_data):
@@ -108,6 +110,7 @@ class SKDHPlotGenerator:
         ax1.pie(percentages, startangle=90, explode=explode, shadow=True, colors=colors, textprops={'fontsize': 16})
         ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
         ax1.legend(labels=new_labels, loc='best')
+        fig1.set_facecolor('lightgray')
         return fig1, ax1
 
     def read_json(self, path):

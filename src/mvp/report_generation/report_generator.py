@@ -187,8 +187,8 @@ class ReportGenerator:
         # Activity pie chart section
         act_chart_y = 123
         pdf.set_font('Arial', '', 16)
-        pdf.text(120.0, act_chart_y, "Activity Breakdown")
-        pdf.image(images[0], 110, act_chart_y + 2, 72, 70)
+        pdf.text(112.0, act_chart_y + 1.1, "Activity Breakdown")
+        pdf.image(images[0], 87, act_chart_y + 2, 100, 70)
     
     def build_sleep_section(self, pdf, skdh_results):
         sleep_start_y = 201.5
@@ -311,6 +311,7 @@ def main():
     skdh_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/skdh_results_20220815-171703.json'
     assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
     path_handler = PathHandler(assessment_path)
+    path_handler.ra_metrics_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/ra_model_metrics/model_input_metrics_20220831-171046.json'
     path_handler.ra_metrics_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/ra_model_metrics/model_input_metrics_20220831-171046.json'
     path_handler.skdh_pipeline_results_file = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/generated_data/skdh_pipeline_results/skdh_results_20220831-171046.json'
     path_handler.ra_results_file = ''
