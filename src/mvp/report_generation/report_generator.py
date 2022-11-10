@@ -68,7 +68,7 @@ class ReportGenerator:
         collection_period = recording_start + '-' + recording_end
         # From fafra path
         fall_risk_score = self.set_fall_risk_value(ra_results)
-        gait_speed = str(round(skdh_results['gait_metrics']['PARAM:gait speed: mean'], 2)) + 'm/s'
+        gait_speed = str(round(skdh_results['gait_metrics']['PARAM:gait speed: mean'], 2))
         cadence = str(round(skdh_results['gait_metrics']['PARAM:cadence: mean'], 2))
         steps_per_day = str(round(skdh_results['gait_metrics']['Bout Steps: sum'] / 2, 2))
 
@@ -149,13 +149,15 @@ class ReportGenerator:
         pdf.set_font("helvetica", "", 11)
         pdf.text(margin_x + 85 + 2, current_y + 30, "Gait Speed")
         pdf.text(margin_x + 107 + 2, current_y + 30, "|")
-        pdf.text(margin_x + 87 + 2, current_y + 40, gait_speed)
+        pdf.text(margin_x + 91 + 2, current_y + 38, gait_speed)
+        pdf.text(margin_x + 92 + 2, current_y + 43, 'm/s')
         pdf.text(margin_x + 110 + 2, current_y + 30, "Cadence")
         pdf.text(margin_x + 127 + 2, current_y + 30, "|")
-        pdf.text(margin_x + 111 + 2, current_y + 40, cadence)
-        pdf.text(margin_x + 110 + 2, current_y + 45, 'step/min')
+        pdf.text(margin_x + 111 + 2, current_y + 38, cadence)
+        pdf.text(margin_x + 110 + 2, current_y + 43, 'step/min')
         pdf.text(margin_x + 130 + 2, current_y + 30, "Steps per day")
-        pdf.text(margin_x + 136 + 2, current_y + 40, steps_per_day)
+        pdf.text(margin_x + 136 + 2, current_y + 38, steps_per_day)
+        pdf.text(margin_x + 136 + 2, current_y + 43, 'steps')
         pdf.set_font("helvetica", "", 16)
         current_y += rect_height
 
