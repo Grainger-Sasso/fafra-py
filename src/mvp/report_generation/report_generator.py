@@ -145,7 +145,7 @@ class ReportGenerator:
         pdf.set_fill_color(211, 211, 211)
         #### Fall risk indicators and its fields
         pdf.rect(margin_x + 80, current_y + 15, w=80, h=40, round_corners=True)
-        pdf.text(margin_x + 102, current_y + 20, "Fall Risk Indicators")
+        pdf.text(margin_x + 101, current_y + 20, "Fall Risk Indicators")
         pdf.set_font("helvetica", "", 11)
         pdf.text(margin_x + 85 + 2, current_y + 30, "Gait Speed")
         pdf.text(margin_x + 107 + 2, current_y + 30, "|")
