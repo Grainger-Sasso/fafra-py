@@ -93,7 +93,7 @@ class SKDHPlotGenerator:
             'Time asleep'
         ]
         colors = [
-            'slateblue'
+            'royalblue'
         ]
         explode = [
             0.1
@@ -101,15 +101,18 @@ class SKDHPlotGenerator:
         if non_sleep_percent > 0.0:
             percentages.append(non_sleep_percent)
             labels.append('Time awake')
-            colors.append('darkslateblue')
+            colors.append('rosybrown')
             explode.append(0.1)
         new_labels = []
         for label, value in zip(labels, percentages):
             new_labels.append(label + ' - ' + str(round(value, 1)) + '%')
         fig1, ax1 = plt.subplots()
-        ax1.pie(percentages, startangle=90, explode=explode, shadow=True, colors=colors, textprops={'fontsize': 16})
+        # ax1.pie(percentages, startangle=90, explode=explode, shadow=True, colors=colors, textprops={'fontsize': 16})
+        ax1.pie(percentages, startangle=90, colors=colors,
+                wedgeprops={"edgecolor": "k", 'linewidth': 1, 'antialiased': True})
         ax1.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
-        ax1.legend(labels=new_labels, loc='best')
+        ax1.legend(labels=new_labels, loc='lower center', prop={'size': 20},
+                   bbox_to_anchor=(0.5, -0.2), ncol=2, fancybox=True, shadow=True)
         fig1.set_facecolor('lightgray')
         return fig1, ax1
 

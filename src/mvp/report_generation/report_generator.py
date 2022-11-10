@@ -68,8 +68,8 @@ class ReportGenerator:
         collection_period = recording_start + '-' + recording_end
         # From fafra path
         fall_risk_score = self.set_fall_risk_value(ra_results)
-        gait_speed = str(round(skdh_results['gait_metrics']['PARAM:gait speed: mean'], 2)) + ' m/s'
-        cadence = str(round(skdh_results['gait_metrics']['PARAM:cadence: mean'], 2)) + '\n' + ' steps/min'
+        gait_speed = str(round(skdh_results['gait_metrics']['PARAM:gait speed: mean'], 2)) + 'm/s'
+        cadence = str(round(skdh_results['gait_metrics']['PARAM:cadence: mean'], 2))
         steps_per_day = str(round(skdh_results['gait_metrics']['Bout Steps: sum'] / 2, 2))
 
         #### Header
@@ -108,7 +108,7 @@ class ReportGenerator:
         self.build_activity_section(pdf, images, skdh_results)
         #####
         # Sleep report section
-        self.build_sleep_section(pdf, skdh_results)
+        self.build_sleep_section(pdf, images, skdh_results)
         # pdf.print_page(images, skdh_results)
         # header
         # fall risk section
@@ -119,10 +119,12 @@ class ReportGenerator:
         # Report Header
         current_y += margin_y
         pdf.rect(margin_x, current_y, rect_width, rect_height, style='DF')
-        pdf.text(margin_x + 75, current_y + 10, "Fall Risk Report")
+        pdf.text(margin_x + 60, current_y + 10, "Fall Risk Report")
         pdf.set_font("helvetica", "", 13)
-        pdf.rect(margin_x + 5, current_y + 15, w=50, h=40, round_corners=True)
-        pdf.text(margin_x + 15, current_y + 20, "Fall Risk Score")
+        #### FALL RISK SCORE SECTION
+        buffer = 15
+        pdf.rect(margin_x + 5 + buffer, current_y + 15, w=50, h=40, round_corners=True)
+        pdf.text(margin_x + 15 + buffer, current_y + 20, "Fall Risk Score")
         # Set color for fall-risk rectangles
         if fall_risk_score == 'high':
             pdf.set_fill_color(255, 0, 0)
@@ -133,25 +135,27 @@ class ReportGenerator:
         high_style = 'DF' if fall_risk_score == 'high' else 'D'
         medium_style = 'DF' if fall_risk_score == 'medium' else 'D'
         low_style = 'DF' if fall_risk_score == 'low' else 'D'
-        pdf.rect(margin_x + 15, current_y + 22, w=30, h=8, style=high_style)
-        pdf.text(margin_x + 24, current_y + 27, "HIGH")
-        pdf.rect(margin_x + 15, current_y + 32, w=30, h=8, style=medium_style)
-        pdf.text(margin_x + 21, current_y + 37, "MEDIUM")
-        pdf.rect(margin_x + 15, current_y + 42, w=30, h=8, style=low_style)
-        pdf.text(margin_x + 25, current_y + 47, "LOW")
+        pdf.rect(margin_x + 15 + buffer, current_y + 22, w=30, h=8, style=high_style)
+        pdf.text(margin_x + 24 + buffer, current_y + 27, "HIGH")
+        pdf.rect(margin_x + 15 + buffer, current_y + 32, w=30, h=8, style=medium_style)
+        pdf.text(margin_x + 21 + buffer, current_y + 37, "MEDIUM")
+        pdf.rect(margin_x + 15 + buffer, current_y + 42, w=30, h=8, style=low_style)
+        pdf.text(margin_x + 25 + buffer, current_y + 47, "LOW")
+        ####
         pdf.set_fill_color(211, 211, 211)
-        # Fall risk indicators and its fields
+        #### Fall risk indicators and its fields
         pdf.rect(margin_x + 80, current_y + 15, w=80, h=40, round_corners=True)
-        pdf.text(margin_x + 100, current_y + 20, "Fall Risk Indicators")
+        pdf.text(margin_x + 102, current_y + 20, "Fall Risk Indicators")
         pdf.set_font("helvetica", "", 11)
-        pdf.text(margin_x + 85, current_y + 30, "Gait Speed")
-        pdf.text(margin_x + 107, current_y + 30, "|")
-        pdf.text(margin_x + 90, current_y + 40, gait_speed)
-        pdf.text(margin_x + 110, current_y + 30, "Cadence")
-        pdf.text(margin_x + 127, current_y + 30, "|")
-        pdf.text(margin_x + 115, current_y + 40, cadence)
-        pdf.text(margin_x + 130, current_y + 30, "Steps per day")
-        pdf.text(margin_x + 133, current_y + 40, steps_per_day)
+        pdf.text(margin_x + 85 + 2, current_y + 30, "Gait Speed")
+        pdf.text(margin_x + 107 + 2, current_y + 30, "|")
+        pdf.text(margin_x + 87 + 2, current_y + 40, gait_speed)
+        pdf.text(margin_x + 110 + 2, current_y + 30, "Cadence")
+        pdf.text(margin_x + 127 + 2, current_y + 30, "|")
+        pdf.text(margin_x + 111 + 2, current_y + 40, cadence)
+        pdf.text(margin_x + 110 + 2, current_y + 45, 'step/min')
+        pdf.text(margin_x + 130 + 2, current_y + 30, "Steps per day")
+        pdf.text(margin_x + 136 + 2, current_y + 40, steps_per_day)
         pdf.set_font("helvetica", "", 16)
         current_y += rect_height
 
@@ -190,7 +194,7 @@ class ReportGenerator:
         pdf.text(112.0, act_chart_y + 1.1, "Activity Breakdown")
         pdf.image(images[0], 87, act_chart_y + 2, 100, 70)
     
-    def build_sleep_section(self, pdf, skdh_results):
+    def build_sleep_section(self, pdf, images, skdh_results):
         sleep_start_y = 201.5
         # SLEEP BORDER, SLEEP SCORES BORDER
         pdf.rect(x=20, y=sleep_start_y, w=WIDTH - 40, h=90, style='DF')
@@ -198,7 +202,7 @@ class ReportGenerator:
         pdf.text(85, sleep_start_y + 12, "Sleep Report")
         # Sleep score
         score_section_y = sleep_start_y + 30
-        pdf.rect(x=40, y=score_section_y, w=50, h=45, round_corners=True)
+        pdf.rect(x=40, y=score_section_y, w=45, h=45, round_corners=True)
         pdf.set_xy(47.0, score_section_y)
         pdf.set_font('Arial', '', 14)
         pdf.multi_cell(0, 10, "Sleep Scores")
@@ -241,7 +245,9 @@ class ReportGenerator:
         pdf.text(68.0, score_section_y + 31, "hours")
 
         # pie chart title
-        pdf.set_xy(117.0, score_section_y)
+        breakdown_y = score_section_y - 14
+        pdf.image(images[1], 87, breakdown_y+7, 100, 65)
+        pdf.set_xy(110.0, breakdown_y)
         pdf.set_font('Arial', '', 18)
         pdf.multi_cell(0, 10, "Sleep Breakdown")
 
