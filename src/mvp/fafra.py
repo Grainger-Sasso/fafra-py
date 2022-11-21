@@ -354,7 +354,7 @@ class DataLoader:
 
 
 class Model:
-    def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler):
+    def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler: PathHandler):
         risk_model = self.import_classifier(model_path, scaler_path)
         metrics = self.format_input_metrics_scaling(metrics)
         metrics = risk_model.scaler.transform(metrics)
@@ -414,9 +414,18 @@ class Model:
 
 def main():
     fafra = FaFRA()
-    assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
     ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
     ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+
+    # ### FOR BATCH RUN ###
+    # bridges_batch_001 = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000001_2022_11_11/'
+    # for item in os.listdir(bridges_batch_001):
+    #     if os.path.isdir(os.path.join(bridges_batch_001, item)):
+    #         assessment_path = os.path.join(bridges_batch_001, item)
+    #         ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
+    # #####################
+
+    assessment_path = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000001_2022_11_11/assessment_0000000000000001_2022_11_11/'
     ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
 
