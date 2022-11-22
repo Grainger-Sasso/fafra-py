@@ -333,17 +333,22 @@ class DataLoader:
         assess_info_path = path_handler.assessment_info_file
         assess_info = self.load_json_data(assess_info_path)
         data_type = assess_info['device_type']
+        assess_uuid = assess_info['user_ID']
         # Load in the user data json file (contains demographic data of the user)
-        user_info_path = path_handler.user_info_file
-        user_info = self.load_json_data(user_info_path)
+        clin_demo_path = path_handler.user_info_file
+        clin_demo_data = self.load_json_data(clin_demo_path)
+        cd_uuid = clin_demo_data['user_ID']
+        if not cd_uuid == assess_uuid:
+            raise ValueError(f'Assessment UUID does not match clinical demographic data UUID')
         # Load in the IMU data file based on type
         imu_data_path = path_handler.imu_data_file
+        demo_path = path_handler.user_info_file
         # Build dataset objects
-        return self.build_dataset(data_type, imu_data_path, user_info)
+        return self.build_dataset(data_type, imu_data_path, clin_demo_data, demo_path)
 
-    def build_dataset(self, data_type, imu_data_path, user_info):
-        if data_type.lower() == 'mbientlab':
-            user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, user_info)
+    def build_dataset(self, data_type, imu_data_path, demo_data, demo_path):
+        if data_type.lower() == 'mbientlab_metamotions':
+            user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, demo_data, demo_path)
             # TODO: may need to define ra data objects specific to the MVP
         else:
             raise ValueError(f'Unknown IMU datatype provided {data_type}')
@@ -425,7 +430,7 @@ def main():
     #         ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
     # #####################
 
-    assessment_path = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000001_2022_11_11/assessment_0000000000000001_2022_11_11/'
+    assessment_path = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000001_2022_11_11/assessment_0000000000000002_2022_11_11/'
     ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
 
