@@ -417,6 +417,14 @@ class Model:
         return full_path
 
 
+def pipeline_test():
+    fafra = FaFRA()
+    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
+    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+    assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
+    ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
+
+
 def main():
     fafra = FaFRA()
     ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
@@ -435,4 +443,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    pipeline_test()
