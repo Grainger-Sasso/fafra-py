@@ -93,30 +93,18 @@ class MbientlabDatasetBuilder(DatasetBuilder):
             y_data = []
             z_data = []
             time = []
+            row_keys = reader.fieldnames
+            relevant_keys = self.get_relevant_keys(row_keys)
             for row in reader:
-                if ('x-axis (g)' in row.keys()) and ('y-axis (g)' in row.keys()) and ('z-axis (g)' in row.keys()) and ('epoch (ms)' in row.keys()):
-                    x_data.append(float(row['x-axis (g)']))
-                    y_data.append(float(row['y-axis (g)']))
-                    z_data.append(float(row['z-axis (g)']))
-                    time.append(float(row['epoch (ms)']) / 1000.0)
-                elif ('x' in row.keys()) and ('y' in row.keys()) and ('z' in row.keys()) and ('epoch' in row.keys()):
-                    x_data.append(float(row['x']))
-                    y_data.append(float(row['y']))
-                    z_data.append(float(row['z']))
-                    time.append(float(row['epoch']) / 1000.0)
-                elif ('X' in row.keys()) and ('Y' in row.keys()) and ('Z' in row.keys()) and ('Epoch' in row.keys()):
-                    x_data.append(float(row['X']))
-                    y_data.append(float(row['Y']))
-                    z_data.append(float(row['Z']))
-                    time.append(float(row['Epoch']) / 1000.0)
-                else:
-                    raise ValueError(f'Invalid access keys for mbient file columns: {row.keys()}')
-
+                x_data.append(float(row[relevant_keys['x']]))
+                y_data.append(float(row[relevant_keys['y']]))
+                z_data.append(float(row[relevant_keys['z']]))
+                time.append(float(row[relevant_keys['time']]) / 1000.0)
             f.close()
-        x_data = x_data[2383971:]
-        y_data = y_data[2383971:]
-        z_data = z_data[2383971:]
-        time = time[2383971:]
+        # x_data = x_data[2383971:]
+        # y_data = y_data[2383971:]
+        # z_data = z_data[2383971:]
+        # time = time[2383971:]
         x_data = np.array(x_data)
         x_data = np.float16(x_data)
         y_data = np.array(y_data)
@@ -126,7 +114,33 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         time = np.array(time)
         return x_data, y_data, z_data, time
 
-
+    def get_relevant_keys(self, row_keys):
+        relevant_keys = {}
+        if ('x-axis (g)' in row_keys) and ('y-axis (g)' in row_keys) and ('z-axis (g)' in row_keys) and (
+                'epoch (ms)' in row_keys):
+            relevant_keys['x'] = 'x-axis (g)'
+            relevant_keys['y'] = 'y-axis (g)'
+            relevant_keys['z'] = 'z-axis (g)'
+            relevant_keys['time'] = 'epoch (ms)'
+        elif ('x-axis (g)' in row_keys) and ('y-axis (g)' in row_keys) and ('z-axis (g)' in row_keys) and (
+                'epoc (ms)' in row_keys):
+            relevant_keys['x'] = 'x-axis (g)'
+            relevant_keys['y'] = 'y-axis (g)'
+            relevant_keys['z'] = 'z-axis (g)'
+            relevant_keys['time'] = 'epoc (ms)'
+        elif ('x' in row_keys) and ('y' in row_keys) and ('z' in row_keys) and ('epoch' in row_keys):
+            relevant_keys['x'] = 'x'
+            relevant_keys['y'] = 'y'
+            relevant_keys['z'] = 'z'
+            relevant_keys['time'] = 'epoch'
+        elif ('X' in row_keys) and ('Y' in row_keys) and ('Z' in row_keys) and ('Epoch' in row_keys):
+            relevant_keys['x'] = 'X'
+            relevant_keys['y'] = 'Y'
+            relevant_keys['z'] = 'Z'
+            relevant_keys['time'] = 'Epoch'
+        else:
+            raise ValueError(f'Invalid access keys for mbient file columns: {row_keys}')
+        return relevant_keys
 
 def main():
     path = r'/home/grainger/Desktop/datasets/mbientlab/test/MULTIDAY_MetaWear_2022-08-19T12.38.00.909_C85D72EF7FA2_Accelerometer.csv'
