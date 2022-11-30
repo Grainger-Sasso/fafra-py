@@ -2,6 +2,7 @@ import os
 import csv
 import numpy as np
 import time
+import json
 from dateutil import parser, tz
 
 
@@ -46,18 +47,15 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         dataset_name = 'Mbientlab'
         return Dataset(dataset_name, dataset_path, clinical_demo_path, dataset_user_data, {})
 
-    def build_single_user(self, data_path, demo_data):
+    def build_single_user(self, data_path, demo_data, demo_path):
         dataset_user_data = []
         x_data, y_data, z_data, time = self.read_mbient_file(data_path)
         imu_data_file_path = data_path
         imu_data_file_name = None
         imu_metadata_file_path = None
-        clinical_demo_file_path = None
         units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
                  'anteroposterior-acc': 'g'}
         # TODO: Use ID and hashmap system to map clinical demographic data to users
-
-        clinical_demo_data = self.set_demo_data(demo_data)
         # TODO: get the correct sampling frequency
         imu_metadata = IMUMetadata(None, self.sampling_frequency, units)
         imu_data = IMUData('', '',
@@ -66,9 +64,15 @@ class MbientlabDatasetBuilder(DatasetBuilder):
                            time)
         user_data = [UserData(
             imu_data_file_path, imu_data_file_name, imu_metadata_file_path,
-            clinical_demo_file_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data
+            demo_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, demo_data
         )]
         return user_data
+
+    def load_clinical_demo_data(self, path):
+        with open(path, 'r') as f:
+            data = json.loads(f)
+            f.close()
+        return data
 
     def set_demo_data(self, demo_data):
         user_name = demo_data['user_name']
@@ -89,16 +93,18 @@ class MbientlabDatasetBuilder(DatasetBuilder):
             y_data = []
             z_data = []
             time = []
+            row_keys = reader.fieldnames
+            relevant_keys = self.get_relevant_keys(row_keys)
             for row in reader:
-                x_data.append(float(row['x-axis (g)']))
-                y_data.append(float(row['y-axis (g)']))
-                z_data.append(float(row['z-axis (g)']))
-                time.append(float(row['epoc (ms)']) / 1000.0)
+                x_data.append(float(row[relevant_keys['x']]))
+                y_data.append(float(row[relevant_keys['y']]))
+                z_data.append(float(row[relevant_keys['z']]))
+                time.append(float(row[relevant_keys['time']]) / 1000.0)
             f.close()
-        x_data = x_data[2383971:]
-        y_data = y_data[2383971:]
-        z_data = z_data[2383971:]
-        time = time[2383971:]
+        # x_data = x_data[2383971:]
+        # y_data = y_data[2383971:]
+        # z_data = z_data[2383971:]
+        # time = time[2383971:]
         x_data = np.array(x_data)
         x_data = np.float16(x_data)
         y_data = np.array(y_data)
@@ -108,7 +114,33 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         time = np.array(time)
         return x_data, y_data, z_data, time
 
-
+    def get_relevant_keys(self, row_keys):
+        relevant_keys = {}
+        if ('x-axis (g)' in row_keys) and ('y-axis (g)' in row_keys) and ('z-axis (g)' in row_keys) and (
+                'epoch (ms)' in row_keys):
+            relevant_keys['x'] = 'x-axis (g)'
+            relevant_keys['y'] = 'y-axis (g)'
+            relevant_keys['z'] = 'z-axis (g)'
+            relevant_keys['time'] = 'epoch (ms)'
+        elif ('x-axis (g)' in row_keys) and ('y-axis (g)' in row_keys) and ('z-axis (g)' in row_keys) and (
+                'epoc (ms)' in row_keys):
+            relevant_keys['x'] = 'x-axis (g)'
+            relevant_keys['y'] = 'y-axis (g)'
+            relevant_keys['z'] = 'z-axis (g)'
+            relevant_keys['time'] = 'epoc (ms)'
+        elif ('x' in row_keys) and ('y' in row_keys) and ('z' in row_keys) and ('epoch' in row_keys):
+            relevant_keys['x'] = 'x'
+            relevant_keys['y'] = 'y'
+            relevant_keys['z'] = 'z'
+            relevant_keys['time'] = 'epoch'
+        elif ('X' in row_keys) and ('Y' in row_keys) and ('Z' in row_keys) and ('Epoch' in row_keys):
+            relevant_keys['x'] = 'X'
+            relevant_keys['y'] = 'Y'
+            relevant_keys['z'] = 'Z'
+            relevant_keys['time'] = 'Epoch'
+        else:
+            raise ValueError(f'Invalid access keys for mbient file columns: {row_keys}')
+        return relevant_keys
 
 def main():
     path = r'/home/grainger/Desktop/datasets/mbientlab/test/MULTIDAY_MetaWear_2022-08-19T12.38.00.909_C85D72EF7FA2_Accelerometer.csv'

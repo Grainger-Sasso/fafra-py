@@ -333,17 +333,22 @@ class DataLoader:
         assess_info_path = path_handler.assessment_info_file
         assess_info = self.load_json_data(assess_info_path)
         data_type = assess_info['device_type']
+        assess_uuid = assess_info['user_ID']
         # Load in the user data json file (contains demographic data of the user)
-        user_info_path = path_handler.user_info_file
-        user_info = self.load_json_data(user_info_path)
+        clin_demo_path = path_handler.user_info_file
+        clin_demo_data = self.load_json_data(clin_demo_path)
+        cd_uuid = clin_demo_data['user_ID']
+        if not cd_uuid == assess_uuid:
+            raise ValueError(f'Assessment UUID does not match clinical demographic data UUID')
         # Load in the IMU data file based on type
         imu_data_path = path_handler.imu_data_file
+        demo_path = path_handler.user_info_file
         # Build dataset objects
-        return self.build_dataset(data_type, imu_data_path, user_info)
+        return self.build_dataset(data_type, imu_data_path, clin_demo_data, demo_path)
 
-    def build_dataset(self, data_type, imu_data_path, user_info):
-        if data_type.lower() == 'mbientlab':
-            user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, user_info)
+    def build_dataset(self, data_type, imu_data_path, demo_data, demo_path):
+        if data_type.lower() == 'mbientlab_metamotions':
+            user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, demo_data, demo_path)
             # TODO: may need to define ra data objects specific to the MVP
         else:
             raise ValueError(f'Unknown IMU datatype provided {data_type}')
@@ -354,7 +359,7 @@ class DataLoader:
 
 
 class Model:
-    def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler):
+    def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler: PathHandler):
         risk_model = self.import_classifier(model_path, scaler_path)
         metrics = self.format_input_metrics_scaling(metrics)
         metrics = risk_model.scaler.transform(metrics)
@@ -412,13 +417,30 @@ class Model:
         return full_path
 
 
-def main():
+def pipeline_test():
     fafra = FaFRA()
-    assessment_path = '/home/grainger/Desktop/test_risk_assessments/customers/customer_Grainger/site_Breed_Road/batch_0000000000000001_2022_08_25/assessment_0000000000000001_2022_08_25/'
     ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
     ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+    assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
+    ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
+
+
+def main():
+    fafra = FaFRA()
+    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
+    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+
+    # ### FOR BATCH RUN ###
+    # bridges_batch_001 = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000001_2022_11_11/'
+    # for item in os.listdir(bridges_batch_001):
+    #     if os.path.isdir(os.path.join(bridges_batch_001, item)):
+    #         assessment_path = os.path.join(bridges_batch_001, item)
+    #         ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
+    # #####################
+
+    assessment_path = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000001_2022_11_11/assessment_0000000000000002_2022_11_11/'
     ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
 
 if __name__ == '__main__':
-    main()
+    pipeline_test()

@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 from skdh import Pipeline
-from skdh.preprocessing import DetectWear
+# from skdh.preprocessing import DETACH
 from skdh.gait import Gait
 from skdh.sleep import Sleep
 from skdh.activity import ActivityLevelClassification
@@ -11,7 +11,7 @@ from skdh.activity import ActivityLevelClassification
 class SKDHPipelineGenerator:
     def generate_pipeline(self, output_path):
         pipeline = Pipeline()
-        # pipeline.add(DetectWear())
+        # pipeline.add(DETACH())
         gait_result_file = os.path.join(output_path, 'gait_results.csv')
         # gait_plot_file = os.path.join(output_path, 'gait_plot.pdf')
         # pipeline.add(Gait(), save_file=gait_result_file, plot_file=gait_plot_file)

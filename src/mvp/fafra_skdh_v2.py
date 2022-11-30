@@ -58,12 +58,12 @@ class FaFRA_SKDH:
         self.rc_scaler_path = '/home/grainger/Desktop/risk_classifiers/lgbm_fafra_scaler_20220706-112631.bin'
         self.rc = LightGBMRiskClassifier({})
 
-    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path, model_path, scaler_path, imu_data_type='mbientlab'):
+    def perform_risk_assessment(self, data_path, demographic_data, skdh_metric_path, custom_metric_path, model_path, scaler_path, imu_data_type='fibion'):
         # Load in the accelerometer data
         ds = self.load_dataset(data_path, demographic_data, imu_data_type)
         # Calculate day ends
-        # day_ends = self.get_day_ends(ds)
-        day_ends = day_ends = np.array([[0, 3836477], [3836477, 7607840]])
+        day_ends = self.get_day_ends(ds)
+        # day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         # Generate custom metrics and SKDH metrics on the user data
         metric_gen = FaFRAMetricGenerator()
         path, metrics = metric_gen.generate_input_metrics(ds, day_ends, skdh_metric_path, custom_metric_path)
@@ -104,7 +104,7 @@ class FaFRA_SKDH:
                 current_ix = iter_ix
             iter_ix += 1
         day_end_pairs.append([current_ix, len(time) - 1])
-        return day_end_pairs
+        return np.array(day_end_pairs)
 
     def import_classifier(self, model_path, scaler_path):
         model = joblib.load(model_path)
@@ -499,7 +499,7 @@ def main():
     model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
     scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
     day_ends = np.array([])
-    fib_fafra.perform_risk_assessment(mbient_data_path, demo_data, skdh_path, custom_path, model_path, scaler_path)
+    fib_fafra.perform_risk_assessment(dataset_path, demo_data, skdh_path, custom_path, model_path, scaler_path)
 
 
 if __name__ == '__main__':

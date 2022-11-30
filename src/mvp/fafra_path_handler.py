@@ -12,19 +12,20 @@ class PathHandler:
         self.imu_data_file = ''
         # Generated data paths
         self.generated_data_folder = ''
-        # TODO: fill in files for generated data
         self.risk_report_folder = ''
+        self.ra_report_subcomponents_folder = ''
         self.skdh_pipeline_results_folder = ''
         self.ra_model_folder = ''
         self.ra_metrics_folder = ''
         self.build_paths()
-        # Set later during fafra runtime
+        # Set during fafra runtime
         self.ra_metrics_file = ''
         self.skdh_pipeline_results_file = ''
         self.ra_results_file = ''
-        self.ra_report_subcomponents_folder = ''
         self.ra_report_act_chart_file = ''
         self.ra_report_sleep_chart_file = ''
+        self.ra_model_info_file = ''
+        self.ra_model_predictions_file = ''
 
     def build_paths(self):
         # Assessment data paths
@@ -37,6 +38,7 @@ class PathHandler:
         # Generated data paths
         self.generated_data_folder = os.path.join(self.assessment_folder, 'generated_data')
         self.risk_report_folder = os.path.join(self.generated_data_folder, 'risk_report')
+        self.ra_report_subcomponents_folder = os.path.join(self.risk_report_folder, 'report_subcomponents')
         self.skdh_pipeline_results_folder = os.path.join(self.generated_data_folder, 'skdh_pipeline_results')
         self.ra_model_folder = os.path.join(self.generated_data_folder, 'ra_model')
         self.ra_metrics_folder = os.path.join(self.generated_data_folder, 'ra_model_metrics')
