@@ -9,11 +9,12 @@ class MetricGenerator:
     def load_dataset(self):
         db = DatasetBuilder()
         dataset_path = '/home/grainger/Desktop/datasets/UIUC_gaitspeed/bin_data/subj_files/'
-        clinical_demo_path = 'N/A'
+        clinical_demo_path = '/home/grainger/Desktop/datasets/UIUC_gaitspeed/participant_metadata/Data_CHI2021_Carapace.xlsx'
         segment_dataset = False
         epoch_size = 0.0
         dataset = db.build_dataset(dataset_path, clinical_demo_path,
                                    segment_dataset, epoch_size)
+        print('siuuuu')
 
     def generate_input_metrics(self):
         pass

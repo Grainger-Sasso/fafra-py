@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 import numpy as np
+import csv
 from scipy.io import wavfile
 from typing import List, Dict, Any
 import json
@@ -162,7 +163,8 @@ class DatasetBuilder(DatasetBuilder):
                                                     device_position},
                                                self.sampling_frequency,
                                                self.units)
-                    subj_clin_data = self._get_subj_clin_data(subj_id, trial_id)
+                    clinical_demo_data = self.read_clin_demo_file(clinical_demo_path)
+                    subj_clin_data = self._get_subj_clin_data(clinical_demo_data, subj_id, trial_id)
                     data = np.array([
                         tri_ax_acc_data['x_acc_data'],
                         tri_ax_acc_data['y_acc_data'],
@@ -288,12 +290,38 @@ class DatasetBuilder(DatasetBuilder):
         data = data / 256.0 * 9.80665
         return data
 
-    def _get_subj_clin_data(self, subj_id, trial_id):
-        subj_data = self.subject_data[subj_id]
-        # TODO: replace this height with builder attribute for height
-        # float(subj_data['height']
-        subj_height = 2.0
-        return ClinicalDemographicData(subj_data['id'], subj_data['age'], subj_data['sex'], False, subj_height, trial_id)
+    def _get_subj_clin_data(self, clinical_demo_data, subj_id, trial_id):
+        """
+        Method to index the dataset clinical demographic data for subject clinical demographic data. Below are the
+        columns of the Data_CHI2021_Carapace.xlsx demographic data file:
+
+        'ID', 'Age (yrs)', 'Gender (0=M, 1=F)', 'Height(m)', 'Weight(kg)',
+       'Cohort (HYA = young, HOA =older, HTN = older with hypertension)',
+       'Comfortable Walking Speed (m/s)', 'Treadmill Belt Speed (m/s)',
+       'MoCA (composite score for Montreal Cognitive Assessment)',
+       'TMT_A_time (s)', 'TMT_B_time (s)', 'Mini-BEST (composite score)',
+       'Repeated  Sit To Stand time (s)',
+       'Faller_Cohort ( 0 = No Fall, 1 = Fall, 2 = Recurrent faller with 2 or more)'
+
+        :param clinical_demo_data: dataset clinical demographic data
+        :param subj_id: ID of the subject
+        :param trial_id: ID of the trial
+        :return: subject clinical demographic data
+        """
+        subj_ix = clinical_demo_data[clinical_demo_data['ID'] == int(subj_id)].index[0]
+        cols = clinical_demo_data.columns
+        subj_data = {}
+        for col in cols:
+            subj_data[col] = clinical_demo_data.loc[subj_ix, col]
+        id = subj_data['ID']
+        age = subj_data['Age (yrs)']
+        sex = subj_data['Gender (0=M, 1=F)']
+        faller_status = subj_data['Faller_Cohort ( 0 = No Fall, 1 = Fall, 2 = Recurrent faller with 2 or more)']
+        height = subj_data['Height(m)']
+        trial = trial_id
+        weight = subj_data['Weight(kg)']
+        return ClinicalDemographicData(id, age, sex, faller_status, height, trial,
+                                       name='', weight=weight, other=subj_data)
 
     def _generate_imu_data_instance(self, data, samp_freq, device_position):
         """
@@ -352,6 +380,19 @@ class DatasetBuilder(DatasetBuilder):
         # Need to create a dataset builder for this
         # Not sure if there is a user demographics anywhere in the data folder
         pass
+
+    def read_clin_demo_file(self, clinical_demo_path):
+        # with open(clinical_demo_path, 'r') as file:
+        #     data = []
+        #     reader = csv.reader(file, dialect='excel')
+        #     for row in reader:
+        #         data.append(row)
+        #     file.close()
+        xl_file = pd.ExcelFile(clinical_demo_path)
+
+        clinical_demo_data = {sheet_name: xl_file.parse(sheet_name)
+               for sheet_name in xl_file.sheet_names}['Baseline data']
+        return clinical_demo_data
 
 
 def main():
