@@ -76,7 +76,6 @@ class FaFRA:
         ]
 
     def perform_risk_assessment(self, assessment_path, ra_model_path, ra_scaler_path):
-        # TODO: verify paths set correctly
         path_handler = PathHandler(assessment_path)
         # Generate risk metrics
         ra_metrics_path, ra_metrics = MetricGen().generate_ra_metrics(

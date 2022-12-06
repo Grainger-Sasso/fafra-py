@@ -8,9 +8,11 @@ class ClinicalDemographicData:
         self.age = age
         self.sex = sex
         self.faller_status = faller_status
+        # Height in cm
         self.height = height
         self.trial = trial
         self.name = name
+        # Wight in kg
         self.weight = weight
 
     def get_id(self):
