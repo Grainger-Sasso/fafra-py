@@ -62,6 +62,7 @@ class MbientlabDatasetBuilder(DatasetBuilder):
                            np.array(x_data), np.array(y_data), np.array(z_data),
                            np.array([]), np.array([]), np.array([]),
                            time)
+        # TODO: instantiate ClinicalDemo data object and port demo data to it; use this object when creating user data
         user_data = [UserData(
             imu_data_file_path, imu_data_file_name, imu_metadata_file_path,
             demo_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, demo_data

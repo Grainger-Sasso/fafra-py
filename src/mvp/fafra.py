@@ -76,6 +76,7 @@ class FaFRA:
         ]
 
     def perform_risk_assessment(self, assessment_path, ra_model_path, ra_scaler_path):
+        # TODO: verify paths set correctly
         path_handler = PathHandler(assessment_path)
         # Generate risk metrics
         ra_metrics_path, ra_metrics = MetricGen().generate_ra_metrics(
@@ -91,21 +92,27 @@ class MetricGen:
     def generate_ra_metrics(self, path_handler: PathHandler, custom_metric_names, gait_metric_names):
         assessment_path = path_handler.assessment_folder
         ds = DataLoader().load_data(path_handler)
+        # TODO: check LPF data with data viz
         # Preprocess data
         self.preprocess_data(ds)
         # TODO: Get day_ends from data
         day_ends = np.array([[0, 3836477], [3836477, 7607840]])
         # Segment data along walking bouts
+        # TODO: verify walking datset matches expected gait bout detection
         walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
         # Generate metrics on walking data
+        # TODO: verify custom metrics on walking dataset
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds, custom_metric_names)
         pipeline_gen = SKDHPipelineGenerator()
         gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
+        # TODO: verify metrics are generated on each walking bout in walk ds
         skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
         # Format input metrics
+        # TODO: verify metric formatting
         ra_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics, custom_metric_names)
         # Export metrics
+        # TODO: verify metric output and filetype
         ra_metrics_path = self.export_metrics(ra_metrics, path_handler)
         path_handler.ra_metrics_file = ra_metrics_path
         return ra_metrics_path, ra_metrics
@@ -119,6 +126,7 @@ class MetricGen:
     def apply_lp_filter(self, user_data):
         filter = MotionFilters()
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
+        # TODO: verify sampling rate is correct, retrieved from correct location
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
         act_code = imu_data.get_activity_code()
         act_des = imu_data.get_activity_description()
@@ -151,13 +159,13 @@ class MetricGen:
             # Get the time axis from user data
             # Get sampling rate
             # Generate day ends for the time axes
+            # TODO: get user height from user data object, port user height to pipeline calls below
             imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
             time = imu_data.get_time()
             fs = user_data.get_imu_metadata().get_sampling_frequency()
-            # TODO: create function to translate the time axis into day ends
             # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
                 results.append(pipeline_run.run_gait_pipeline(data, time, fs))
@@ -169,13 +177,14 @@ class MetricGen:
         skdh_output_path = path_handler.skdh_pipeline_results_folder
         # Run initial pass of SKDH on data
         pipeline_gen = SKDHPipelineGenerator()
-        # TODO: Set output path
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
+        # TODO: verify outputs of segment in proper location
         skdh_pipeline_results_path = self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         path_handler.skdh_pipeline_results_file = skdh_pipeline_results_path
         bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 30.0)
+        # TODO: Verify gait bouts are being detected with data viz [fafra: line 182]
         if bout_ixs:
             walk_data = self.get_walk_imu_data(bout_ixs, ds)
             # Create new dataset from the walking data segments
@@ -360,10 +369,14 @@ class DataLoader:
 
 class Model:
     def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler: PathHandler):
+        # TODO: verify classifier imported successfully
         risk_model = self.import_classifier(model_path, scaler_path)
+        # TODO: verify metric formatting
         metrics = self.format_input_metrics_scaling(metrics)
+        # TODO: verify metric scaling
         metrics = risk_model.scaler.transform(metrics)
         prediction = risk_model.make_prediction(metrics)[0]
+        # TODO: verify prediction
         if prediction:
             if self.assess_elevated_risk(path_handler):
                 prediction = 2
@@ -375,6 +388,7 @@ class Model:
             'moderate-risk': 1,
             'high-risk': 2
         }
+        # TODO: results formatting and export
         file_path = self.export_results(results, path_handler)
         path_handler.ra_results_file = file_path
         return file_path, results
