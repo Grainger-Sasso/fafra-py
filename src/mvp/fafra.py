@@ -3,6 +3,7 @@ import numpy as np
 import json
 import time
 import joblib
+from datetime import datetime
 from typing import List
 
 
@@ -91,11 +92,10 @@ class MetricGen:
     def generate_ra_metrics(self, path_handler: PathHandler, custom_metric_names, gait_metric_names):
         assessment_path = path_handler.assessment_folder
         ds = DataLoader().load_data(path_handler)
-        # TODO: check LPF data with data viz
         # Preprocess data
         self.preprocess_data(ds)
-        # TODO: Get day_ends from data
-        day_ends = np.array([[0, 3836477], [3836477, 7607840]])
+        # TODO: Get day_ends from data or manual input, need to look into this
+        day_ends = self.get_day_ends(ds)
         # Segment data along walking bouts
         # TODO: verify walking datset matches expected gait bout detection
         walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
@@ -116,8 +116,21 @@ class MetricGen:
         path_handler.ra_metrics_file = ra_metrics_path
         return ra_metrics_path, ra_metrics
 
+    def get_day_ends(self, ds):
+        time = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()
+        current_ix = 0
+        iter_ix = 0
+        day_end_pairs = []
+        while iter_ix + 1 <= len(time) - 1:
+            if datetime.fromtimestamp(time[iter_ix]).time().hour > datetime.fromtimestamp(
+                    time[iter_ix + 1]).time().hour:
+                day_end_pairs.append([current_ix, iter_ix])
+                current_ix = iter_ix
+            iter_ix += 1
+        day_end_pairs.append([current_ix, len(time) - 1])
+        return np.array(day_end_pairs)
+
     def preprocess_data(self, dataset):
-        freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
         for user_data in dataset.get_dataset():
             # Filter the data
             self.apply_lp_filter(user_data)
@@ -125,10 +138,7 @@ class MetricGen:
     def apply_lp_filter(self, user_data):
         filter = MotionFilters()
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
-        # TODO: verify sampling rate is correct, retrieved from correct location
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
-        act_code = imu_data.get_activity_code()
-        act_des = imu_data.get_activity_description()
         all_raw_data = imu_data.get_all_data()
         time = imu_data.get_time()
         lpf_data_all_axis = []
@@ -357,11 +367,10 @@ class DataLoader:
     def build_dataset(self, data_type, imu_data_path, demo_data, demo_path):
         if data_type.lower() == 'mbientlab_metamotions':
             user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, demo_data, demo_path)
-            # TODO: may need to define ra data objects specific to the MVP
         else:
             raise ValueError(f'Unknown IMU datatype provided {data_type}')
         dataset = Dataset(
-            'mbientlab', [imu_data_path], [], user_data, {}
+            'mbientlab', [imu_data_path], [demo_path], user_data, {}
         )
         return dataset
 

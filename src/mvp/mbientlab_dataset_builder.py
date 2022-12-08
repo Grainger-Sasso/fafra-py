@@ -93,10 +93,8 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         month = int(dob[0:2])
         day = int(dob[3:5])
         dob_date = date(year, month, day)
-        today = date.today
+        today = date.today()
         return float(today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day)))
-
-
 
     def load_clinical_demo_data(self, path):
         with open(path, 'r') as f:
