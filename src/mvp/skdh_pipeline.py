@@ -63,22 +63,18 @@ class SKDHPipelineRunner:
         ]
         self.param_fail_count = 0
 
-    def run_pipeline(self, data, time, fs, day_ends=np.array([])):
-        # TODO: list data shape here
+    def run_pipeline(self, data, time, fs, day_ends=np.array([]), height=None):
         data = np.ascontiguousarray(data)
-        # TODO: configure user height
-        results = self.pipeline.run(time=time, accel=data, fs=fs, height=1.77, day_ends={(12, 24): day_ends})
+        results = self.pipeline.run(time=time, accel=data, fs=fs, height=height, day_ends={(12, 24): day_ends})
         gait_metrics = self.parse_results(results, 'Gait', self.gait_metric_names)
         gait_metrics = self.parse_gait_metrics(gait_metrics)
         act_metrics = self.parse_results(results, 'ActivityLevelClassification', self.act_metric_names)
         sleep_metrics = self.parse_results(results, 'Sleep', self.sleep_metric_names)
         return {'gait_metrics': gait_metrics, 'act_metrics': act_metrics, 'sleep_metrics': sleep_metrics}
 
-    def run_gait_pipeline(self, data, time, fs, day_ends=np.array([])):
-        # TODO: list data shape here
+    def run_gait_pipeline(self, data, time, fs, day_ends=np.array([]), height=None):
         data = np.ascontiguousarray(data)
-        # TODO: configure user height
-        results = self.pipeline.run(time=time, accel=data, fs=fs, height=1.77, day_ends={(12, 24): day_ends})
+        results = self.pipeline.run(time=time, accel=data, fs=fs, height=height, day_ends={(12, 24): day_ends})
         gait_metrics = self.parse_results(results, 'Gait', self.gait_metric_names)
         gait_metrics = self.parse_gait_metrics(gait_metrics)
         return {'gait_metrics': gait_metrics}

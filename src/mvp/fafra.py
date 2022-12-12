@@ -169,6 +169,7 @@ class MetricGen:
             # Get sampling rate
             # Generate day ends for the time axes
             # TODO: get user height from user data object, port user height to pipeline calls below
+            height_m = user_data.get_clinical_demo_data().get_height() / 100.0
             imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
@@ -177,9 +178,9 @@ class MetricGen:
             fs = user_data.get_imu_metadata().get_sampling_frequency()
             # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs))
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs, height=height_m))
             else:
-                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
+                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends, height=height_m))
         return results
 
     def segment_data_walk(self, ds, gait_metric_names, day_ends, path_handler):
