@@ -94,7 +94,6 @@ class MetricGen:
         ds = DataLoader().load_data(path_handler)
         # Preprocess data
         self.preprocess_data(ds)
-        # TODO: Get day_ends from data or manual input, need to look into this
         day_ends = self.get_day_ends(ds)
         # Segment data along walking bouts
         # TODO: verify walking datset matches expected gait bout detection
@@ -190,11 +189,9 @@ class MetricGen:
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
-        # TODO: verify outputs of segment in proper location
         skdh_pipeline_results_path = self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         path_handler.skdh_pipeline_results_file = skdh_pipeline_results_path
-        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 30.0)
-        # TODO: Verify gait bouts are being detected with data viz [fafra: line 182]
+        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 20.0)
         if bout_ixs:
             walk_data = self.get_walk_imu_data(bout_ixs, ds)
             # Create new dataset from the walking data segments
