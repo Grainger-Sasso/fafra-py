@@ -193,9 +193,9 @@ class MetricGen:
         path_handler.skdh_pipeline_results_file = skdh_pipeline_results_path
         bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 20.0)
         if bout_ixs:
-            walk_data = self.get_walk_imu_data(bout_ixs, ds)
+            walk_data, walk_time = self.get_walk_imu_data(bout_ixs, ds)
             # Create new dataset from the walking data segments
-            walk_ds = self.gen_walk_ds(walk_data, ds)
+            walk_ds = self.gen_walk_ds(walk_data, walk_time, ds)
             self.preprocess_data(walk_ds)
         else:
             raise ValueError('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
@@ -238,7 +238,7 @@ class MetricGen:
             json.dump(new_results, f)
         return full_path
 
-    def gen_walk_ds(self, walk_data, ds) -> Dataset:
+    def gen_walk_ds(self, walk_data, walk_time, ds) -> Dataset:
         dataset = []
         user_data = ds.get_dataset()[0]
         imu_data_file_path: str = user_data.get_imu_data_file_path()
@@ -250,10 +250,8 @@ class MetricGen:
         dataset_path = ds.get_dataset_path()
         clinical_demo_path = ds.get_clinical_demo_path()
         clinical_demo_data = user_data.get_clinical_demo_data()
-        for walk_bout in walk_data:
+        for walk_bout, time in zip(walk_data, walk_time):
             # Build a UserData object for the whole data
-            time = np.linspace(0, len(np.array(walk_bout[0])) / int(imu_metadata.get_sampling_frequency()),
-                           len(np.array(walk_bout[0])))
             imu_data = self._generate_imu_data_instance(walk_bout, time)
             dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
@@ -280,9 +278,11 @@ class MetricGen:
         imu_data = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.LPF)
         acc_data = imu_data.get_triax_acc_data()
         acc_data = np.array([acc_data['vertical'], acc_data['mediolateral'], acc_data['anteroposterior']])
+        time = np.array(imu_data.get_time())
         for bout_ix in bout_ixs:
             walk_data.append(acc_data[:, bout_ix[0]:bout_ix[1]])
-        return walk_data
+            walk_time.append(time[bout_ix[0]:bout_ix[1]])
+        return walk_data, walk_time
 
     def generate_custom_metrics(self, dataset, custom_metric_names) -> InputMetrics:
         mg = MetricGenerator()
