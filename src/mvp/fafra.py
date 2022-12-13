@@ -169,13 +169,12 @@ class MetricGen:
             # Generate day ends for the time axes
             # TODO: get user height from user data object, port user height to pipeline calls below
             height_m = user_data.get_clinical_demo_data().get_height() / 100.0
-            imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
             time = imu_data.get_time()
             fs = user_data.get_imu_metadata().get_sampling_frequency()
-            # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
                 results.append(pipeline_run.run_gait_pipeline(data, time, fs, height=height_m))
             else:

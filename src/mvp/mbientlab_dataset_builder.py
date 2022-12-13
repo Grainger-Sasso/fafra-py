@@ -66,7 +66,7 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         weight_kg = self.convert_weight_kg(demo_data)
         clinical_demo_data = ClinicalDemographicData(
             demo_data['user_ID'], age, demo_data['gender'],
-            None, height_cm, None,
+            False, height_cm, None,
             demo_data['user_name'], weight_kg,
         )
         user_data = [UserData(
