@@ -95,21 +95,13 @@ class MetricGen:
         # Preprocess data
         self.preprocess_data(ds)
         day_ends = self.get_day_ends(ds)
-        # TODO: rework metric generation, remove data segmentation
-        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
+        # Segment dataset on walking bouts, return new dataset and SKDH results
+        walk_ds, skdh_input_metrics = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
         # Generate metrics on walking data
-        # TODO: verify custom metrics on walking dataset
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds, custom_metric_names)
-        pipeline_gen = SKDHPipelineGenerator()
-        gait_pipeline = pipeline_gen.generate_gait_pipeline()
-        gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
-        # TODO: verify metrics are generated on each walking bout in walk ds
-        skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
         # Format input metrics
-        # TODO: verify metric formatting
         ra_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics, custom_metric_names)
         # Export metrics
-        # TODO: verify metric output and filetype
         ra_metrics_path = self.export_metrics(ra_metrics, path_handler)
         path_handler.ra_metrics_file = ra_metrics_path
         return ra_metrics_path, ra_metrics
@@ -162,11 +154,6 @@ class MetricGen:
     def generate_skdh_metrics(self, dataset, day_ends, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
         for user_data in dataset.get_dataset():
-            # Get the data from the user data in correct format
-            # Get the time axis from user data
-            # Get sampling rate
-            # Generate day ends for the time axes
-            # TODO: get user height from user data object, port user height to pipeline calls below
             height_m = user_data.get_clinical_demo_data().get_height() / 100.0
             imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
             data = imu_data.get_triax_acc_data()
@@ -197,7 +184,7 @@ class MetricGen:
             self.preprocess_data(walk_ds)
         else:
             raise ValueError('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
-        return walk_ds
+        return walk_ds, skdh_input_metrics
 
     def export_skdh_results(self, results, path):
         result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
