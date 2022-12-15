@@ -95,8 +95,7 @@ class MetricGen:
         # Preprocess data
         self.preprocess_data(ds)
         day_ends = self.get_day_ends(ds)
-        # Segment data along walking bouts
-        # TODO: verify walking datset matches expected gait bout detection
+        # TODO: rework metric generation, remove data segmentation
         walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
         # Generate metrics on walking data
         # TODO: verify custom metrics on walking dataset
