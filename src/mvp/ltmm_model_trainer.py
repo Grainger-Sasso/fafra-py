@@ -162,6 +162,7 @@ class LTMMMetricGenerator:
         gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
         input_metrics = None
+        num_files = len(self.head_df_paths)
         for name, header_and_data_file_path in self.head_df_paths.items():
             self.running_analysis_total += 1
             walk_ds = None
@@ -202,6 +203,8 @@ class LTMMMetricGenerator:
             gc.collect()
             memory_usage = ps.memory_info()
             print(memory_usage)
+            print('time running: ' + str((time.time() - time0) / 60.0))
+            print(str(self.running_analysis_total) + ' out of: ' + str(num_files))
             print('\n')
             print('\n')
         full_path = self.export_metrics(input_metrics, im_path)
@@ -277,7 +280,12 @@ class LTMMMetricGenerator:
         for name in self.custom_metric_names:
             input_metrics.set_metric(name, [])
         for name in skdh_input_metrics[0]['gait_metrics'].keys():
-            if name not in ['Bout Starts', 'Bout Duration']:
+            if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
                 input_metrics.set_metric(name, [])
         input_metrics.set_labels([])
         return input_metrics
@@ -480,7 +488,12 @@ class LTMMMetricGenerator:
         for user_metrics in skdh_input_metrics:
             gait_metrics = user_metrics['gait_metrics']
             for name, val in gait_metrics.items():
-                if name not in ['Bout Starts', 'Bout Duration']:
+                if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
                     input_metrics.get_metric(name).append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
             input_metrics.get_metric(name).extend(metric.get_value().tolist())
@@ -505,8 +518,10 @@ class LTMMMetricGenerator:
 
 
 def main():
-    # Input params
+    ### Metric generation
     dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
+    # dp = '/home/grainger/Desktop/datasets/small_LTMMD/'
+    # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/LabWalks/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     metric_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
     seg = False
@@ -542,7 +557,7 @@ def main():
             'Bout Duration',
             'Bout N',
             'Bout Starts',
-            #Additional gait params
+            # Additional gait params
             'PARAM:stride time',
             'PARAM:stride time asymmetry',
             'PARAM:stance time',
@@ -583,9 +598,11 @@ def main():
                  epoch, custom_metric_names, gait_metric_names, final_skdh_metric_names)
     full_path = mg.generate_input_metrics(
         '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/',
-        seg_gait=True
+        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/non_gait_seg/',
+        seg_gait=False
     )
+    ###
+
 
     # Run im scaling and model training/export
     mt = ModelTrainer()
@@ -597,12 +614,13 @@ def main():
     # mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
 
     # Model Gen
-    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/non_gait_seg/model_input_metrics_20221215-171616.json'
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220922-012602.json'
     # walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
     # model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/'
     # model_name = 'lgbm_skdh_ltmm_rcm_'
     # scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    # mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
+    # mt.generate_model(im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':

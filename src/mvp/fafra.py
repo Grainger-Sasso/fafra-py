@@ -282,7 +282,14 @@ class MetricGen:
         for user_metrics in skdh_input_metrics:
             gait_metrics = user_metrics['gait_metrics']
             for name, val in gait_metrics.items():
-                if name not in ['Bout Starts', 'Bout Duration']:
+                if name not in [
+                    'Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std'
+                ]:
                     input_metrics.get_metric(name).append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
             input_metrics.get_metric(name).extend(metric.get_value().tolist())
@@ -301,7 +308,12 @@ class MetricGen:
         for name in custom_metric_names:
             input_metrics.set_metric(name, [])
         for name in skdh_input_metrics[0]['gait_metrics'].keys():
-            if name not in ['Bout Starts', 'Bout Duration']:
+            if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
                 input_metrics.set_metric(name, [])
         input_metrics.set_labels([])
         return input_metrics
