@@ -204,16 +204,15 @@ class LTMMMetricGenerator:
             gc.collect()
             memory_usage = ps.memory_info()
             print(memory_usage)
-            print('time running: ' + str((time.time() - time0) / 60.0))
+            print('time running (min): ' + str((time.time() - time0) / 60.0))
             print(str(self.running_analysis_total) + ' out of: ' + str(num_files))
             print('\n')
             print('\n')
         full_path = self.export_metrics(input_metrics, im_path)
-        print(time.time() - time0)
-        print(
-            f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
-        print(
-            f'Percentage of failed segmentations: {(self.bout_seg_fail_total / self.running_analysis_total) * 100.0}')
+        # print(
+            # f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
+        # print(
+        #     f'Percentage of failed segmentations: {(self.bout_seg_fail_total / self.running_analysis_total) * 100.0}')
         print(input_metrics.get_metrics())
         return full_path
 
@@ -537,8 +536,8 @@ class LTMMMetricGenerator:
 
 def main():
     ### Metric generation
-    # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
-    dp = '/home/grainger/Desktop/datasets/small_LTMMD/'
+    dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
+    # dp = '/home/grainger/Desktop/datasets/small_LTMMD/'
     # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/LabWalks/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     metric_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
