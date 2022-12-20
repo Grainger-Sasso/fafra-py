@@ -11,6 +11,7 @@ from itertools import repeat
 from pympler import asizeof
 from typing import List
 from matplotlib import pyplot as plt
+from datetime import datetime
 
 from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
@@ -354,23 +355,40 @@ class LTMMMetricGenerator:
     def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
         for user_data in dataset.get_dataset():
-            # Get the data from the user data in correct format
-            # Get the time axis from user data
-            # Get sampling rate
-            # Generate day ends for the time axes
             imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
             time = imu_data.get_time()
             fs = user_data.get_imu_metadata().get_sampling_frequency()
-            # TODO: create function to translate the time axis into day ends
-            day_ends = np.array([[0, int(len(time) - 1)]])
-            if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
+            sex = user_data.get_clinical_demo_data().get_sex()
+            if sex == 'F':
+                height = 1.63
+            elif sex == 'M':
+                height = 1.77
             else:
-                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
+                raise ValueError(f'Invalid value for user sex: {sex}')
+            # TODO: create function to translate the time axis into day ends
+            day_ends = self.get_day_ends(dataset)
+            if gait:
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends, height))
+            else:
+                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends, height))
         return results
+
+    def get_day_ends(self, ds):
+        time = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()
+        current_ix = 0
+        iter_ix = 0
+        day_end_pairs = []
+        while iter_ix + 1 <= len(time) - 1:
+            if datetime.fromtimestamp(time[iter_ix]).time().hour > datetime.fromtimestamp(
+                    time[iter_ix + 1]).time().hour:
+                day_end_pairs.append([current_ix, iter_ix])
+                current_ix = iter_ix
+            iter_ix += 1
+        day_end_pairs.append([current_ix, len(time) - 1])
+        return np.array(day_end_pairs)
 
     def export_skdh_results(self, results, path):
         result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
@@ -519,8 +537,8 @@ class LTMMMetricGenerator:
 
 def main():
     ### Metric generation
-    dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
-    # dp = '/home/grainger/Desktop/datasets/small_LTMMD/'
+    # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
+    dp = '/home/grainger/Desktop/datasets/small_LTMMD/'
     # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/LabWalks/'
     cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
     metric_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
