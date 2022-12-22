@@ -42,3 +42,12 @@ class InputMetrics:
             names.append(name)
         # Returns shape of metrics (n_samples, n_features)
         return np.array(metrics).T, names
+
+    def get_metric_names(self):
+        names = []
+        for name in self.metrics.keys():
+            if isinstance(name, MetricNames):
+                names.append(name.get_value())
+            else:
+                names.append(name)
+        return names

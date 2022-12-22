@@ -13,6 +13,7 @@ from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
@@ -298,7 +299,7 @@ class MetricGen:
             metric = np.array(metric)
             metric = metric[~np.isnan(metric)]
             metric_mean = metric.mean()
-            final_metrics.set_metric(name, metric_mean)
+            final_metrics.set_metric(name, InputMetric(name, metric_mean))
         input_metrics.get_labels().extend(custom_input_metrics.get_labels())
         final_metrics.set_labels(input_metrics.get_labels())
         return final_metrics
@@ -325,9 +326,9 @@ class MetricGen:
         new_im = {}
         for name, metric in input_metrics.get_metrics().items():
             if isinstance(name, MetricNames):
-                new_im[name.value] = metric
+                new_im[name.value] = metric.get_value()
             else:
-                new_im[name] = metric
+                new_im[name] = metric.get_value()
         metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
         with open(full_path, 'w') as f:
             json.dump(metric_data, f)
@@ -374,6 +375,8 @@ class Model:
     def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler: PathHandler):
         # TODO: verify classifier imported successfully
         risk_model = self.import_classifier(model_path, scaler_path)
+        # Check correspondence between the input metrics and the metrics the model was trained on
+        self.check_metric_correspond(metrics, risk_model)
         # TODO: verify metric formatting
         metrics = self.format_input_metrics_scaling(metrics)
         # TODO: verify metric scaling
@@ -395,6 +398,20 @@ class Model:
         file_path = self.export_results(results, path_handler)
         path_handler.ra_results_file = file_path
         return file_path, results
+
+    def check_metric_correspond(self, metrics, risk_model):
+        model_metrics = risk_model.model.feature_name()
+        fafra_metrics = metrics.get_metric_names()
+        fafra_metrics = [name.replace(':', '_') for name in fafra_metrics]
+        fafra_metrics = [name.replace(' ', '_') for name in fafra_metrics]
+        fafra_metrics = [name.replace('__', '_') for name in fafra_metrics]
+        if model_metrics != fafra_metrics:
+            raise ValueError('Lack of correspondence between FaFRA generated metrics and model training metrics: ' +
+                             '\n' + f'FaFRA metric names: {fafra_metrics}'
+                             '\n' + f'Model metric names: {model_metrics}')
+
+
+
 
     def assess_elevated_risk(self, path_handler):
         elevated_risk = False
