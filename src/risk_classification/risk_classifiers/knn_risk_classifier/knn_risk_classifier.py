@@ -13,8 +13,8 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
-from mlxtend.plotting import plot_decision_regions
-from mlxtend.plotting import plot_learning_curves
+# from mlxtend.plotting import plot_decision_regions
+# from mlxtend.plotting import plot_learning_curves
 from sklearn.decomposition import PCA
 
 from src.risk_classification.risk_classifiers.classifier import Classifier
