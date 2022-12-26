@@ -378,10 +378,11 @@ class Model:
         # Check correspondence between the input metrics and the metrics the model was trained on
         self.check_metric_correspond(metrics, risk_model)
         # TODO: verify metric formatting
-        metrics = self.format_input_metrics_scaling(metrics)
+        x, names = metrics.get_metric_matrix()
+        x = x.reshape(1, -1)
         # TODO: verify metric scaling
-        metrics = risk_model.scaler.transform(metrics)
-        prediction = risk_model.make_prediction(metrics)[0]
+        x_t = risk_model.scaler.transform(x)
+        prediction = risk_model.make_prediction(x_t)[0]
         # TODO: verify prediction
         if prediction:
             if self.assess_elevated_risk(path_handler):
@@ -453,8 +454,8 @@ class Model:
 
 def pipeline_test():
     fafra = FaFRA()
-    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
-    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
+    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/lgbm_skdh_ltmm_rcm_20221226-152124.pkl'
+    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/lgbm_skdh_ltmm_scaler_20221226-152124.bin'
     assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
     ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
