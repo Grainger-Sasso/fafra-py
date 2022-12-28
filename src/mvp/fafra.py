@@ -373,17 +373,13 @@ class DataLoader:
 
 class Model:
     def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler: PathHandler):
-        # TODO: verify classifier imported successfully
         risk_model = self.import_classifier(model_path, scaler_path)
         # Check correspondence between the input metrics and the metrics the model was trained on
         self.check_metric_correspond(metrics, risk_model)
-        # TODO: verify metric formatting
         x, names = metrics.get_metric_matrix()
         x = x.reshape(1, -1)
-        # TODO: verify metric scaling
         x_t = risk_model.scaler.transform(x)
-        prediction = risk_model.make_prediction(x_t)[0]
-        # TODO: verify prediction
+        prediction = int(risk_model.make_prediction(x_t)[0])
         if prediction:
             if self.assess_elevated_risk(path_handler):
                 prediction = 2
@@ -395,7 +391,6 @@ class Model:
             'moderate-risk': 1,
             'high-risk': 2
         }
-        # TODO: results formatting and export
         file_path = self.export_results(results, path_handler)
         path_handler.ra_results_file = file_path
         return file_path, results
