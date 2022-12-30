@@ -451,7 +451,8 @@ def pipeline_test():
     fafra = FaFRA()
     ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/lgbm_skdh_ltmm_rcm_20221226-152124.pkl'
     ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/lgbm_skdh_ltmm_scaler_20221226-152124.bin'
-    assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
+    # assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
+    assessment_path = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000002_2022_12_11/assessment_0000000000000002_2022_12_11/'
     ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
 
