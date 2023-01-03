@@ -54,7 +54,7 @@ class MbientDataTrimmer:
             }
         )
         # Write data to specified file path
-        file_name = 'TRIMMED_' + os.path.basename(data_path)
+        file_name = os.path.basename(data_path) + '_TRIMMED'
         output_path = os.path.join(output_path, file_name)
         output_df.to_csv(output_path, header=True, index=False)
         print('correct')
@@ -79,7 +79,7 @@ class MbientDataTrimmer:
 
 def main():
     trimmer = MbientDataTrimmer()
-    data_path = '/home/grainger/Desktop/skdh_testing/mbient_usb_data/Bridges_12_2022/TRIMMED_imu_data_device_003_12-12-2022-11-45-17.csv'
+    data_path = '/home/grainger/Desktop/skdh_testing/mbient_usb_data/Bridges_12_2022/imu_data_device_004_12-12-2022-18-43-20.csv'
     #'TRIMMED_imu_data_device_003_12-12-2022-11-45-17'
     # 'TRIMMED_imu_data_device_004_12-12-2022-18-43-20'
     # Epoch corresponding to 2022_12_08 at 6:00 PM local time
@@ -87,7 +87,7 @@ def main():
     # Epoch corresponding to 2022_12_10 at 5:00 PM local time
     end = 1670709600
     output_path = '/home/grainger/Desktop/skdh_testing/mbient_usb_data/Bridges_12_2022/'
-    trimmer.trim_data(data_path, start, end, output_path, viz=True)
+    trimmer.trim_data(data_path, start, end, output_path, viz=False)
 
 
 if __name__ == '__main__':
