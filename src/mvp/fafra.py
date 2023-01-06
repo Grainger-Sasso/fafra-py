@@ -177,7 +177,7 @@ class MetricGen:
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
         skdh_pipeline_results_path = self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         path_handler.skdh_pipeline_results_file = skdh_pipeline_results_path
-        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 20.0)
+        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 6.0)
         if bout_ixs:
             walk_data, walk_time = self.get_walk_imu_data(bout_ixs, ds)
             # Create new dataset from the walking data segments
@@ -406,10 +406,24 @@ class Model:
                              '\n' + f'FaFRA metric names: {fafra_metrics}'
                              '\n' + f'Model metric names: {model_metrics}')
 
-
-
-
     def assess_elevated_risk(self, path_handler):
+        """
+        Elevated fall risk assessed by gait speed of individual. There is evidence for an elevated risk of
+        hospitalization at gait speeds below 0.6 m/s.
+
+        Refs
+        Studenski S, Perera S, Wallace D, et al. Physical performance measures in the clinical setting. J Am Geriatr Soc. 2003;51: 314–322:
+        Walking Speed Threshold for Classifying Walking Independence in Hospitalized Older Adults. James E. Graham, Steve R. Fisher, Ivonne-Marie Bergés, Yong-Fang Kuo, Glenn V. Ostir
+
+        Additional refs
+        Bohannon RW Andrews AW Thomas MW . Walking speed: reference values and correlates for older adults. J Orthop Sports Phys Ther. 1996;24:86–90.
+        Langlois JA Keyl PM Guralnik JM , et al. . Characteristics of older pedestrians who have difficulty crossing the street. Am J Public Health. 1997;87:393–397.
+        Hageman PA Blanke DJ . Comparison of gait of young women and elderly women. Phys Ther. 1986;66:1382–1387.
+        Krishnamurthy M Verghese J . Gait characteristics in nondisabled community-residing nonagenarians. Arch Phys Med Rehabil. 2006;87:541–545.
+
+        :param path_handler: object to call for path RA results containing estimated gait speed
+        :return: check on whether estimated gait speed is above/below threshold for elevated fall risk range
+        """
         elevated_risk = False
         # Load in the gait metrics and check gait speed against accepted standard of 0.6 m/s
         results_file = path_handler.skdh_pipeline_results_file

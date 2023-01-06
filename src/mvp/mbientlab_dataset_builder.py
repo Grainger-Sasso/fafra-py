@@ -127,10 +127,7 @@ class MbientlabDatasetBuilder(DatasetBuilder):
                 x_data.append(float(row[relevant_keys['x']]))
                 y_data.append(float(row[relevant_keys['y']]))
                 z_data.append(float(row[relevant_keys['z']]))
-                if len(str(row[relevant_keys['time']])) > 1650000000000:
-                    time.append(float(row[relevant_keys['time']]) / 1000.0)
-                else:
-                    time.append(float(row[relevant_keys['time']]))
+                time.append(float(row[relevant_keys['time']]) / 1000.0)
             f.close()
         # x_data = x_data[2383971:]
         # y_data = y_data[2383971:]
@@ -143,7 +140,6 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         z_data = np.array(z_data)
         z_data = np.float16(z_data)
         time = np.array(time)
-        if
         return x_data, y_data, z_data, time
 
     def get_relevant_keys(self, row_keys):

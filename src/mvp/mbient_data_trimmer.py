@@ -1,8 +1,10 @@
 import os
 import matplotlib
 import pandas as pd
-from matplotlib import pyplot as plt
 import matplotlib.dates as mdate
+from pathlib import Path
+from matplotlib import pyplot as plt
+
 from src.mvp.mbientlab_dataset_builder import MbientlabDatasetBuilder
 
 
@@ -40,10 +42,11 @@ class MbientDataTrimmer:
         # Trim the data given the specified times
         st_end_ixs = self.get_epoch_ixs(start, end, time)
         header = ['epoch', 'x', 'y', 'z']
-        x_data = x_data[st_end_ixs[0]: st_end_ixs[1]]
-        y_data = y_data[st_end_ixs[0]: st_end_ixs[1]]
-        z_data = z_data[st_end_ixs[0]: st_end_ixs[1]]
+        x_data = x_data[st_end_ixs[0]:st_end_ixs[1]]
+        y_data = y_data[st_end_ixs[0]:st_end_ixs[1]]
+        z_data = z_data[st_end_ixs[0]:st_end_ixs[1]]
         time = time[st_end_ixs[0]: st_end_ixs[1]]
+        time = time * 1000.0
         # Format data for output to CSV
         output_df = pd.DataFrame(
             {
@@ -54,12 +57,9 @@ class MbientDataTrimmer:
             }
         )
         # Write data to specified file path
-        file_name = os.path.basename(data_path) + '_TRIMMED'
+        file_name = Path(data_path).stem + '_TRIMMED.csv'
         output_path = os.path.join(output_path, file_name)
         output_df.to_csv(output_path, header=True, index=False)
-        print('correct')
-
-        pass
 
     def get_epoch_ixs(self, start, end, time):
         ixs = []
@@ -79,15 +79,16 @@ class MbientDataTrimmer:
 
 def main():
     trimmer = MbientDataTrimmer()
-    data_path = '/home/grainger/Desktop/skdh_testing/mbient_usb_data/Bridges_12_2022/imu_data_device_004_12-12-2022-18-43-20.csv'
-    #'TRIMMED_imu_data_device_003_12-12-2022-11-45-17'
-    # 'TRIMMED_imu_data_device_004_12-12-2022-18-43-20'
-    # Epoch corresponding to 2022_12_08 at 6:00 PM local time
+    data_path = '/home/grainger/Desktop/skdh_testing/mbient_usb_data/Bridges_12_2022/imu_data_device_004_12-12-2022-18-43-20_TRIMMED.csv'
+    #'imu_data_device_002_12-11-2022-12-32-45'
+    #'imu_data_device_003_12-12-2022-11-45-17'
+    #'imu_data_device_004_12-12-2022-18-43-20'
+    # Epoch (in seconds) corresponding to 2022_12_08 at 6:00 PM local time
     start = 1670540400
-    # Epoch corresponding to 2022_12_10 at 5:00 PM local time
+    # Epoch (in seconds) corresponding to 2022_12_10 at 5:00 PM local time
     end = 1670709600
     output_path = '/home/grainger/Desktop/skdh_testing/mbient_usb_data/Bridges_12_2022/'
-    trimmer.trim_data(data_path, start, end, output_path, viz=False)
+    trimmer.trim_data(data_path, start, end, output_path, viz=True)
 
 
 if __name__ == '__main__':
