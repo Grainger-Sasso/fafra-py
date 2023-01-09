@@ -77,7 +77,7 @@ class ReportGenerator:
         pdf.set_fill_color(211, 211, 211)
         # Header rectangles and logo image
         pdf.rect(margin_x, current_y, rect_width, 30, style='DF')
-        pdf.image("carapace_logo.jpg", margin_x + 6, current_y + 1, 28, 28)
+        pdf.image("/home/grainger/PycharmProjects/fafra-py/src/mvp/report_generation/carapace_logo.jpg", margin_x + 6, current_y + 1, 28, 28)
         pdf.rect(margin_x + 45, current_y + 2, 120, 26, style='')
         # Required fields for header
         pdf.set_font("helvetica", "", 9)
@@ -161,7 +161,7 @@ class ReportGenerator:
         pdf.set_font("helvetica", "", 16)
         current_y += rect_height
 
-        pdf.output(os.path.join(path_handler.risk_report_folder, 'SalesReport.pdf'))
+        pdf.output(os.path.join(path_handler.risk_report_folder, 'risk_report.pdf'))
 
     def build_activity_section(self, pdf, images, skdh_results):
         act_start_y = 106
@@ -293,8 +293,8 @@ class PDF(FPDF):
         return str(round(total / len(skdh_results['act_metrics']['wake mod 5s epoch [min]']), 2))
 
     def compute_sleep_duration(self, skdh_results):
-        total = sum(skdh_results['sleep_metrics']['average sleep duration'])
-        return str(round(total / len(skdh_results['sleep_metrics']['average sleep duration']) / 60.0, 2))
+        total = sum(skdh_results['sleep_metrics']['total sleep time'])
+        return str(round(total / 60.0, 2))
 
     def compute_sleep_hazard_index(self, skdh_results):
         total = sum(skdh_results['sleep_metrics']['sleep average hazard'])

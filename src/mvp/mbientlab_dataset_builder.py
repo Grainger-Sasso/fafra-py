@@ -3,6 +3,7 @@ import csv
 import numpy as np
 import time
 import json
+from datetime import date
 from dateutil import parser, tz
 
 
@@ -55,18 +56,45 @@ class MbientlabDatasetBuilder(DatasetBuilder):
         imu_metadata_file_path = None
         units = {'vertical-acc': 'g', 'mediolateral-acc': 'g',
                  'anteroposterior-acc': 'g'}
-        # TODO: Use ID and hashmap system to map clinical demographic data to users
-        # TODO: get the correct sampling frequency
         imu_metadata = IMUMetadata(None, self.sampling_frequency, units)
         imu_data = IMUData('', '',
                            np.array(x_data), np.array(y_data), np.array(z_data),
                            np.array([]), np.array([]), np.array([]),
                            time)
+        age = self.convert_dob_age(demo_data)
+        height_cm = self.convert_height_cm(demo_data)
+        weight_kg = self.convert_weight_kg(demo_data)
+        clinical_demo_data = ClinicalDemographicData(
+            demo_data['user_ID'], age, demo_data['gender'],
+            False, height_cm, None,
+            demo_data['user_name'], weight_kg,
+        )
         user_data = [UserData(
             imu_data_file_path, imu_data_file_name, imu_metadata_file_path,
-            demo_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, demo_data
+            demo_path, {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data
         )]
         return user_data
+
+    def convert_weight_kg(self, demo_data):
+        weight_lbs = int(demo_data['weight_lbs'])
+        return weight_lbs * 0.4536
+
+    def convert_height_cm(self, demo_data):
+        height_ft_in = demo_data['height_ft_in']
+        h_ft = int(height_ft_in[0:2])
+        h_in = int(height_ft_in[3:])
+        add_in = h_ft * 12
+        total_h_in = h_in + add_in
+        return total_h_in * 2.54
+
+    def convert_dob_age(self, demo_data):
+        dob = demo_data['DOB_mm_dd_yyyy']
+        year = int(dob[6:])
+        month = int(dob[0:2])
+        day = int(dob[3:5])
+        dob_date = date(year, month, day)
+        today = date.today()
+        return float(today.year - dob_date.year - ((today.month, today.day) < (dob_date.month, dob_date.day)))
 
     def load_clinical_demo_data(self, path):
         with open(path, 'r') as f:

@@ -11,6 +11,7 @@ from itertools import repeat
 from pympler import asizeof
 from typing import List
 from matplotlib import pyplot as plt
+from datetime import datetime
 
 from src.risk_classification.validation.input_metric_validator import InputMetricValidator
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
@@ -20,7 +21,7 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
-# from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
+from src.risk_classification.risk_classifiers.knn_risk_classifier.knn_risk_classifier import KNNRiskClassifier
 
 from src.dataset_tools.dataset_builders.dataset_names import DatasetNames
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
@@ -53,6 +54,22 @@ class ModelTrainer:
         # Export model, scaler
         model_path, scaler_path = self.export_classifier(model_output_path, model_name, scaler_name)
         return model_path, scaler_path
+
+    def mult_samples(self, x, y):
+        expanded_x = x.tolist()
+        expanded_y = y.tolist()
+        count = 100
+        i = 0
+        while i <= count:
+            for ele in x.tolist():
+                expanded_x.append(ele)
+            i += 1
+        i = 0
+        while i <= count:
+            for ele in y.tolist():
+                expanded_y.append(ele)
+            i += 1
+        return np.array(expanded_x), np.array(expanded_y)
 
     def run_existing_model(self, model_path, scaler_path, x, y):
         # Import model, scaler
@@ -161,7 +178,9 @@ class LTMMMetricGenerator:
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, self.gait_metric_names)
         gait_pipeline = pipeline_gen.generate_gait_pipeline()
         gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, self.gait_metric_names)
-        input_metrics = []
+        input_metrics = None
+        num_files = len(self.head_df_paths)
+
         for name, header_and_data_file_path in self.head_df_paths.items():
             self.running_analysis_total += 1
             walk_ds = None
@@ -178,7 +197,6 @@ class LTMMMetricGenerator:
                 bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, min_gait_dur)
                 if bout_ixs:
                     self.bout_segmented_total += 1
-                    print(f'Percentage of data segmented by walking data: {(self.bout_segmented_total/self.running_analysis_total) * 100.0}')
                     walk_data = self.get_walk_imu_data(bout_ixs, ds)
                     # Create new dataset from the walking data segments
                     walk_ds = self.gen_walk_ds(walk_data, ds)
@@ -199,15 +217,16 @@ class LTMMMetricGenerator:
             gc.collect()
             memory_usage = ps.memory_info()
             print(memory_usage)
+            print('time running (min): ' + str((time.time() - time0) / 60.0))
+            print(str(self.running_analysis_total) + ' out of: ' + str(num_files))
             print('\n')
             print('\n')
         full_path = self.export_metrics(input_metrics, im_path)
-        print(time.time() - time0)
-        print(f'COMPLETE')
-        print(
-            f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
-        print(
-            f'Percentage of failed segmentations: {(self.bout_seg_fail_total / self.running_analysis_total) * 100.0}')
+        # print(
+            # f'Percentage of data segmented by walking data: {(self.bout_segmented_total / self.running_analysis_total) * 100.0}')
+        # print(
+        #     f'Percentage of failed segmentations: {(self.bout_seg_fail_total / self.running_analysis_total) * 100.0}')
+        print(input_metrics.get_metrics())
         return full_path
 
     def gen_walk_ds(self, walk_data, ds) -> Dataset:
@@ -229,7 +248,7 @@ class LTMMMetricGenerator:
     def get_walk_imu_data(self, bout_ixs, ds):
         walk_data = []
         walk_time = []
-        imu_data = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.LPF)
+        imu_data = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW)
         acc_data = imu_data.get_triax_acc_data()
         acc_data = np.array([acc_data['vertical'], acc_data['mediolateral'], acc_data['anteroposterior']])
         for bout_ix in bout_ixs:
@@ -274,7 +293,12 @@ class LTMMMetricGenerator:
         for name in self.custom_metric_names:
             input_metrics.set_metric(name, [])
         for name in skdh_input_metrics[0]['gait_metrics'].keys():
-            if name not in ['Bout Starts', 'Bout Duration']:
+            if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
                 input_metrics.set_metric(name, [])
         input_metrics.set_labels([])
         return input_metrics
@@ -343,23 +367,40 @@ class LTMMMetricGenerator:
     def generate_skdh_metrics(self, dataset, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
         for user_data in dataset.get_dataset():
-            # Get the data from the user data in correct format
-            # Get the time axis from user data
-            # Get sampling rate
-            # Generate day ends for the time axes
             imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
             time = imu_data.get_time()
             fs = user_data.get_imu_metadata().get_sampling_frequency()
-            # TODO: create function to translate the time axis into day ends
-            day_ends = np.array([[0, int(len(time) - 1)]])
-            if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends))
+            sex = user_data.get_clinical_demo_data().get_sex()
+            if sex == 'F':
+                height = 1.63
+            elif sex == 'M':
+                height = 1.77
             else:
-                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
+                raise ValueError(f'Invalid value for user sex: {sex}')
+            # TODO: create function to translate the time axis into day ends
+            day_ends = self.get_day_ends(dataset)
+            if gait:
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs, day_ends, height))
+            else:
+                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends, height))
         return results
+
+    def get_day_ends(self, ds):
+        time = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()
+        current_ix = 0
+        iter_ix = 0
+        day_end_pairs = []
+        while iter_ix + 1 <= len(time) - 1:
+            if datetime.fromtimestamp(time[iter_ix]).time().hour > datetime.fromtimestamp(
+                    time[iter_ix + 1]).time().hour:
+                day_end_pairs.append([current_ix, iter_ix])
+                current_ix = iter_ix
+            iter_ix += 1
+        day_end_pairs.append([current_ix, len(time) - 1])
+        return np.array(day_end_pairs)
 
     def export_skdh_results(self, results, path):
         result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
@@ -476,12 +517,13 @@ class LTMMMetricGenerator:
         for user_metrics in skdh_input_metrics:
             gait_metrics = user_metrics['gait_metrics']
             for name, val in gait_metrics.items():
-                if name not in ['Bout Starts', 'Bout Duration']:
-                    if name not in new_composite_metrics.keys():
-                        new_composite_metrics[name] = []
-                        new_composite_metrics[name].append(val)
-                    else:
-                        new_composite_metrics[name].append(val)
+                if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
+                    input_metrics.get_metric(name).append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
             new_composite_metrics[name.value] = metric.get_value().tolist()
         bout_metrics['metrics'] = new_composite_metrics
@@ -505,89 +547,92 @@ class LTMMMetricGenerator:
 
 
 def main():
-    # Input params
-    dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
-    cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
-    metric_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
-    seg = False
-    epoch = 0.0
-    metric_names = tuple(
-        [
-            MetricNames.AUTOCORRELATION,
-            MetricNames.FAST_FOURIER_TRANSFORM,
-            MetricNames.MEAN,
-            MetricNames.ROOT_MEAN_SQUARE,
-            MetricNames.STANDARD_DEVIATION,
-            MetricNames.SIGNAL_ENERGY,
-            MetricNames.COEFFICIENT_OF_VARIANCE,
-            MetricNames.ZERO_CROSSING,
-            MetricNames.SIGNAL_MAGNITUDE_AREA
-        ]
-    )
-    custom_metric_names = tuple(
-        [
-            MetricNames.SIGNAL_MAGNITUDE_AREA,
-            MetricNames.COEFFICIENT_OF_VARIANCE,
-            MetricNames.STANDARD_DEVIATION,
-            MetricNames.MEAN,
-            MetricNames.SIGNAL_ENERGY,
-            MetricNames.ROOT_MEAN_SQUARE
-        ]
-    )
-    gait_metric_names = [
-            'PARAM:gait speed',
-            'BOUTPARAM:gait symmetry index',
-            'PARAM:cadence',
-            'Bout Steps',
-            'Bout Duration',
-            'Bout N',
-            'Bout Starts',
-            #Additional gait params
-            'PARAM:stride time',
-            'PARAM:stride time asymmetry',
-            'PARAM:stance time',
-            'PARAM:stance time asymmetry',
-            'PARAM:swing time',
-            'PARAM:swing time asymmetry',
-            'PARAM:step time',
-            'PARAM:step time asymmetry',
-            'PARAM:initial double support',
-            'PARAM:initial double support asymmetry',
-            'PARAM:terminal double support',
-            'PARAM:terminal double support asymmetry',
-            'PARAM:double support',
-            'PARAM:double support asymmetry',
-            'PARAM:single support',
-            'PARAM:single support asymmetry',
-            'PARAM:step length',
-            'PARAM:step length asymmetry',
-            'PARAM:stride length',
-            'PARAM:stride length asymmetry',
-            'PARAM:gait speed asymmetry',
-            'PARAM:intra-step covariance - V',
-            'PARAM:intra-stride covariance - V',
-            'PARAM:harmonic ratio - V',
-            'PARAM:stride SPARC',
-            'BOUTPARAM:phase coordination index',
-            'PARAM:intra-step covariance - V',
-            'PARAM:intra-stride covariance - V',
-            'PARAM:harmonic ratio - V',
-            'PARAM:stride SPARC',
-            'BOUTPARAM:phase coordination index'
-        ]
+    ### Metric generation
+    # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/'
+    # # dp = '/home/grainger/Desktop/datasets/small_LTMMD/'
+    # # dp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/LabWalks/'
+    # cdp = '/home/grainger/Desktop/datasets/LTMMD/long-term-movement-monitoring-database-1.0.0/ClinicalDemogData_COFL.xlsx'
+    # metric_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/'
+    # seg = False
+    # epoch = 0.0
+    # metric_names = tuple(
+    #     [
+    #         MetricNames.AUTOCORRELATION,
+    #         MetricNames.FAST_FOURIER_TRANSFORM,
+    #         MetricNames.MEAN,
+    #         MetricNames.ROOT_MEAN_SQUARE,
+    #         MetricNames.STANDARD_DEVIATION,
+    #         MetricNames.SIGNAL_ENERGY,
+    #         MetricNames.COEFFICIENT_OF_VARIANCE,
+    #         MetricNames.ZERO_CROSSING,
+    #         MetricNames.SIGNAL_MAGNITUDE_AREA
+    #     ]
+    # )
+    # custom_metric_names = tuple(
+    #     [
+    #         MetricNames.SIGNAL_MAGNITUDE_AREA,
+    #         MetricNames.COEFFICIENT_OF_VARIANCE,
+    #         MetricNames.STANDARD_DEVIATION,
+    #         MetricNames.MEAN,
+    #         MetricNames.SIGNAL_ENERGY,
+    #         MetricNames.ROOT_MEAN_SQUARE
+    #     ]
+    # )
+    # gait_metric_names = [
+    #         'PARAM:gait speed',
+    #         'BOUTPARAM:gait symmetry index',
+    #         'PARAM:cadence',
+    #         'Bout Steps',
+    #         'Bout Duration',
+    #         'Bout N',
+    #         'Bout Starts',
+    #         # Additional gait params
+    #         'PARAM:stride time',
+    #         'PARAM:stride time asymmetry',
+    #         'PARAM:stance time',
+    #         'PARAM:stance time asymmetry',
+    #         'PARAM:swing time',
+    #         'PARAM:swing time asymmetry',
+    #         'PARAM:step time',
+    #         'PARAM:step time asymmetry',
+    #         'PARAM:initial double support',
+    #         'PARAM:initial double support asymmetry',
+    #         'PARAM:terminal double support',
+    #         'PARAM:terminal double support asymmetry',
+    #         'PARAM:double support',
+    #         'PARAM:double support asymmetry',
+    #         'PARAM:single support',
+    #         'PARAM:single support asymmetry',
+    #         'PARAM:step length',
+    #         'PARAM:step length asymmetry',
+    #         'PARAM:stride length',
+    #         'PARAM:stride length asymmetry',
+    #         'PARAM:gait speed asymmetry',
+    #         'PARAM:intra-step covariance - V',
+    #         'PARAM:intra-stride covariance - V',
+    #         'PARAM:harmonic ratio - V',
+    #         'PARAM:stride SPARC',
+    #         'BOUTPARAM:phase coordination index',
+    #         'PARAM:intra-step covariance - V',
+    #         'PARAM:intra-stride covariance - V',
+    #         'PARAM:harmonic ratio - V',
+    #         'PARAM:stride SPARC',
+    #         'BOUTPARAM:phase coordination index'
+    #     ]
+    #
+    # final_skdh_metric_names = ['PARAM:gait speed: mean', 'PARAM:gait speed: std', 'BOUTPARAM:gait symmetry index: mean', 'BOUTPARAM:gait symmetry index: std', 'PARAM:cadence: mean', 'PARAM:cadence: std', 'Bout Steps: mean', 'Bout Steps: std', 'Bout Duration: mean', 'Bout Duration: std', 'Bout N: mean', 'Bout N: std', 'Bout Starts: mean', 'Bout Starts: std', 'PARAM:stride time: mean', 'PARAM:stride time: std', 'PARAM:stride time asymmetry: mean', 'PARAM:stride time asymmetry: std', 'PARAM:stance time: mean', 'PARAM:stance time: std', 'PARAM:stance time asymmetry: mean', 'PARAM:stance time asymmetry: std', 'PARAM:swing time: mean', 'PARAM:swing time: std', 'PARAM:swing time asymmetry: mean', 'PARAM:swing time asymmetry: std', 'PARAM:step time: mean', 'PARAM:step time: std', 'PARAM:step time asymmetry: mean', 'PARAM:step time asymmetry: std', 'PARAM:initial double support: mean', 'PARAM:initial double support: std', 'PARAM:initial double support asymmetry: mean', 'PARAM:initial double support asymmetry: std', 'PARAM:terminal double support: mean', 'PARAM:terminal double support: std', 'PARAM:terminal double support asymmetry: mean', 'PARAM:terminal double support asymmetry: std', 'PARAM:double support: mean', 'PARAM:double support: std', 'PARAM:double support asymmetry: mean', 'PARAM:double support asymmetry: std', 'PARAM:single support: mean', 'PARAM:single support: std', 'PARAM:single support asymmetry: mean', 'PARAM:single support asymmetry: std', 'PARAM:step length: mean', 'PARAM:step length: std', 'PARAM:step length asymmetry: mean', 'PARAM:step length asymmetry: std', 'PARAM:stride length: mean', 'PARAM:stride length: std', 'PARAM:stride length asymmetry: mean', 'PARAM:stride length asymmetry: std', 'PARAM:gait speed asymmetry: mean', 'PARAM:gait speed asymmetry: std', 'PARAM:intra-step covariance - V: mean', 'PARAM:intra-step covariance - V: std', 'PARAM:intra-stride covariance - V: mean', 'PARAM:intra-stride covariance - V: std', 'PARAM:harmonic ratio - V: mean', 'PARAM:harmonic ratio - V: std', 'PARAM:stride SPARC: mean', 'PARAM:stride SPARC: std', 'BOUTPARAM:phase coordination index: mean', 'BOUTPARAM:phase coordination index: std', 'Bout Steps: sum', 'Bout Duration: sum', 'Bout Starts', 'Bout Duration']
+    #
+    # # Run metric generation
+    # mg = LTMMMetricGenerator(dp, cdp, seg,
+    #              epoch, custom_metric_names, gait_metric_names, final_skdh_metric_names)
+    # full_path = mg.generate_input_metrics(
+    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
+    #     '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/non_gait_seg/',
+    #     seg_gait=True
+    # )
+    ###
 
-    final_skdh_metric_names = ['PARAM:gait speed: mean', 'PARAM:gait speed: std', 'BOUTPARAM:gait symmetry index: mean', 'BOUTPARAM:gait symmetry index: std', 'PARAM:cadence: mean', 'PARAM:cadence: std', 'Bout Steps: mean', 'Bout Steps: std', 'Bout Duration: mean', 'Bout Duration: std', 'Bout N: mean', 'Bout N: std', 'Bout Starts: mean', 'Bout Starts: std', 'PARAM:stride time: mean', 'PARAM:stride time: std', 'PARAM:stride time asymmetry: mean', 'PARAM:stride time asymmetry: std', 'PARAM:stance time: mean', 'PARAM:stance time: std', 'PARAM:stance time asymmetry: mean', 'PARAM:stance time asymmetry: std', 'PARAM:swing time: mean', 'PARAM:swing time: std', 'PARAM:swing time asymmetry: mean', 'PARAM:swing time asymmetry: std', 'PARAM:step time: mean', 'PARAM:step time: std', 'PARAM:step time asymmetry: mean', 'PARAM:step time asymmetry: std', 'PARAM:initial double support: mean', 'PARAM:initial double support: std', 'PARAM:initial double support asymmetry: mean', 'PARAM:initial double support asymmetry: std', 'PARAM:terminal double support: mean', 'PARAM:terminal double support: std', 'PARAM:terminal double support asymmetry: mean', 'PARAM:terminal double support asymmetry: std', 'PARAM:double support: mean', 'PARAM:double support: std', 'PARAM:double support asymmetry: mean', 'PARAM:double support asymmetry: std', 'PARAM:single support: mean', 'PARAM:single support: std', 'PARAM:single support asymmetry: mean', 'PARAM:single support asymmetry: std', 'PARAM:step length: mean', 'PARAM:step length: std', 'PARAM:step length asymmetry: mean', 'PARAM:step length asymmetry: std', 'PARAM:stride length: mean', 'PARAM:stride length: std', 'PARAM:stride length asymmetry: mean', 'PARAM:stride length asymmetry: std', 'PARAM:gait speed asymmetry: mean', 'PARAM:gait speed asymmetry: std', 'PARAM:intra-step covariance - V: mean', 'PARAM:intra-step covariance - V: std', 'PARAM:intra-stride covariance - V: mean', 'PARAM:intra-stride covariance - V: std', 'PARAM:harmonic ratio - V: mean', 'PARAM:harmonic ratio - V: std', 'PARAM:stride SPARC: mean', 'PARAM:stride SPARC: std', 'BOUTPARAM:phase coordination index: mean', 'BOUTPARAM:phase coordination index: std', 'Bout Steps: sum', 'Bout Duration: sum', 'Bout Starts', 'Bout Duration']
 
-    # Run metric generation
-    mg = LTMMMetricGenerator(dp, cdp, seg,
-                 epoch, custom_metric_names, gait_metric_names, final_skdh_metric_names)
-    full_path = mg.generate_input_metrics(
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/skdh/',
-        '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/',
-        seg_gait=True
-    )
-
-    # Run im scaling and model training/export
     mt = ModelTrainer()
 
     #Benchmarking
@@ -597,12 +642,13 @@ def main():
     # mt.benchmark_existing_classifier(model_path, scaler_path, metric_path)
 
     # Model Gen
-    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220726-152733.json'
+    im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/non_gait_seg/model_input_metrics_20221226-125539.json'
+    # im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220922-012602.json'
     # walk_seg_im_path = '/home/grainger/Desktop/skdh_testing/ml_model/input_metrics/custom_skdh/model_input_metrics_20220802-011442.json'
-    # model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/'
-    # model_name = 'lgbm_skdh_ltmm_rcm_'
-    # scaler_name = 'lgbm_skdh_ltmm_scaler_'
-    # mt.generate_model(walk_seg_im_path, model_output_path, model_name, scaler_name)
+    model_output_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/'
+    model_name = 'lgbm_skdh_ltmm_rcm_'
+    scaler_name = 'lgbm_skdh_ltmm_scaler_'
+    mt.generate_model(im_path, model_output_path, model_name, scaler_name)
 
 
 if __name__ == '__main__':
