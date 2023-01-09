@@ -3,6 +3,7 @@ import numpy as np
 import json
 import time
 import joblib
+from datetime import datetime
 from typing import List
 
 
@@ -12,6 +13,7 @@ from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.risk_classification.input_metrics.metric_generator import MetricGenerator
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
@@ -93,16 +95,11 @@ class MetricGen:
         ds = DataLoader().load_data(path_handler)
         # Preprocess data
         self.preprocess_data(ds)
-        # TODO: Get day_ends from data
-        day_ends = np.array([[0, 3836477], [3836477, 7607840]])
-        # Segment data along walking bouts
-        walk_ds = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
+        day_ends = self.get_day_ends(ds)
+        # Segment dataset on walking bouts, return new dataset and SKDH results
+        walk_ds, skdh_input_metrics = self.segment_data_walk(ds, gait_metric_names, day_ends, path_handler)
         # Generate metrics on walking data
         custom_input_metrics: InputMetrics = self.generate_custom_metrics(walk_ds, custom_metric_names)
-        pipeline_gen = SKDHPipelineGenerator()
-        gait_pipeline = pipeline_gen.generate_gait_pipeline()
-        gait_pipeline_run = SKDHPipelineRunner(gait_pipeline, gait_metric_names)
-        skdh_input_metrics = self.generate_skdh_metrics(walk_ds, day_ends, gait_pipeline_run, True)
         # Format input metrics
         ra_metrics = self.format_input_metrics(custom_input_metrics, skdh_input_metrics, custom_metric_names)
         # Export metrics
@@ -110,8 +107,21 @@ class MetricGen:
         path_handler.ra_metrics_file = ra_metrics_path
         return ra_metrics_path, ra_metrics
 
+    def get_day_ends(self, ds):
+        time = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.RAW).get_time()
+        current_ix = 0
+        iter_ix = 0
+        day_end_pairs = []
+        while iter_ix + 1 <= len(time) - 1:
+            if datetime.fromtimestamp(time[iter_ix]).time().hour > datetime.fromtimestamp(
+                    time[iter_ix + 1]).time().hour:
+                day_end_pairs.append([current_ix, iter_ix])
+                current_ix = iter_ix
+            iter_ix += 1
+        day_end_pairs.append([current_ix, len(time) - 1])
+        return np.array(day_end_pairs)
+
     def preprocess_data(self, dataset):
-        freq = dataset.get_dataset()[0].get_imu_metadata().get_sampling_frequency()
         for user_data in dataset.get_dataset():
             # Filter the data
             self.apply_lp_filter(user_data)
@@ -120,8 +130,6 @@ class MetricGen:
         filter = MotionFilters()
         imu_data: IMUData = user_data.get_imu_data()[IMUDataFilterType.RAW]
         samp_freq = user_data.get_imu_metadata().get_sampling_frequency()
-        act_code = imu_data.get_activity_code()
-        act_des = imu_data.get_activity_description()
         all_raw_data = imu_data.get_all_data()
         time = imu_data.get_time()
         lpf_data_all_axis = []
@@ -147,43 +155,37 @@ class MetricGen:
     def generate_skdh_metrics(self, dataset, day_ends, pipeline_run: SKDHPipelineRunner, gait=False):
         results = []
         for user_data in dataset.get_dataset():
-            # Get the data from the user data in correct format
-            # Get the time axis from user data
-            # Get sampling rate
-            # Generate day ends for the time axes
-            imu_data = user_data.get_imu_data(IMUDataFilterType.LPF)
+            height_m = user_data.get_clinical_demo_data().get_height() / 100.0
+            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
             data = imu_data.get_triax_acc_data()
             data = np.array([data['vertical'], data['mediolateral'], data['anteroposterior']])
             data = data.T
             time = imu_data.get_time()
             fs = user_data.get_imu_metadata().get_sampling_frequency()
-            # TODO: create function to translate the time axis into day ends
-            # day_ends = np.array([[0, int(len(time) - 1)]])
             if gait:
-                results.append(pipeline_run.run_gait_pipeline(data, time, fs))
+                results.append(pipeline_run.run_gait_pipeline(data, time, fs, height=height_m))
             else:
-                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends))
+                results.append(pipeline_run.run_pipeline(data, time, fs, day_ends, height=height_m))
         return results
 
     def segment_data_walk(self, ds, gait_metric_names, day_ends, path_handler):
         skdh_output_path = path_handler.skdh_pipeline_results_folder
         # Run initial pass of SKDH on data
         pipeline_gen = SKDHPipelineGenerator()
-        # TODO: Set output path
         full_pipeline = pipeline_gen.generate_pipeline(skdh_output_path)
         full_pipeline_run = SKDHPipelineRunner(full_pipeline, gait_metric_names)
         skdh_input_metrics = self.generate_skdh_metrics(ds, day_ends, full_pipeline_run, False)
         skdh_pipeline_results_path = self.export_skdh_results(skdh_input_metrics, skdh_output_path)
         path_handler.skdh_pipeline_results_file = skdh_pipeline_results_path
-        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 30.0)
+        bout_ixs = self.get_walk_bout_ixs(skdh_input_metrics, ds, 6.0)
         if bout_ixs:
-            walk_data = self.get_walk_imu_data(bout_ixs, ds)
+            walk_data, walk_time = self.get_walk_imu_data(bout_ixs, ds)
             # Create new dataset from the walking data segments
-            walk_ds = self.gen_walk_ds(walk_data, ds)
+            walk_ds = self.gen_walk_ds(walk_data, walk_time, ds)
             self.preprocess_data(walk_ds)
         else:
             raise ValueError('FAILED TO SEGMENT DATA ALONG GAIT BOUTS')
-        return walk_ds
+        return walk_ds, skdh_input_metrics
 
     def export_skdh_results(self, results, path):
         result_file_name = 'skdh_results_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
@@ -222,7 +224,7 @@ class MetricGen:
             json.dump(new_results, f)
         return full_path
 
-    def gen_walk_ds(self, walk_data, ds) -> Dataset:
+    def gen_walk_ds(self, walk_data, walk_time, ds) -> Dataset:
         dataset = []
         user_data = ds.get_dataset()[0]
         imu_data_file_path: str = user_data.get_imu_data_file_path()
@@ -234,10 +236,8 @@ class MetricGen:
         dataset_path = ds.get_dataset_path()
         clinical_demo_path = ds.get_clinical_demo_path()
         clinical_demo_data = user_data.get_clinical_demo_data()
-        for walk_bout in walk_data:
+        for walk_bout, time in zip(walk_data, walk_time):
             # Build a UserData object for the whole data
-            time = np.linspace(0, len(np.array(walk_bout[0])) / int(imu_metadata.get_sampling_frequency()),
-                           len(np.array(walk_bout[0])))
             imu_data = self._generate_imu_data_instance(walk_bout, time)
             dataset.append(UserData(imu_data_file_path, imu_data_file_name, imu_metadata_file_path, clinical_demo_path,
                                     {IMUDataFilterType.RAW: imu_data}, imu_metadata, clinical_demo_data))
@@ -264,9 +264,11 @@ class MetricGen:
         imu_data = ds.get_dataset()[0].get_imu_data(IMUDataFilterType.LPF)
         acc_data = imu_data.get_triax_acc_data()
         acc_data = np.array([acc_data['vertical'], acc_data['mediolateral'], acc_data['anteroposterior']])
+        time = np.array(imu_data.get_time())
         for bout_ix in bout_ixs:
             walk_data.append(acc_data[:, bout_ix[0]:bout_ix[1]])
-        return walk_data
+            walk_time.append(time[bout_ix[0]:bout_ix[1]])
+        return walk_data, walk_time
 
     def generate_custom_metrics(self, dataset, custom_metric_names) -> InputMetrics:
         mg = MetricGenerator()
@@ -281,7 +283,14 @@ class MetricGen:
         for user_metrics in skdh_input_metrics:
             gait_metrics = user_metrics['gait_metrics']
             for name, val in gait_metrics.items():
-                if name not in ['Bout Starts', 'Bout Duration']:
+                if name not in [
+                    'Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std'
+                ]:
                     input_metrics.get_metric(name).append(val)
         for name, metric in custom_input_metrics.get_metrics().items():
             input_metrics.get_metric(name).extend(metric.get_value().tolist())
@@ -290,7 +299,7 @@ class MetricGen:
             metric = np.array(metric)
             metric = metric[~np.isnan(metric)]
             metric_mean = metric.mean()
-            final_metrics.set_metric(name, metric_mean)
+            final_metrics.set_metric(name, InputMetric(name, metric_mean))
         input_metrics.get_labels().extend(custom_input_metrics.get_labels())
         final_metrics.set_labels(input_metrics.get_labels())
         return final_metrics
@@ -300,7 +309,12 @@ class MetricGen:
         for name in custom_metric_names:
             input_metrics.set_metric(name, [])
         for name in skdh_input_metrics[0]['gait_metrics'].keys():
-            if name not in ['Bout Starts', 'Bout Duration']:
+            if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
                 input_metrics.set_metric(name, [])
         input_metrics.set_labels([])
         return input_metrics
@@ -312,9 +326,9 @@ class MetricGen:
         new_im = {}
         for name, metric in input_metrics.get_metrics().items():
             if isinstance(name, MetricNames):
-                new_im[name.value] = metric
+                new_im[name.value] = metric.get_value()
             else:
-                new_im[name] = metric
+                new_im[name] = metric.get_value()
         metric_data = {'metrics': [new_im], 'labels': input_metrics.get_labels()}
         with open(full_path, 'w') as f:
             json.dump(metric_data, f)
@@ -349,11 +363,10 @@ class DataLoader:
     def build_dataset(self, data_type, imu_data_path, demo_data, demo_path):
         if data_type.lower() == 'mbientlab_metamotions':
             user_data: List[UserData] = MbientlabDatasetBuilder().build_single_user(imu_data_path, demo_data, demo_path)
-            # TODO: may need to define ra data objects specific to the MVP
         else:
             raise ValueError(f'Unknown IMU datatype provided {data_type}')
         dataset = Dataset(
-            'mbientlab', [imu_data_path], [], user_data, {}
+            'mbientlab', [imu_data_path], [demo_path], user_data, {}
         )
         return dataset
 
@@ -361,9 +374,12 @@ class DataLoader:
 class Model:
     def assess_fall_risk(self, model_path, scaler_path, metrics, path_handler: PathHandler):
         risk_model = self.import_classifier(model_path, scaler_path)
-        metrics = self.format_input_metrics_scaling(metrics)
-        metrics = risk_model.scaler.transform(metrics)
-        prediction = risk_model.make_prediction(metrics)[0]
+        # Check correspondence between the input metrics and the metrics the model was trained on
+        self.check_metric_correspond(metrics, risk_model)
+        x, names = metrics.get_metric_matrix()
+        x = x.reshape(1, -1)
+        x_t = risk_model.scaler.transform(x)
+        prediction = int(risk_model.make_prediction(x_t)[0])
         if prediction:
             if self.assess_elevated_risk(path_handler):
                 prediction = 2
@@ -379,7 +395,35 @@ class Model:
         path_handler.ra_results_file = file_path
         return file_path, results
 
+    def check_metric_correspond(self, metrics, risk_model):
+        model_metrics = risk_model.model.feature_name()
+        fafra_metrics = metrics.get_metric_names()
+        fafra_metrics = [name.replace(':', '_') for name in fafra_metrics]
+        fafra_metrics = [name.replace(' ', '_') for name in fafra_metrics]
+        fafra_metrics = [name.replace('__', '_') for name in fafra_metrics]
+        if model_metrics != fafra_metrics:
+            raise ValueError('Lack of correspondence between FaFRA generated metrics and model training metrics: ' +
+                             '\n' + f'FaFRA metric names: {fafra_metrics}'
+                             '\n' + f'Model metric names: {model_metrics}')
+
     def assess_elevated_risk(self, path_handler):
+        """
+        Elevated fall risk assessed by gait speed of individual. There is evidence for an elevated risk of
+        hospitalization at gait speeds below 0.6 m/s.
+
+        Refs
+        Studenski S, Perera S, Wallace D, et al. Physical performance measures in the clinical setting. J Am Geriatr Soc. 2003;51: 314–322:
+        Walking Speed Threshold for Classifying Walking Independence in Hospitalized Older Adults. James E. Graham, Steve R. Fisher, Ivonne-Marie Bergés, Yong-Fang Kuo, Glenn V. Ostir
+
+        Additional refs
+        Bohannon RW Andrews AW Thomas MW . Walking speed: reference values and correlates for older adults. J Orthop Sports Phys Ther. 1996;24:86–90.
+        Langlois JA Keyl PM Guralnik JM , et al. . Characteristics of older pedestrians who have difficulty crossing the street. Am J Public Health. 1997;87:393–397.
+        Hageman PA Blanke DJ . Comparison of gait of young women and elderly women. Phys Ther. 1986;66:1382–1387.
+        Krishnamurthy M Verghese J . Gait characteristics in nondisabled community-residing nonagenarians. Arch Phys Med Rehabil. 2006;87:541–545.
+
+        :param path_handler: object to call for path RA results containing estimated gait speed
+        :return: check on whether estimated gait speed is above/below threshold for elevated fall risk range
+        """
         elevated_risk = False
         # Load in the gait metrics and check gait speed against accepted standard of 0.6 m/s
         results_file = path_handler.skdh_pipeline_results_file
@@ -419,9 +463,10 @@ class Model:
 
 def pipeline_test():
     fafra = FaFRA()
-    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_rcm_20220804-123836.pkl'
-    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_2_2022_08_04/lgbm_skdh_ltmm_scaler_20220804-123836.bin'
-    assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
+    ra_model_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/lgbm_skdh_ltmm_rcm_20221226-152124.pkl'
+    ra_scaler_path = '/home/grainger/Desktop/skdh_testing/ml_model/complete_im_models/model_3_2022_12_21/lgbm_skdh_ltmm_scaler_20221226-152124.bin'
+    # assessment_path = '/home/grainger/Desktop/risk_assessments/test_batch/batch_0000000000000000_YYYY_MM_DD/assessment_0000000000000000_YYYY_MM_DD/'
+    assessment_path = '/home/grainger/Desktop/risk_assessments/customer_Bridges/site_Bridges_Cornell_Heights/batch_0000000000000002_2022_12_11/assessment_0000000000000002_2022_12_11/'
     ra = fafra.perform_risk_assessment(assessment_path, ra_model_path, ra_scaler_path)
 
 

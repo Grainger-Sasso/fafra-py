@@ -51,7 +51,7 @@ class LightGBMRiskClassifier(Classifier):
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         # train lightgbm
         study = optuna.create_study(direction="minimize")
-        study.optimize(self.opt_objective, n_trials=500)
+        study.optimize(self.opt_objective, n_trials=100)
         # optuna.visualization.plot_optimization_history(study)
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
