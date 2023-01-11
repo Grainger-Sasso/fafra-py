@@ -177,6 +177,7 @@ class DatasetBuilder(DatasetBuilder):
                         data_segments = self.segment_data(data, epoch_size,
                                                           self.sampling_frequency)
                         for segment in data_segments:
+                            segment = segment.T
                             imu_data = self._generate_imu_data_instance(
                                 segment, self.sampling_frequency, device_position)
                             dataset.append(UserData(imu_data_file_path,
@@ -286,8 +287,10 @@ class DatasetBuilder(DatasetBuilder):
         # Data is stored as 16-bit int, converts to float
         data = wavfile.read(path)[1]
         data = np.array(data, dtype=float)
-        #Initial units are g = value/256, converts directly from g to m/s^2
-        data = data / 256.0 * 9.80665
+        # Initial units are g = value/256, converts directly from g to m/s^2
+        # Removed conversion from g to m/s^2 for use in SKDH
+        # data = data / 256.0 * 9.80665
+        data = data / 256.0
         return data
 
     def _get_subj_clin_data(self, clinical_demo_data, subj_id, trial_id):

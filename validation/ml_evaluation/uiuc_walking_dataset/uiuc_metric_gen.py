@@ -1,4 +1,6 @@
 import numpy as np
+from matplotlib import pyplot as plt
+from typing import List
 
 from src.dataset_tools.dataset_builders.builder_instances.uiuc_gait_dataset_builder import DatasetBuilder
 from src.motion_analysis.filters.motion_filters import MotionFilters
@@ -6,11 +8,52 @@ from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
+from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 
 
 class MetricGenerator:
     def __init__(self):
-        pass
+        self.skdh_metric_names: List[str] = [
+            'PARAM:gait speed',
+            'BOUTPARAM:gait symmetry index',
+            'PARAM:cadence',
+            'Bout Steps',
+            'Bout Duration',
+            'Bout N',
+            'Bout Starts',
+            # Additional gait params
+            'PARAM:stride time',
+            'PARAM:stride time asymmetry',
+            'PARAM:stance time',
+            'PARAM:stance time asymmetry',
+            'PARAM:swing time',
+            'PARAM:swing time asymmetry',
+            'PARAM:step time',
+            'PARAM:step time asymmetry',
+            'PARAM:initial double support',
+            'PARAM:initial double support asymmetry',
+            'PARAM:terminal double support',
+            'PARAM:terminal double support asymmetry',
+            'PARAM:double support',
+            'PARAM:double support asymmetry',
+            'PARAM:single support',
+            'PARAM:single support asymmetry',
+            'PARAM:step length',
+            'PARAM:step length asymmetry',
+            'PARAM:stride length',
+            'PARAM:stride length asymmetry',
+            'PARAM:gait speed asymmetry',
+            'PARAM:intra-step covariance - V',
+            'PARAM:intra-stride covariance - V',
+            'PARAM:harmonic ratio - V',
+            'PARAM:stride SPARC',
+            'BOUTPARAM:phase coordination index',
+            'PARAM:intra-step covariance - V',
+            'PARAM:intra-stride covariance - V',
+            'PARAM:harmonic ratio - V',
+            'PARAM:stride SPARC',
+            'BOUTPARAM:phase coordination index'
+        ]
 
     def gen_input_features(self, ds_path, clinic_demo_path,
                            output_path, segment_dataset, epoch_size):
@@ -22,12 +65,61 @@ class MetricGenerator:
         # Characterize dataset
         self.characterize_dataset(ds, output_path)
         # Preprocess dataset
-        self.preprocess_data(ds)
+        # self.preprocess_data(ds)
         # Generate SKDH metrics
-        # Generate custom metrics
+        skdh_metrics, failed_trials = self.generate_skdh_metrics(ds)
+        # TODO: Generate custom metrics
         # Format input metrics
         # Export input metrics
         return features
+
+    def generate_skdh_metrics(self, ds):
+        pipeline_gen = SKDHPipelineGenerator()
+        gait_pipeline = pipeline_gen.generate_gait_pipeline()
+        gait_pipeline_run = SKDHPipelineRunner(
+            gait_pipeline, self.skdh_metric_names)
+        skdh_input_metrics, failed_trials = self.run_skdh_gait(
+            ds, gait_pipeline_run)
+        return skdh_input_metrics, failed_trials
+
+    def run_skdh_gait(self, ds, gait_pipeline_run):
+        results = []
+        failed_trials = []
+        for user_data in ds.get_dataset():
+            height_m = user_data.get_clinical_demo_data().get_height()
+            imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
+            data = imu_data.get_triax_acc_data()
+            data = np.array([
+                    data['vertical'],
+                    data['mediolateral'],
+                    data['anteroposterior']
+                ])
+            data = data.T
+            time = imu_data.get_time()
+            sid = user_data.get_clinical_demo_data().get_id()
+            trial = user_data.get_clinical_demo_data().get_trial()
+            fs = user_data.get_imu_metadata().get_sampling_frequency()
+            result = gait_pipeline_run.run_gait_pipeline(data, time, fs, height=height_m)
+            if np.isnan(result['gait_metrics'][self.skdh_metric_names[0] + ': mean']):
+                failed_trials.append({'id': sid, 'trial': trial})
+            else:
+                result['id'] = sid
+                result['trial'] = trial
+                results.append(result)
+        return results, failed_trials
+
+    def visualize_user_data(self, user_data, sid, trial):
+        imu_data = user_data.get_imu_data(IMUDataFilterType.RAW)
+        v_acc = imu_data.get_acc_axis_data('vertical')
+        ml_acc = imu_data.get_acc_axis_data('mediolateral')
+        ap_acc = imu_data.get_acc_axis_data('anteroposterior')
+        time = imu_data.get_time()
+        fig, ax = plt.subplots()
+        ax.plot(time, v_acc)
+        ax.plot(time, ml_acc)
+        ax.plot(time, ap_acc)
+        ax.set_title(str(sid) + ': ' + str(trial))
+        plt.show()
 
     def characterize_dataset(self, ds, output_path):
         """

@@ -19,10 +19,10 @@ class MLEvaluator:
 
 
 def main():
-    ds_path = ''
-    clinic_demo_path = ''
+    ds_path = '/home/grainger/Desktop/datasets/UIUC_gaitspeed/bin_data/subj_files/'
+    clinic_demo_path = '/home/grainger/Desktop/datasets/UIUC_gaitspeed/participant_metadata/Data_CHI2021_Carapace.xlsx'
     output_path = ''
-    segment_dataset = False
+    segment_dataset = True
     epoch_size = 10.0
     ml_e = MLEvaluator()
     ml_e.perform_ml_analysis(
