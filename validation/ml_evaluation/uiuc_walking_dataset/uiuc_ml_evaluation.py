@@ -23,7 +23,7 @@ def main():
     clinic_demo_path = '/home/grainger/Desktop/datasets/UIUC_gaitspeed/participant_metadata/Data_CHI2021_Carapace.xlsx'
     output_path = ''
     segment_dataset = True
-    epoch_size = 10.0
+    epoch_size = 12.0
     ml_e = MLEvaluator()
     ml_e.perform_ml_analysis(
         ds_path, clinic_demo_path, output_path,
