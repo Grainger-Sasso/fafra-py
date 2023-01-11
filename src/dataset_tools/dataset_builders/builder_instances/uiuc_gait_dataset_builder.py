@@ -173,12 +173,12 @@ class DatasetBuilder(DatasetBuilder):
                     if segment_dataset:
                         # TODO: track the segmented data with a linked list
                         # Segment the data and build a UserData object for each epoch
+                        data = data.T
                         data_segments = self.segment_data(data, epoch_size,
                                                           self.sampling_frequency)
                         for segment in data_segments:
                             imu_data = self._generate_imu_data_instance(
-                                paths, segment,
-                                self.sampling_frequency, device_position)
+                                segment, self.sampling_frequency, device_position)
                             dataset.append(UserData(imu_data_file_path,
                                                     imu_data_file_name,
                                                     imu_metadata_file_path,
@@ -405,11 +405,11 @@ def main():
     uiuc_gait_dataset = db.build_dataset(path, clinical_demo_path, segment_dataset, epoch_size)
     print('\n\n\n')
     # positions = [user_data.get_imu_metadata().get_metadata()['device_position']
-    #              for user_data in uiuc_gait_dataset.get_dataset()]
+    #              for user_data in uiuc_walking_dataset.get_dataset()]
     # subj_trial_pos = [{"subj_id": user_data.get_clinical_demo_data().get_id(),
     #                    "trial_id": user_data.get_clinical_demo_data().get_trial(),
     #                    "device_position": int(user_data.get_imu_metadata().get_metadata()['device_position'])}
-    #              for user_data in uiuc_gait_dataset.get_dataset()]
+    #              for user_data in uiuc_walking_dataset.get_dataset()]
     # pos_counts_1_6 = [positions.count(1), positions.count(2),
     #                   positions.count(3), positions.count(4),
     #                   positions.count(5), positions.count(6)]
@@ -419,37 +419,37 @@ def main():
     # outfile = os.path.join(outdir, filename)
     # with open(outfile, 'w') as f:
     #     json.dump(subj_trial_pos, f)
-    # v_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    # v_acc = uiuc_walking_dataset.get_dataset()[0].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
-    # ml_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    # ml_acc = uiuc_walking_dataset.get_dataset()[0].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('mediolateral')
-    # ap_acc = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    # ap_acc = uiuc_walking_dataset.get_dataset()[0].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
-    # time = uiuc_gait_dataset.get_dataset()[0].get_imu_data(
+    # time = uiuc_walking_dataset.get_dataset()[0].get_imu_data(
     #     IMUDataFilterType.RAW).get_time()
     # plt.plot(time, v_acc, 'r')
     # plt.plot(time, ml_acc, 'g')
     # plt.plot(time, ap_acc, 'b')
     # plt.show()
-    # v_acc = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    # v_acc = uiuc_walking_dataset.get_dataset()[100].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
-    # ml_acc = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    # ml_acc = uiuc_walking_dataset.get_dataset()[100].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('mediolateral')
-    # ap_acc = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    # ap_acc = uiuc_walking_dataset.get_dataset()[100].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
-    # time = uiuc_gait_dataset.get_dataset()[100].get_imu_data(
+    # time = uiuc_walking_dataset.get_dataset()[100].get_imu_data(
     #     IMUDataFilterType.RAW).get_time()
     # plt.plot(time, v_acc, 'r')
     # plt.plot(time, ml_acc, 'g')
     # plt.plot(time, ap_acc, 'b')
     # plt.show()
-    # v_acc = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    # v_acc = uiuc_walking_dataset.get_dataset()[200].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('vertical')
-    # ml_acc = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    # ml_acc = uiuc_walking_dataset.get_dataset()[200].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('mediolateral')
-    # ap_acc = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    # ap_acc = uiuc_walking_dataset.get_dataset()[200].get_imu_data(
     #     IMUDataFilterType.RAW).get_acc_axis_data('anteroposterior')
-    # time = uiuc_gait_dataset.get_dataset()[200].get_imu_data(
+    # time = uiuc_walking_dataset.get_dataset()[200].get_imu_data(
     #     IMUDataFilterType.RAW).get_time()
     # plt.plot(time, v_acc, 'r')
     # plt.plot(time, ml_acc, 'g')
