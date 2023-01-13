@@ -12,6 +12,8 @@ class InputMetrics:
         self.metrics: Dict[MetricNames: InputMetric] = {}
         self.labels: np.array = []
         self.user_data: UserData = None
+        self.user_ids = []
+        self.trial_ids = []
 
     def get_metrics(self):
         return self.metrics

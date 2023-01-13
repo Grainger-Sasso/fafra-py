@@ -1,4 +1,5 @@
 from validation.ml_evaluation.uiuc_walking_dataset.uiuc_metric_gen import MetricGenerator
+from validation.ml_evaluation.uiuc_walking_dataset.uiuc_model_trainer import ModelTrainer
 
 
 class MLEvaluator:
@@ -9,10 +10,12 @@ class MLEvaluator:
                             output_path, segment_dataset=False,
                             epoch_size=10.0):
         # Generate input features
-        features = MetricGenerator().gen_input_features(
+        metrics = MetricGenerator().gen_input_metrics(
             ds_path, clinic_demo_path,
             output_path, segment_dataset, epoch_size)
         # Train model and characterize performance
+        # model = ModelTrainer().train_classifier_model(metrics, '', '', '')
+        model = ModelTrainer().test_model(metrics)
         # Analyze input features
         pass
 
@@ -23,7 +26,7 @@ def main():
     clinic_demo_path = '/home/grainger/Desktop/datasets/UIUC_gaitspeed/participant_metadata/Data_CHI2021_Carapace.xlsx'
     output_path = ''
     segment_dataset = True
-    epoch_size = 12.0
+    epoch_size = 10.0
     ml_e = MLEvaluator()
     ml_e.perform_ml_analysis(
         ds_path, clinic_demo_path, output_path,

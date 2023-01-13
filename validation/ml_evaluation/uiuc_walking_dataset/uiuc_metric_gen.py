@@ -7,6 +7,8 @@ from src.motion_analysis.filters.motion_filters import MotionFilters
 from src.dataset_tools.risk_assessment_data.dataset import Dataset
 from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 
@@ -55,7 +57,7 @@ class MetricGenerator:
             'BOUTPARAM:phase coordination index'
         ]
 
-    def gen_input_features(self, ds_path, clinic_demo_path,
+    def gen_input_metrics(self, ds_path, clinic_demo_path,
                            output_path, segment_dataset, epoch_size):
         features = []
         # Load dataset
@@ -70,8 +72,71 @@ class MetricGenerator:
         skdh_metrics, failed_trials = self.generate_skdh_metrics(ds)
         # TODO: Generate custom metrics
         # Format input metrics
-        # Export input metrics
-        return features
+        im = self.format_input_metrics(skdh_metrics, ds)
+        # TODO: Export input metrics
+        return im
+
+
+    def format_input_metrics(self, skdh_input_metrics, ds):
+        input_metrics: InputMetrics = self.initialize_input_metrics(skdh_input_metrics)
+        for user_metrics in skdh_input_metrics:
+            gait_metrics = user_metrics['gait_metrics']
+            for name, val in gait_metrics.items():
+                if name not in [
+                    'Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std'
+                ]:
+                    input_metrics.get_metric(name).append(val)
+                    # Create function to get the user labels
+            user_id = user_metrics['id']
+            trial_id = user_metrics['trial']
+            label = self.get_user_label(user_id, ds)
+            input_metrics.labels.append(label)
+            input_metrics.user_ids.append(user_id)
+            input_metrics.trial_ids.append(trial_id)
+        new_ims = InputMetrics()
+        for name, metric in input_metrics.get_metrics().items():
+            im = InputMetric(name, np.array(metric))
+            new_ims.set_metric(name, im)
+        new_ims.labels = input_metrics.labels
+        new_ims.trial_ids = input_metrics.trial_ids
+        new_ims.user_ids = input_metrics.user_ids
+        return new_ims
+
+    def get_user_label(self, id, ds: Dataset):
+        # Map the user id to their fall risk label
+        label = None
+        for user_data in ds.get_dataset():
+            user_id = user_data.get_clinical_demo_data().get_id()
+            if user_id == id:
+                label = user_data.get_clinical_demo_data().get_faller_status()
+                break
+        if label is not None:
+            return label
+        else:
+            raise ValueError('Unable to get user fall status label')
+
+    def initialize_input_metrics(self, skdh_input_metrics):
+        input_metrics = InputMetrics()
+        for name in skdh_input_metrics[0]['gait_metrics'].keys():
+            if name not in ['Bout Starts',
+                    'Bout Duration',
+                    'Bout Starts: mean',
+                    'Bout Starts: std',
+                    'Bout N: mean',
+                    'Bout N: std']:
+                input_metrics.set_metric(name, [])
+        input_metrics.set_labels([])
+        return input_metrics
+
+    # def format_input_metrics(self, metrics, ds):
+    #     # Format the metrics together with the labels for ML training
+    #
+    #     pass
 
     def generate_skdh_metrics(self, ds):
         pipeline_gen = SKDHPipelineGenerator()
