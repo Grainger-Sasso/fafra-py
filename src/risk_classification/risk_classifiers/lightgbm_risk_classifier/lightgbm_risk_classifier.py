@@ -61,6 +61,23 @@ class LightGBMRiskClassifier(Classifier):
         model = lgb.train(trial.params, lgbdata)
         print("in LightGMB",trial.params,model.params)
         self.set_model(model)
+
+    def train_model_optuna_multiclass(self, x, y, **kwargs):
+        self.current_dataset = [x, y]
+        optuna.logging.set_verbosity(optuna.logging.ERROR)
+        # train lightgbm
+        study = optuna.create_study(direction="minimize")
+        study.optimize(self.opt_objective, n_trials=100)
+        # optuna.visualization.plot_optimization_history(study)
+        # get best trial's lightgbm (hyper)parameters and print best trial score
+        trial = study.best_trial
+        lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
+        # TODO: need to specify the number of classes for classifier, see error on debug
+        trial.params["objective"] = "multiclass"
+        self.params = trial.params
+        model = lgb.train(trial.params, lgbdata)
+        print("in LightGMB", trial.params, model.params)
+        self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
 
     def train_model(self, input_metrics, **kwargs):

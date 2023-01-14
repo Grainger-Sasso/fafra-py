@@ -45,7 +45,7 @@ class ModelTrainer:
         names = [name.replace('__', '_') for name in names]
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
         x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
-        self.rc.train_model_optuna(x_train, y_train, names=names)
+        self.rc.train_model_optuna_multiclass(x_train, y_train, names=names)
         acc, pred = self.rc.score_model(x_test, y_test)
         cr = self.rc.create_classification_report(y_test, pred)
         print('ok')
