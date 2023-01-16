@@ -8,6 +8,7 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import multilabel_confusion_matrix
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
@@ -62,7 +63,7 @@ class LightGBMRiskClassifier(Classifier):
         print("in LightGMB",trial.params,model.params)
         self.set_model(model)
 
-    def train_model_optuna_multiclass(self, x, y, **kwargs):
+    def train_model_optuna_multiclass(self, x, y, num_classes, **kwargs):
         self.current_dataset = [x, y]
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         # train lightgbm
@@ -74,6 +75,7 @@ class LightGBMRiskClassifier(Classifier):
         lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
         # TODO: need to specify the number of classes for classifier, see error on debug
         trial.params["objective"] = "multiclass"
+        trial.params["num_classes"] = num_classes
         self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
         print("in LightGMB", trial.params, model.params)
@@ -121,6 +123,9 @@ class LightGBMRiskClassifier(Classifier):
     def make_prediction(self, samples, **kwargs):
         raw_predictions = self.model.predict(samples)
         return np.rint(raw_predictions)
+
+    def multilabel_confusion_matrix(self, y_test, y_pred):
+        return multilabel_confusion_matrix(y_test, y_pred)
 
     def score_model(self, x_test, y_test, **kwargs):
         raw_predictions = self.model.predict(x_test)

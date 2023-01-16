@@ -1,7 +1,11 @@
 import time
 import os
+import json
 import joblib
+import numpy as np
 
+from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.input_metrics.input_metric import InputMetric
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 
@@ -10,7 +14,8 @@ class ModelTrainer:
     def __init__(self):
         self.rc = LightGBMRiskClassifier({})
 
-    def train_classifier_model(self, input_metrics: InputMetrics, model_output_path, model_name, scaler_name):
+    def train_classifier_model(self, metric_path, model_output_path, model_name, scaler_name):
+        input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
         names = [name.replace(':', '_') for name in names]
         names = [name.replace(' ', '_') for name in names]
@@ -38,15 +43,48 @@ class ModelTrainer:
         joblib.dump(self.rc.get_scaler(), scaler_path)
         return model_path, scaler_path
 
-    def test_model(self, input_metrics):
+    def test_model(self, metric_path):
+        input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
-        names = [name.replace(':', '_') for name in names]
-        names = [name.replace(' ', '_') for name in names]
-        names = [name.replace('__', '_') for name in names]
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
         x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
-        self.rc.train_model_optuna_multiclass(x_train, y_train, names=names)
-        acc, pred = self.rc.score_model(x_test, y_test)
-        cr = self.rc.create_classification_report(y_test, pred)
+        num_classes = 3
+        self.rc.train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
+        y_pred = self.rc.make_prediction(y_test)
+        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
+        # TODO: research how to get model performance metrics for multiclass classification
+        # acc, pred = self.rc.score_model(x_test, y_test)
+        # cr = self.rc.create_classification_report(y_test, pred)
         print('ok')
 
+    def import_metrics(self, path):
+        with open(path, 'r') as f:
+            input_metrics = json.load(f)
+        im = self.finalize_metric_formatting(input_metrics)
+        return im
+
+    def finalize_metric_formatting(self, metric_data):
+        im = InputMetrics()
+        for name, metric in metric_data['metrics'][0].items():
+            name = self.format_name(name)
+            metric = InputMetric(name, np.array(metric))
+            im.set_metric(name, metric)
+        im.labels = np.array(metric_data['labels'])
+        im.user_ids = metric_data['user_ids']
+        im.trial_ids = metric_data['trial_ids']
+        return im
+
+    def format_name(self, name):
+        name = name.replace(':', '_')
+        name = name.replace(' ', '_')
+        name = name.replace('__', '_')
+        return name
+
+def main():
+    mt = ModelTrainer()
+    path = '/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
+    mt.test_model(path)
+
+
+if __name__ == '__main__':
+    main()

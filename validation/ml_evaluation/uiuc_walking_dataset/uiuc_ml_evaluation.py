@@ -10,12 +10,12 @@ class MLEvaluator:
                             output_path, segment_dataset=False,
                             epoch_size=10.0):
         # Generate input features
-        metrics = MetricGenerator().gen_input_metrics(
+        metric_path = MetricGenerator().gen_input_metrics(
             ds_path, clinic_demo_path,
             output_path, segment_dataset, epoch_size)
         # Train model and characterize performance
         # model = ModelTrainer().train_classifier_model(metrics, '', '', '')
-        model = ModelTrainer().test_model(metrics)
+        model = ModelTrainer().test_model(metric_path)
         # Analyze input features
         pass
 
