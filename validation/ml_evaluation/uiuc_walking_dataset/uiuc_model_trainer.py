@@ -46,15 +46,21 @@ class ModelTrainer:
     def test_model(self, metric_path):
         input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
+        y = input_metrics.get_labels()
         x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
         x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
         num_classes = 3
         self.rc.train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
-        y_pred = self.rc.make_prediction(y_test)
-        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
-        # TODO: research how to get model performance metrics for multiclass classification
-        # acc, pred = self.rc.score_model(x_test, y_test)
-        # cr = self.rc.create_classification_report(y_test, pred)
+
+
+        # Make predictions and generate confusion matrix
+        # y_pred = self.rc.make_prediction(x_test, True)
+        # cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
+
+        # Score the model
+        acc, pred = self.rc.score_model(x_test, y_test, True)
+        cr = self.rc.create_classification_report(y_test, pred)
+
         print('ok')
 
     def import_metrics(self, path):

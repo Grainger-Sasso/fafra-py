@@ -9,6 +9,8 @@ from sklearn.model_selection import KFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import multilabel_confusion_matrix
+from sklearn.metrics import confusion_matrix
+from sklearn.model_selection import cross_val_score
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
@@ -120,16 +122,22 @@ class LightGBMRiskClassifier(Classifier):
     #     )
     #     self.set_model(gbm)
 
-    def make_prediction(self, samples, **kwargs):
+    def make_prediction(self, samples, multiclass=False, **kwargs):
         raw_predictions = self.model.predict(samples)
-        return np.rint(raw_predictions)
+        if not multiclass:
+            return np.rint(raw_predictions)
+        else:
+            return [np.argmax(line) for line in raw_predictions]
 
     def multilabel_confusion_matrix(self, y_test, y_pred):
         return multilabel_confusion_matrix(y_test, y_pred)
 
-    def score_model(self, x_test, y_test, **kwargs):
+    def score_model(self, x_test, y_test, multiclass=False, **kwargs):
         raw_predictions = self.model.predict(x_test)
-        predictions = np.rint(raw_predictions)
+        if not multiclass:
+            predictions = np.rint(raw_predictions)
+        else:
+            predictions = [np.argmax(line) for line in raw_predictions]
         return accuracy_score(y_test, predictions), predictions
 
     # Train lightgbm risk classifier using k-fold cross-validation with 5 being the default value of k.
@@ -167,6 +175,9 @@ class LightGBMRiskClassifier(Classifier):
         self.set_model(model)
         return self.cross_validator.cross_val_model(model, x, y, folds)
         # print("Best {}-fold CV score was {}".format(k, tuner.best_score))
+
+    def cv_existing_model(self, x, y, folds=5):
+        return cross_val_score(self.model, x, y, folds)
 
     # LOOCV objective function for optuna
     def opt_objective(self, trial):
