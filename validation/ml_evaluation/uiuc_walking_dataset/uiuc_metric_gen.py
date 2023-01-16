@@ -1,4 +1,7 @@
 import numpy as np
+import os
+import time
+import json
 from matplotlib import pyplot as plt
 from typing import List
 
@@ -9,6 +12,7 @@ from src.dataset_tools.risk_assessment_data.user_data import UserData
 from src.dataset_tools.risk_assessment_data.imu_data import IMUData
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
+from src.risk_classification.input_metrics.metric_names import MetricNames
 from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 from src.mvp.skdh_pipeline import SKDHPipelineGenerator, SKDHPipelineRunner
 
@@ -74,8 +78,25 @@ class MetricGenerator:
         # Format input metrics
         im = self.format_input_metrics(skdh_metrics, ds)
         # TODO: Export input metrics
-        return im
+        path = self.export_metrics(im, output_path)
+        return path
 
+    def export_metrics(self, input_metrics: InputMetrics, output_path):
+        metric_file_name = 'model_input_metrics_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        full_path = os.path.join(output_path, metric_file_name)
+        new_im = {}
+        for name, metric in input_metrics.get_metrics().items():
+            if isinstance(name, MetricNames):
+                new_im[name.value] = metric.get_value().tolist()
+            else:
+                new_im[name] = metric.get_value().tolist()
+        metric_data = {'metrics': [new_im],
+                       'labels': [int(val) for val in input_metrics.get_labels()],
+                       'user_ids': [int(val) for val in input_metrics.get_user_ids()],
+                       'trial_ids': input_metrics.get_trial_ids()}
+        with open(full_path, 'w') as f:
+            json.dump(metric_data, f)
+        return full_path
 
     def format_input_metrics(self, skdh_input_metrics, ds):
         input_metrics: InputMetrics = self.initialize_input_metrics(skdh_input_metrics)

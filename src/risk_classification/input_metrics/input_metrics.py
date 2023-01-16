@@ -53,3 +53,9 @@ class InputMetrics:
             else:
                 names.append(name)
         return names
+
+    def get_user_ids(self):
+        return self.user_ids
+
+    def get_trial_ids(self):
+        return self.trial_ids
