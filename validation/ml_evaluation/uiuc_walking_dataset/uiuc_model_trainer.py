@@ -63,7 +63,12 @@ class ModelTrainer:
 
         print('ok')
 
-    def import_metrics(self, path):
+
+    def assess_input_features(self, metrics_path, output_path):
+        input_metrics = self.import_metrics(metrics_path)
+        # Calls to lime, pdp ,shap, etc
+
+    def import_metrics(self, path) -> InputMetrics:
         with open(path, 'r') as f:
             input_metrics = json.load(f)
         im = self.finalize_metric_formatting(input_metrics)
