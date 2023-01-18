@@ -47,19 +47,19 @@ class ModelTrainer:
         input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
-        x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
-        num_classes = 3
-        self.rc.train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
-
-
+        groups = np.array(input_metrics.get_user_ids())
+        scores = self.rc.group_cv(x, y, groups, names)
         # Make predictions and generate confusion matrix
+        # x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
+        # x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
+        # num_classes = 3
+        # self.rc.train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
         # y_pred = self.rc.make_prediction(x_test, True)
         # cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
 
         # Score the model
-        acc, pred = self.rc.score_model(x_test, y_test, True)
-        cr = self.rc.create_classification_report(y_test, pred)
+        # acc, pred = self.rc.score_model(x_test, y_test, True)
+        # cr = self.rc.create_classification_report(y_test, pred)
 
         print('ok')
 
