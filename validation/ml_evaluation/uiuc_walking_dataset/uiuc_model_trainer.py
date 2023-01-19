@@ -6,7 +6,8 @@ import numpy as np
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
-from src.risk_classification.input_metrics.input_metrics import InputMetrics
+from src.risk_classification.validation.classifier_metrics import ClassifierMetrics
+from src.risk_classification.validation.classifier_evaluator import ClassifierEvaluator
 from src.risk_classification.risk_classifiers.lightgbm_risk_classifier.lightgbm_risk_classifier import LightGBMRiskClassifier
 
 
@@ -62,6 +63,17 @@ class ModelTrainer:
         cr = self.rc.create_classification_report(y_test, pred)
 
         print('ok')
+    def assess_input_feature(self,metrics_path,output_path):# -> InputMetrics
+        cl_ev = ClassifierEvaluator()
+        eval_metrics = [ClassifierMetrics.SHAP_GBM]
+        classifiers = [self.rc]
+        input_metrics = self.import_metrics(metrics_path)
+        x, names = input_metrics.get_metric_matrix()
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
+        x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
+        num_classes = 3
+        classifiers[0].train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
+        cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)
 
     def import_metrics(self, path):
         with open(path, 'r') as f:
@@ -88,9 +100,11 @@ class ModelTrainer:
 
 def main():
     mt = ModelTrainer()
-    path = '/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
-    mt.test_model(path)
+    path = r'F:\long-term-movement-monitoring-database-1.0.0\input_metrics\model_input_metrics_20230116-135200.json'#'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
+    #mt.test_model(path)
+    mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
 
 
+#D:\carapace\fafra-py\validation\ml_evaluation\uiuc_walking_dataset\uiuc_model_trainer.py
 if __name__ == '__main__':
     main()
