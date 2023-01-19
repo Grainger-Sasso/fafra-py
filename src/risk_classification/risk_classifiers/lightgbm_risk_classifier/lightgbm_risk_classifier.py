@@ -6,6 +6,7 @@ import sklearn.metrics
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import KFold
+from sklearn.model_selection import GroupKFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import multilabel_confusion_matrix
@@ -106,6 +107,24 @@ class LightGBMRiskClassifier(Classifier):
         )
         self.set_model(gbm)
         return eval_results
+
+    def group_cv(self, x, y, groups, feature_names):
+        # Create the test and train splits with group k-fold
+        gkf = GroupKFold(n_splits=5)
+        gkf.get_n_splits(x, y, groups)
+        # For every split, scale data, train model, and score model, append to results
+        acc_scores = []
+        for i, (train_index, test_index) in enumerate(gkf.split(x, y, groups)):
+            x_train = [x[ix] for ix in train_index]
+            y_train = [y[ix] for ix in train_index]
+            x_test = [x[ix] for ix in test_index]
+            y_test = [y[ix] for ix in test_index]
+            x_train, x_test = self.scale_train_test_data(x_train, x_test)
+            num_classes = 3
+            self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names)
+            acc, y_pred = self.score_model(x_test, y_test, True)
+            acc_scores.append(acc)
+        return acc_scores
 
     # def train_model(self, x, y, **kwargs):
     #     lgb_train = lgb.Dataset(x, y)
