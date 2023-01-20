@@ -7,6 +7,8 @@ from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
 from sklearn.model_selection import KFold
 from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import multilabel_confusion_matrix
@@ -16,8 +18,11 @@ from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 import numpy as np
+import random
 import lightgbm as lgb
 import optuna
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 from sklearn.model_selection import train_test_split
 
 from src.risk_classification.risk_classifiers.classifier import Classifier
@@ -108,23 +113,111 @@ class LightGBMRiskClassifier(Classifier):
         self.set_model(gbm)
         return eval_results
 
-    def group_cv(self, x, y, groups, feature_names):
+    def group_cv(self, x, y, groups, feature_names, viz=False):
+        n_splits = 5
+        lw = 10
+        # Shuffle the groups to create uniform distribution of classes in splits
+        # x, y, groups = self.shuffle_groups(x, y, groups)
         # Create the test and train splits with group k-fold
-        gkf = GroupKFold(n_splits=5)
-        gkf.get_n_splits(x, y, groups)
+        # cv = KFold(n_splits=5, shuffle=True)
+        # cv = GroupShuffleSplit(n_splits=5)
+        cv = GroupKFold(n_splits=5)
+        # cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
         # For every split, scale data, train model, and score model, append to results
         acc_scores = []
-        for i, (train_index, test_index) in enumerate(gkf.split(x, y, groups)):
-            x_train = [x[ix] for ix in train_index]
-            y_train = [y[ix] for ix in train_index]
-            x_test = [x[ix] for ix in test_index]
-            y_test = [y[ix] for ix in test_index]
+        fig, ax = plt.subplots()
+        for split_num, (train_ixs, test_ixs) in enumerate(cv.split(x, y, groups)):
+            x_train = [x[ix] for ix in train_ixs]
+            y_train = [y[ix] for ix in train_ixs]
+            x_test = [x[ix] for ix in test_ixs]
+            y_test = [y[ix] for ix in test_ixs]
             x_train, x_test = self.scale_train_test_data(x_train, x_test)
             num_classes = 3
             self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names)
             acc, y_pred = self.score_model(x_test, y_test, True)
             acc_scores.append(acc)
+            if viz:
+                self.plot_cv_indices(cv, x, y, groups, ax,
+                                     n_splits, train_ixs, test_ixs, split_num, lw)
+        if viz:
+            cmap_data = plt.cm.Paired
+            cmap_cv = plt.cm.coolwarm
+            # Plot the data classes and groups at the end
+            ax.scatter(
+                range(len(x)), [split_num + 1.5] * len(x), c=y, marker="_", lw=lw, cmap=cmap_data
+            )
+
+            ax.scatter(
+                range(len(x)), [split_num + 2.5] * len(x), c=groups, marker="_", lw=lw, cmap=cmap_cv
+            )
+
+            # Formatting
+            yticklabels = list(range(n_splits)) + ["class", "group"]
+            ax.set(
+                yticks=np.arange(n_splits + 2) + 0.5,
+                yticklabels=yticklabels,
+                xlabel="Sample index",
+                ylabel="CV iteration",
+                ylim=[n_splits + 2.2, -0.2],
+            )
+            ax.set_title("{}".format(type(cv).__name__), fontsize=15)
+            plt.show()
         return acc_scores
+
+    def viz_groups(self, classes, groups):
+        cmap_data = plt.cm.Paired
+        cmap_cv = plt.cm.coolwarm
+        fig, ax = plt.subplots()
+        ax.scatter(
+            range(len(groups)),
+            [0.5] * len(groups),
+            c=groups,
+            marker="_",
+            lw=50,
+            cmap=cmap_cv,
+        )
+        ax.scatter(
+            range(len(groups)),
+            [3.5] * len(groups),
+            c=classes,
+            marker="_",
+            lw=50,
+            cmap=cmap_data,
+        )
+        ax.set(
+            ylim=[-1, 5],
+            yticks=[0.5, 3.5],
+            yticklabels=["Data\ngroup", "Data\nclass"],
+            xlabel="Sample index",
+        )
+        plt.show()
+
+    def plot_cv_indices(self, cv, x, y, group, ax, n_splits, train_ixs, test_ixs, split_num, lw):
+        """Create a sample plot for indices of a cross-validation object."""
+        cmap_data = plt.cm.Paired
+        cmap_cv = plt.cm.coolwarm
+        # Generate the training/testing visualizations for each CV split
+        # Fill in indices with the training/test groups
+        indices = np.array([np.nan] * len(x))
+        indices[test_ixs] = 1
+        indices[train_ixs] = 0
+        # Visualize the results
+        ax.scatter(
+            range(len(indices)),
+            [split_num + 0.5] * len(indices),
+            c=indices,
+            marker="_",
+            lw=lw,
+            cmap=cmap_cv,
+            vmin=-0.2,
+            vmax=1.2,
+        )
+
+    def shuffle_groups(self, x, y, groups):
+        z = list(zip(x, y, groups))
+        random.shuffle(z)
+        x, y, groups = zip(*z)
+        return np.array(x), np.array(y), np.array(groups)
 
     # def train_model(self, x, y, **kwargs):
     #     lgb_train = lgb.Dataset(x, y)
