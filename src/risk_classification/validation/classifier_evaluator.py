@@ -117,7 +117,7 @@ class ClassifierEvaluator:
             #plots_output_path=os.path.join(plots_output_path,str(plot))
             
         for plot in plots:
-            print(eval_metric,(eval_metric== ClassifierMetrics.PDP_GBM))
+            # print(eval_metric,(eval_metric== ClassifierMetrics.PDP_GBM))
             # Building path to the file w/extension
             # if eval_metric == ClassifierMetrics.LIME:
             #     with open("KNNdata2.html", "w") as file:

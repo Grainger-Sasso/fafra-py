@@ -76,23 +76,31 @@ class InputMetricValidator:
         x_train, x_test, y_train, y_test = model.split_input_metrics(input_metrics)
         # train model
         m = model.get_model()
-        m.params['objective'] = 'binary'
+        #m.params['objective'] = 'multiclass'#'binary'
+
         # explain the model's predictions using SHAP
-        explainer = shap.TreeExplainer(m)
-        np.random.seed(42)
-        s=shap.sample(x_test,50)
-        shap_values = explainer.shap_values(s)
+        explainer = shap.TreeExplainer(m,seed=42)
+        
+        s=x_test#shap.sample(x_test,50)
+        shap_values = explainer.shap_values(s,{'nsamples':100})
 
         # visualize the first prediction's explaination
-        name = list([str(i) for i in input_metrics.get_metrics().keys()])
-        # name = m.feature_name()
-        shap.summary_plot(shap_values, s,feature_names=name,show=False)
+        real_name=list([str(i) for i in input_metrics.get_metrics().keys()])
+        
+
+        plt.rc('ytick', labelsize=3)    # fontsize of the tick labels
+        shap.summary_plot(shap_values, s,feature_names=real_name,show=False)
+        
+        shap_plot = pl.gcf().set_size_inches(12,10)
         shap_plot = pl.gcf()
+        pl.yticks(fontsize=7, rotation=50)
         temp=np.array([np.array(xi) for xi in x_test])
 
         shap_metrics = {}
+        
+        name = [0,1,2]#temperary placeholder for class order, need to figure out real order
         for name, shap_value in zip(name, shap_values):
-            shap_metrics[name] = shap_value.tolist()
+            shap_metrics[name] = {n:v for n,v in zip(real_name,shap_value.tolist())}
         dictionary = {'plots': [shap_plot], 'metrics': shap_metrics}
         return dictionary
     def perform_partial_dependence_plot_knn(self, model: Classifier,
@@ -164,7 +172,7 @@ class InputMetricValidator:
         for n in names:
             pdp_sex = pdp.pdp_isolate(
                     model=clf, dataset=dataframe, model_features=names, feature=n,
-                    predict_kwds={"ignore_gp_model": True}
+                    predict_kwds={"ignore_gp_model": True, "is_provide_training_metric":True}
                 )
             #len o fpdp_plot_data is invalid, since it is pdp isolate objects
             figg,axess=pdp.pdp_plot(pdp_sex,n,plot_lines=True,x_quantile=True)
