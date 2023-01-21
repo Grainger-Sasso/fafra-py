@@ -20,6 +20,7 @@ from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report
 import numpy as np
+import pandas as pd
 import random
 import lightgbm as lgb
 import optuna
@@ -68,6 +69,7 @@ class LightGBMRiskClassifier(Classifier):
         trial = study.best_trial
         lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
         trial.params["objective"]="binary"
+        trial.params['is_unbalanced'] = kwargs['is_unbalanced']
         self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
         print("in LightGMB",trial.params,model.params)
@@ -86,6 +88,7 @@ class LightGBMRiskClassifier(Classifier):
         # TODO: need to specify the number of classes for classifier, see error on debug
         trial.params["objective"] = "multiclass"
         trial.params["num_classes"] = num_classes
+        trial.params['is_unbalanced'] = kwargs['is_unbalanced']
         self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
         print("in LightGMB", trial.params, model.params)
@@ -123,8 +126,8 @@ class LightGBMRiskClassifier(Classifier):
         # Create the test and train splits with group k-fold
         # cv = KFold(n_splits=5, shuffle=True)
         # cv = GroupShuffleSplit(n_splits=5)
-        cv = GroupKFold(n_splits=5)
-        # cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
+        # cv = GroupKFold(n_splits=5)
+        cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
         # For every split, scale data, train model, and score model, append to results
         scores = []
         fig, ax = plt.subplots()
@@ -136,14 +139,15 @@ class LightGBMRiskClassifier(Classifier):
             x_train, x_test = self.scale_train_test_data(x_train, x_test)
             num_classes = 3
             if multiclass:
-                self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names)
+                self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names, is_unbalanced=True)
             else:
-                self.train_model_optuna(x_train, y_train, names=feature_names)
+                self.train_model_optuna(x_train, y_train, names=feature_names, is_unbalanced=True)
             y_pred = self.make_prediction(x_test, multiclass)
             scores.append(self.score_model_pred(y_test, y_pred, multiclass))
             if viz:
                 self.plot_cv_indices(cv, x, y, groups, ax,
-                                     n_splits, train_ixs, test_ixs, split_num, lw)
+                                     n_splits, train_ixs, test_ixs,
+                                     split_num, lw)
         if viz:
             cmap_data = plt.cm.Paired
             cmap_cv = plt.cm.coolwarm
@@ -174,14 +178,25 @@ class LightGBMRiskClassifier(Classifier):
         perf_metrics['accuracy'] = self.assess_accuracy(y_true, y_pred)
         # Assess model F1 score
         perf_metrics['f1_score'] = self.assess_f1_score(y_true, y_pred)
-        # Assess ROC AUC
+        # TODO: Assess ROC AUC
         self.assess_roc_auc(y_true, y_pred, multiclass)
+        cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
+        cm_df = pd.DataFrame(cm, index=[0, 1, 2], columns=[0, 1, 2])
+        # perf_metrics['confusion_matrix'] = self.assess_conf_matrix(y_true, y_pred, multiclass)
+        perf_metrics['confusion_matrix'] = cm_df
         return perf_metrics
+
+    def assess_conf_matrix(self, y_true, y_pred, multiclass):
+        if multiclass:
+            return self.multilabel_confusion_matrix(y_true, y_pred)
+        else:
+            return confusion_matrix(y_true, y_pred)
 
     def assess_accuracy(self, y_true, y_pred):
         return accuracy_score(y_true, y_pred)
 
     def assess_f1_score(self, y_true, y_pred):
+        # Assessment of the models precision and recall
         return f1_score(y_true, y_pred, average=None)
 
     def assess_roc_auc(self, y_true, y_pred, multiclass):
@@ -268,7 +283,7 @@ class LightGBMRiskClassifier(Classifier):
             return [np.argmax(line) for line in raw_predictions]
 
     def multilabel_confusion_matrix(self, y_test, y_pred):
-        return multilabel_confusion_matrix(y_test, y_pred)
+        return multilabel_confusion_matrix(y_test, y_pred,labels=[0,1,2])
 
     def score_model(self, x_test, y_test, multiclass=False, **kwargs):
         raw_predictions = self.model.predict(x_test)

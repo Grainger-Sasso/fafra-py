@@ -49,12 +49,14 @@ class ModelTrainer:
         return model_path, scaler_path
 
     def test_model(self, metric_path):
+        multiclass = True
         input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
+        if not multiclass:
+            y = self.cast_labels_bin(y)
         groups = np.array(input_metrics.get_user_ids())
         mono_groups = self.map_groups(groups)
-        multiclass = True
         scores = self.rc.group_cv(x, y, mono_groups, names, multiclass)
 
         # Make predictions and generate confusion matrix
@@ -70,7 +72,15 @@ class ModelTrainer:
         # acc, pred = self.rc.score_model(x_test, y_test, True)
         # cr = self.rc.create_classification_report(y_test, pred)
         print(scores)
-        print('ok')
+
+    def cast_labels_bin(self, y):
+        new_labels = []
+        for val in y:
+            if val != 0:
+                new_labels.append(1)
+            else:
+                new_labels.append(0)
+        return np.array(new_labels)
 
     def assess_input_feature(self, metrics_path, output_path):
         cl_ev = ClassifierEvaluator()
