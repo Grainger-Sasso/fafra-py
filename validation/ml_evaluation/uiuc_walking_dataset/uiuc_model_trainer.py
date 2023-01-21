@@ -3,6 +3,10 @@ import os
 import json
 import joblib
 import numpy as np
+import matplotlib.pyplot as plt 
+import seaborn as sns
+import pandas as pd
+from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.input_metric import InputMetric
@@ -73,7 +77,22 @@ class ModelTrainer:
         x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
         num_classes = 3
         classifiers[0].train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
-        cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)
+        cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)#the SHAP function
+        y_pred = self.rc.make_prediction(x_test, True)
+        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)#calculate confusion matrix
+        self.plot_confusion_matrix(cm,y_test)#plot confusion matrix
+
+    
+    def plot_confusion_matrix(self,conf_matrix,y_test):
+        fig, ax = plt.subplots(1,3)
+        class_names=list(set(y_test))
+        for axes,cfs_matrix, label in zip(ax.flatten(),conf_matrix,class_names):
+            disp = ConfusionMatrixDisplay(cfs_matrix, display_labels=list(set(y_test)))
+            disp.plot(include_values=True, cmap="viridis", ax=axes, xticks_rotation="vertical")
+            disp.im_.colorbar.remove()
+        fig.colorbar(disp.im_, ax=ax)
+        #plt.savefig('confusion_matrix.png')
+        plt.show()
 
 
     def assess_input_features(self, metrics_path, output_path):
