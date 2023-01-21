@@ -53,19 +53,22 @@ class ModelTrainer:
         x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
         groups = np.array(input_metrics.get_user_ids())
-        scores = self.rc.group_cv(x, y, groups, names)
+        mono_groups = self.map_groups(groups)
+        acc = self.rc.group_cv(x, y, mono_groups, names, True)
+
         # Make predictions and generate confusion matrix
         # x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
         # x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
         # num_classes = 3
         # self.rc.train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
+
         # y_pred = self.rc.make_prediction(x_test, True)
         # cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
 
         # Score the model
         # acc, pred = self.rc.score_model(x_test, y_test, True)
         # cr = self.rc.create_classification_report(y_test, pred)
-
+        print(acc)
         print('ok')
     def assess_input_feature(self,metrics_path,output_path):# -> InputMetrics
         cl_ev = ClassifierEvaluator()
@@ -93,6 +96,19 @@ class ModelTrainer:
         fig.colorbar(disp.im_, ax=ax)
         #plt.savefig('confusion_matrix.png')
         plt.show()
+
+    def map_groups(self, groups):
+        ix = 1
+        g_i = groups[0]
+        new_groups = []
+        for group in groups:
+            if group == g_i:
+                new_groups.append(ix)
+            else:
+                ix += 1
+                g_i = group
+                new_groups.append(ix)
+        return np.array(new_groups)
 
 
     def assess_input_features(self, metrics_path, output_path):
