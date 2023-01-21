@@ -11,6 +11,8 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
+from sklearn.metrics import f1_score
+from sklearn.metrics import roc_auc_score
 from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import cross_val_score
@@ -113,7 +115,7 @@ class LightGBMRiskClassifier(Classifier):
         self.set_model(gbm)
         return eval_results
 
-    def group_cv(self, x, y, groups, feature_names, viz=False):
+    def group_cv(self, x, y, groups, feature_names, multiclass, viz=False):
         n_splits = 5
         lw = 10
         # Shuffle the groups to create uniform distribution of classes in splits
@@ -124,7 +126,7 @@ class LightGBMRiskClassifier(Classifier):
         cv = GroupKFold(n_splits=5)
         # cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
         # For every split, scale data, train model, and score model, append to results
-        acc_scores = []
+        scores = []
         fig, ax = plt.subplots()
         for split_num, (train_ixs, test_ixs) in enumerate(cv.split(x, y, groups)):
             x_train = [x[ix] for ix in train_ixs]
@@ -133,9 +135,12 @@ class LightGBMRiskClassifier(Classifier):
             y_test = [y[ix] for ix in test_ixs]
             x_train, x_test = self.scale_train_test_data(x_train, x_test)
             num_classes = 3
-            self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names)
-            acc, y_pred = self.score_model(x_test, y_test, True)
-            acc_scores.append(acc)
+            if multiclass:
+                self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names)
+            else:
+                self.train_model_optuna(x_train, y_train, names=feature_names)
+            y_pred = self.make_prediction(x_test, multiclass)
+            scores.append(self.score_model_pred(y_test, y_pred, multiclass))
             if viz:
                 self.plot_cv_indices(cv, x, y, groups, ax,
                                      n_splits, train_ixs, test_ixs, split_num, lw)
@@ -150,7 +155,6 @@ class LightGBMRiskClassifier(Classifier):
             ax.scatter(
                 range(len(x)), [split_num + 2.5] * len(x), c=groups, marker="_", lw=lw, cmap=cmap_cv
             )
-
             # Formatting
             yticklabels = list(range(n_splits)) + ["class", "group"]
             ax.set(
@@ -162,7 +166,29 @@ class LightGBMRiskClassifier(Classifier):
             )
             ax.set_title("{}".format(type(cv).__name__), fontsize=15)
             plt.show()
-        return acc_scores
+        return scores
+
+    def score_model_pred(self, y_true, y_pred, multiclass):
+        perf_metrics = {}
+        # Assess model accuracy
+        perf_metrics['accuracy'] = self.assess_accuracy(y_true, y_pred)
+        # Assess model F1 score
+        perf_metrics['f1_score'] = self.assess_f1_score(y_true, y_pred)
+        # Assess ROC AUC
+        self.assess_roc_auc(y_true, y_pred, multiclass)
+        return perf_metrics
+
+    def assess_accuracy(self, y_true, y_pred):
+        return accuracy_score(y_true, y_pred)
+
+    def assess_f1_score(self, y_true, y_pred):
+        return f1_score(y_true, y_pred, average=None)
+
+    def assess_roc_auc(self, y_true, y_pred, multiclass):
+        # TODO: research and implement the binary and multiclass approach
+        # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html
+        # https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html#sphx-glr-auto-examples-model-selection-plot-roc-py
+        pass
 
     def viz_groups(self, classes, groups):
         cmap_data = plt.cm.Paired

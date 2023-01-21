@@ -54,7 +54,8 @@ class ModelTrainer:
         y = input_metrics.get_labels()
         groups = np.array(input_metrics.get_user_ids())
         mono_groups = self.map_groups(groups)
-        acc = self.rc.group_cv(x, y, mono_groups, names, True)
+        multiclass = True
+        scores = self.rc.group_cv(x, y, mono_groups, names, multiclass)
 
         # Make predictions and generate confusion matrix
         # x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
@@ -68,9 +69,10 @@ class ModelTrainer:
         # Score the model
         # acc, pred = self.rc.score_model(x_test, y_test, True)
         # cr = self.rc.create_classification_report(y_test, pred)
-        print(acc)
+        print(scores)
         print('ok')
-    def assess_input_feature(self,metrics_path,output_path):# -> InputMetrics
+
+    def assess_input_feature(self, metrics_path, output_path):
         cl_ev = ClassifierEvaluator()
         eval_metrics = [ClassifierMetrics.SHAP_GBM]
         classifiers = [self.rc]
@@ -82,8 +84,8 @@ class ModelTrainer:
         classifiers[0].train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
         cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)#the SHAP function
         y_pred = self.rc.make_prediction(x_test, True)
-        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)#calculate confusion matrix
-        self.plot_confusion_matrix(cm,y_test)#plot confusion matrix
+        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
+        self.plot_confusion_matrix(cm, y_test)
 
     
     def plot_confusion_matrix(self,conf_matrix,y_test):
@@ -138,11 +140,15 @@ class ModelTrainer:
         name = name.replace('__', '_')
         return name
 
+
 def main():
     mt = ModelTrainer()
-    path = r'F:\long-term-movement-monitoring-database-1.0.0\input_metrics\model_input_metrics_20230116-135200.json'#'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
-    #mt.test_model(path)
-    mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
+    # LM path
+    # path = r'F:\long-term-movement-monitoring-database-1.0.0\input_metrics\model_input_metrics_20230116-135200.json'#'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
+    # GS path
+    path = r'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
+    mt.test_model(path)
+    # mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
 
 
 #D:\carapace\fafra-py\validation\ml_evaluation\uiuc_walking_dataset\uiuc_model_trainer.py
