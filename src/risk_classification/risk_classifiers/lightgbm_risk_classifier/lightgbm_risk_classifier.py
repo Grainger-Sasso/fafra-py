@@ -188,7 +188,10 @@ class LightGBMRiskClassifier(Classifier):
         # TODO: research and implement the binary and multiclass approach
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html
         # https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html#sphx-glr-auto-examples-model-selection-plot-roc-py
-        pass
+        
+        return roc_auc_score(y_true,y_pred,multi_class="ovr")
+
+
 
     def viz_groups(self, classes, groups):
         cmap_data = plt.cm.Paired
