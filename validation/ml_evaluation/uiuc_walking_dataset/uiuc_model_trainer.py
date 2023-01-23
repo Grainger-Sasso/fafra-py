@@ -96,6 +96,7 @@ class ModelTrainer:
         y_pred = self.rc.make_prediction(x_test, True)
         cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
         self.plot_confusion_matrix(cm, y_test)
+        print(self.rc.assess_roc_auc(y_test,self.rc.model.predict(x_test),1))# sample assess_roc_auc call
 
     
     def plot_confusion_matrix(self,conf_matrix,y_test):
@@ -154,11 +155,11 @@ class ModelTrainer:
 def main():
     mt = ModelTrainer()
     # LM path
-    # path = r'F:\long-term-movement-monitoring-database-1.0.0\input_metrics\model_input_metrics_20230116-135200.json'#'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
+    path = r'F:\long-term-movement-monitoring-database-1.0.0\input_metrics\model_input_metrics_20230116-135200.json'#'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
     # GS path
-    path = r'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
-    mt.test_model(path)
-    # mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
+    #path = r'/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/features/model_input_metrics_20230116-135200.json'
+    # mt.test_model(path)
+    mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
 
 
 #D:\carapace\fafra-py\validation\ml_evaluation\uiuc_walking_dataset\uiuc_model_trainer.py
