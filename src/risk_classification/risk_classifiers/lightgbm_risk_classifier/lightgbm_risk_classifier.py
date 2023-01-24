@@ -15,6 +15,7 @@ from sklearn.metrics import f1_score
 from sklearn.metrics import roc_auc_score
 from sklearn.metrics import multilabel_confusion_matrix
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import precision_recall_fscore_support
 from sklearn.model_selection import cross_val_score
 from sklearn import preprocessing
 from sklearn.preprocessing import StandardScaler
@@ -176,12 +177,17 @@ class LightGBMRiskClassifier(Classifier):
         perf_metrics = {}
         # Assess model accuracy
         perf_metrics['accuracy'] = self.assess_accuracy(y_true, y_pred)
-        # Assess model F1 score
-        perf_metrics['f1_score'] = self.assess_f1_score(y_true, y_pred)
-        # TODO: Assess ROC AUC
-        self.assess_roc_auc(y_true, y_pred, multiclass)
+        # Assess model precision, recall, F1 score, support
+        if multiclass:
+            for label in [0, 1, 2]:
+                prec, recall, f_score, support = precision_recall_fscore_support()
+                pass
+        else:
+            perf_metrics['f1_score'] = self.assess_f1_score(y_true, y_pred)
+        # TODO: Assess ROC AUC with probabilistic scoring
+        # self.assess_roc_auc(y_true, y_pred, multiclass)
         cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
-        cm_df = pd.DataFrame(cm, index=[0, 1, 2], columns=[0, 1, 2])
+        cm_df = pd.DataFrame(cm, index=['T0', 'T1', 'T2'], columns=['P0', 'P1', 'P2'])
         # perf_metrics['confusion_matrix'] = self.assess_conf_matrix(y_true, y_pred, multiclass)
         perf_metrics['confusion_matrix'] = cm_df
         return perf_metrics
@@ -203,7 +209,6 @@ class LightGBMRiskClassifier(Classifier):
         # TODO: research and implement the binary and multiclass approach
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html
         # https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html#sphx-glr-auto-examples-model-selection-plot-roc-py
-        
         return roc_auc_score(y_true,y_pred,multi_class="ovr")
 
 
