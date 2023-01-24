@@ -3,7 +3,11 @@ import os
 import json
 import joblib
 import numpy as np
-import matplotlib.pyplot as plt 
+import matplotlib.pyplot as plt
+from sklearn.model_selection import KFold
+from sklearn.model_selection import GroupKFold
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.model_selection import StratifiedGroupKFold
 import seaborn as sns
 import pandas as pd
 from sklearn.metrics import multilabel_confusion_matrix, ConfusionMatrixDisplay
@@ -50,6 +54,13 @@ class ModelTrainer:
 
     def test_model(self, metric_path):
         multiclass = True
+        n_splits = 5
+
+        # cv = KFold(n_splits=n_splits, shuffle=True)
+        # cv = GroupShuffleSplit(n_splits=n_splits)
+        cv = GroupKFold(n_splits=n_splits)
+        # cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
+
         input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
@@ -57,7 +68,8 @@ class ModelTrainer:
             y = self.cast_labels_bin(y)
         groups = np.array(input_metrics.get_user_ids())
         mono_groups = self.map_groups(groups)
-        scores = self.rc.group_cv(x, y, mono_groups, names, multiclass)
+        scores, pm_mean = self.rc.group_cv(
+            x, y, mono_groups, names, multiclass, cv, n_splits)
 
         # Make predictions and generate confusion matrix
         # x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
@@ -71,7 +83,18 @@ class ModelTrainer:
         # Score the model
         # acc, pred = self.rc.score_model(x_test, y_test, True)
         # cr = self.rc.create_classification_report(y_test, pred)
-        print(scores)
+        for score in scores:
+            print(score['performance_metrics'])
+        print('\n\n')
+
+        a = 0
+        for score in scores:
+            a += score['accuracy']
+        print('mean accuracy: ' + str(a/5))
+        print('\n\n')
+
+        print(pm_mean)
+        print('done')
 
     def cast_labels_bin(self, y):
         new_labels = []

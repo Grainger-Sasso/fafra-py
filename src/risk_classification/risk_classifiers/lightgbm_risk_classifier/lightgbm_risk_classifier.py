@@ -5,10 +5,6 @@ from sklearn.model_selection import train_test_split
 import sklearn.metrics
 from sklearn.model_selection import cross_val_score
 from sklearn.model_selection import ShuffleSplit
-from sklearn.model_selection import KFold
-from sklearn.model_selection import GroupKFold
-from sklearn.model_selection import GroupShuffleSplit
-from sklearn.model_selection import StratifiedGroupKFold
 from sklearn.metrics import accuracy_score
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import f1_score
@@ -119,16 +115,10 @@ class LightGBMRiskClassifier(Classifier):
         self.set_model(gbm)
         return eval_results
 
-    def group_cv(self, x, y, groups, feature_names, multiclass, viz=False):
-        n_splits = 5
+    def group_cv(self, x, y, groups, feature_names, multiclass, cv, n_splits, viz=False):
         lw = 10
         # Shuffle the groups to create uniform distribution of classes in splits
         # x, y, groups = self.shuffle_groups(x, y, groups)
-        # Create the test and train splits with group k-fold
-        # cv = KFold(n_splits=5, shuffle=True)
-        # cv = GroupShuffleSplit(n_splits=5)
-        # cv = GroupKFold(n_splits=5)
-        cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
         # For every split, scale data, train model, and score model, append to results
         scores = []
         fig, ax = plt.subplots()
@@ -145,10 +135,13 @@ class LightGBMRiskClassifier(Classifier):
                 self.train_model_optuna(x_train, y_train, names=feature_names, is_unbalanced=True)
             y_pred = self.make_prediction(x_test, multiclass)
             scores.append(self.score_model_pred(y_test, y_pred, multiclass))
+            #TODO: average the performance metrics from each round
             if viz:
                 self.plot_cv_indices(cv, x, y, groups, ax,
                                      n_splits, train_ixs, test_ixs,
                                      split_num, lw)
+        pm = pd.concat([score['performance_metrics'] for score in scores])
+        pm_mean = pm.groupby(level=0).mean()
         if viz:
             cmap_data = plt.cm.Paired
             cmap_cv = plt.cm.coolwarm
@@ -171,32 +164,43 @@ class LightGBMRiskClassifier(Classifier):
             )
             ax.set_title("{}".format(type(cv).__name__), fontsize=15)
             plt.show()
-        return scores
+        return scores, pm_mean
 
     def score_model_pred(self, y_true, y_pred, multiclass):
         perf_metrics = {}
         # Assess model accuracy
         perf_metrics['accuracy'] = self.assess_accuracy(y_true, y_pred)
-        # Assess model precision, recall, F1 score, support
-        if multiclass:
-            for label in [0, 1, 2]:
-                prec, recall, f_score, support = precision_recall_fscore_support()
-                pass
-        else:
-            perf_metrics['f1_score'] = self.assess_f1_score(y_true, y_pred)
+        self.assess_conf_matrix(y_true, y_pred, perf_metrics, multiclass)
         # TODO: Assess ROC AUC with probabilistic scoring
         # self.assess_roc_auc(y_true, y_pred, multiclass)
-        cm = confusion_matrix(y_true, y_pred, labels=[0, 1, 2])
-        cm_df = pd.DataFrame(cm, index=['T0', 'T1', 'T2'], columns=['P0', 'P1', 'P2'])
-        # perf_metrics['confusion_matrix'] = self.assess_conf_matrix(y_true, y_pred, multiclass)
-        perf_metrics['confusion_matrix'] = cm_df
         return perf_metrics
 
-    def assess_conf_matrix(self, y_true, y_pred, multiclass):
+    def assess_conf_matrix(self, y_true, y_pred, perf_metrics, multiclass):
+        labels = [0, 1, 2]
+        # Assess model precision, recall, F1 score, support
         if multiclass:
-            return self.multilabel_confusion_matrix(y_true, y_pred)
+            scores = []
+            for label in labels:
+                prec, recall, f_score, support = precision_recall_fscore_support(
+                    np.array(y_true)==label, np.array(y_pred)==label)
+                # Label, specificity, recall, precision, f-score
+                scores.append([label, recall[0], prec[1], recall[1], f_score[1], support[1]])
+            result = pd.DataFrame(scores, columns=['label', 'specificity', 'precision', 'recall', 'f-score', 'support'])
+            cm = confusion_matrix(y_true, y_pred, labels=labels)
+            cm_df = pd.DataFrame(cm, index=['T0', 'T1', 'T2'], columns=['P0', 'P1', 'P2'])
         else:
-            return confusion_matrix(y_true, y_pred)
+            prec, recall, f_score, support = precision_recall_fscore_support(
+                y_true, y_pred)
+            scores = [
+                [0, recall[1], prec[0],  recall[0], f_score[0], support[0]],
+                [1, recall[0], prec[1],  recall[1], f_score[1], support[1]]
+            ]
+            result = pd.DataFrame(scores, columns=['label', 'specificity', 'precision', 'recall', 'f-score', 'support'])
+            cm = confusion_matrix(y_true, y_pred)
+            cm_df = pd.DataFrame(cm, index=['T0', 'T1'], columns=['P0', 'P1'])
+        # perf_metrics['confusion_matrix'] = self.assess_conf_matrix(y_true, y_pred, multiclass)
+        perf_metrics['confusion_matrix'] = cm_df
+        perf_metrics['performance_metrics'] = result
 
     def assess_accuracy(self, y_true, y_pred):
         return accuracy_score(y_true, y_pred)
@@ -210,8 +214,6 @@ class LightGBMRiskClassifier(Classifier):
         # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.roc_auc_score.html
         # https://scikit-learn.org/stable/auto_examples/model_selection/plot_roc.html#sphx-glr-auto-examples-model-selection-plot-roc-py
         return roc_auc_score(y_true,y_pred,multi_class="ovr")
-
-
 
     def viz_groups(self, classes, groups):
         cmap_data = plt.cm.Paired
