@@ -58,8 +58,8 @@ class ModelTrainer:
 
         # cv = KFold(n_splits=n_splits, shuffle=True)
         # cv = GroupShuffleSplit(n_splits=n_splits)
-        cv = GroupKFold(n_splits=n_splits)
-        # cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
+        # cv = GroupKFold(n_splits=n_splits)
+        cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
 
         input_metrics = self.import_metrics(metric_path)
         x, names = input_metrics.get_metric_matrix()
