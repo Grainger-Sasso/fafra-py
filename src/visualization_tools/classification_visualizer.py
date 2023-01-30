@@ -14,7 +14,7 @@ from matplotlib import gridspec
 
 from src.risk_classification.input_metrics.input_metrics import InputMetrics
 from src.risk_classification.input_metrics.metric_names import MetricNames
- 
+
 
 class ClassificationVisualizer:
 
@@ -199,6 +199,7 @@ class ClassificationVisualizer:
             labels.extend([name.get_value(), name.get_value()])
             fs.extend(['faller', 'nonfaller'])
         return data, labels, fs
+
 
 def main():
     rootPath = r'D:\carapace\metric_test_data'

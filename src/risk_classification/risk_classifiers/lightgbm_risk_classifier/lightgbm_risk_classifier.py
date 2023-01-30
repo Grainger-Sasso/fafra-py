@@ -1,3 +1,4 @@
+import lightgbm
 from sklearn.datasets import make_blobs
 from sklearn.model_selection import train_test_split
 from matplotlib import pyplot as plt
@@ -54,6 +55,11 @@ class LightGBMRiskClassifier(Classifier):
         super().__init__('LightGBM', model)
         self.current_dataset = None
 
+    def plot_feature_importance(self):
+        lightgbm.plot_importance(self.model)
+        plt.tight_layout()
+        plt.show()
+
     # train lightgbm risk classifier using 33% holdout cross-validation
     def train_model_optuna(self,  x, y, **kwargs):
         self.current_dataset = [x, y]
@@ -77,7 +83,7 @@ class LightGBMRiskClassifier(Classifier):
         optuna.logging.set_verbosity(optuna.logging.ERROR)
         # train lightgbm
         study = optuna.create_study(direction="minimize")
-        study.optimize(self.opt_objective, n_trials=100)
+        study.optimize(self.opt_objective_multiclass, n_trials=100)
         # optuna.visualization.plot_optimization_history(study)
         # get best trial's lightgbm (hyper)parameters and print best trial score
         trial = study.best_trial
@@ -91,6 +97,32 @@ class LightGBMRiskClassifier(Classifier):
         print("in LightGMB", trial.params, model.params)
         self.set_model(model)
         # print("Best LOOCV value was {}\n".format(trial.value))
+
+    def train_model_multiclass(self, x, y, num_classes, **kwargs):
+        lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
+        params = {}
+        params['learning_rate'] = 0.03
+        params['boosting_type'] = 'gbdt'  # GradientBoostingDecisionTree
+        params['metric'] = 'multi_logloss'
+        # params['metric'] = 'multi_error'
+        params['max_depth'] = 10
+        params["objective"] = "multiclass"
+        params["num_classes"] = num_classes
+        params['is_unbalanced'] = kwargs['is_unbalanced']
+        model = lgb.train(params, lgbdata)
+        self.set_model(model)
+
+    def train_model_binary(self, x, y, num_classes, **kwargs):
+        lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
+        params = {}
+        params['learning_rate'] = 0.03
+        params['boosting_type'] = 'gbdt'  # GradientBoostingDecisionTree
+        params['objective'] = 'binary'  # Binary target feature
+        params['metric'] = 'binary_logloss'  # metric for binary classification
+        params['max_depth'] = 10
+        # params['is_unbalanced'] = kwargs['is_unbalanced']
+        model = lgb.train(params, lgbdata)
+        self.set_model(model)
 
     def train_model(self, input_metrics, **kwargs):
         x_train, x_test, y_train, y_test = self.split_input_metrics(input_metrics)
@@ -114,57 +146,6 @@ class LightGBMRiskClassifier(Classifier):
         )
         self.set_model(gbm)
         return eval_results
-
-    def group_cv(self, x, y, groups, feature_names, multiclass, cv, n_splits, viz=False):
-        lw = 10
-        # Shuffle the groups to create uniform distribution of classes in splits
-        # x, y, groups = self.shuffle_groups(x, y, groups)
-        # For every split, scale data, train model, and score model, append to results
-        scores = []
-        fig, ax = plt.subplots()
-        for split_num, (train_ixs, test_ixs) in enumerate(cv.split(x, y, groups)):
-            x_train = [x[ix] for ix in train_ixs]
-            y_train = [y[ix] for ix in train_ixs]
-            x_test = [x[ix] for ix in test_ixs]
-            y_test = [y[ix] for ix in test_ixs]
-            x_train, x_test = self.scale_train_test_data(x_train, x_test)
-            num_classes = 3
-            if multiclass:
-                self.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names, is_unbalanced=True)
-            else:
-                self.train_model_optuna(x_train, y_train, names=feature_names, is_unbalanced=True)
-            y_pred = self.make_prediction(x_test, multiclass)
-            scores.append(self.score_model_pred(y_test, y_pred, multiclass))
-            #TODO: average the performance metrics from each round
-            if viz:
-                self.plot_cv_indices(cv, x, y, groups, ax,
-                                     n_splits, train_ixs, test_ixs,
-                                     split_num, lw)
-        pm = pd.concat([score['performance_metrics'] for score in scores])
-        pm_mean = pm.groupby(level=0).mean()
-        if viz:
-            cmap_data = plt.cm.Paired
-            cmap_cv = plt.cm.coolwarm
-            # Plot the data classes and groups at the end
-            ax.scatter(
-                range(len(x)), [split_num + 1.5] * len(x), c=y, marker="_", lw=lw, cmap=cmap_data
-            )
-
-            ax.scatter(
-                range(len(x)), [split_num + 2.5] * len(x), c=groups, marker="_", lw=lw, cmap=cmap_cv
-            )
-            # Formatting
-            yticklabels = list(range(n_splits)) + ["class", "group"]
-            ax.set(
-                yticks=np.arange(n_splits + 2) + 0.5,
-                yticklabels=yticklabels,
-                xlabel="Sample index",
-                ylabel="CV iteration",
-                ylim=[n_splits + 2.2, -0.2],
-            )
-            ax.set_title("{}".format(type(cv).__name__), fontsize=15)
-            plt.show()
-        return scores, pm_mean
 
     def score_model_pred(self, y_true, y_pred, multiclass):
         perf_metrics = {}
@@ -242,27 +223,6 @@ class LightGBMRiskClassifier(Classifier):
             xlabel="Sample index",
         )
         plt.show()
-
-    def plot_cv_indices(self, cv, x, y, group, ax, n_splits, train_ixs, test_ixs, split_num, lw):
-        """Create a sample plot for indices of a cross-validation object."""
-        cmap_data = plt.cm.Paired
-        cmap_cv = plt.cm.coolwarm
-        # Generate the training/testing visualizations for each CV split
-        # Fill in indices with the training/test groups
-        indices = np.array([np.nan] * len(x))
-        indices[test_ixs] = 1
-        indices[train_ixs] = 0
-        # Visualize the results
-        ax.scatter(
-            range(len(indices)),
-            [split_num + 0.5] * len(indices),
-            c=indices,
-            marker="_",
-            lw=lw,
-            cmap=cmap_cv,
-            vmin=-0.2,
-            vmax=1.2,
-        )
 
     def shuffle_groups(self, x, y, groups):
         z = list(zip(x, y, groups))
@@ -420,6 +380,87 @@ class LightGBMRiskClassifier(Classifier):
         raw_predictions = my_lgbm.predict(x_test)
         predictions = np.rint(raw_predictions)
         rmse = mean_squared_error(y_test, predictions) ** 0.5
+        return rmse
+
+    def opt_objective_multiclass(self, trial):
+        """
+        # https://medium.com/optuna/lightgbm-tuner-new-optuna-integration-for-hyperparameter-optimization-8b7095e99258
+        # Set parameter search spaces for optuna to conduct hyperparameter optimization for max validation accuracy.
+        # See lightgbm_simple.py from https://github.com/optuna/optuna-examples/tree/main/lightgbm (a folder of LightGBM implementations using Optuna coded up by the Optuna
+        # authors) for how I implemented LOOCV training for LightGBMRiskClassifier.
+
+        # For binary classification, use binary objective and binary_logloss metric. gbdt (gradient-boosted trees) should be the boosting_type.
+
+        # lambda_l1 and lambda_l2 are the respective coefficients for L1 and L2 regularization.
+        # In the lightgbm_simple.py file referenced above, the optuna authors used the same search space limits
+        # for lambda_l1 and lambda l_2. However, Gabriel Tseng (source: https://medium.com/@gabrieltseng/gradient-boosting-and-xgboost-c306c1bcfaf5) says that
+        # a large value of lambda_l2 and a small (or 0) value of lambda_l1 should be used. This makes sense for our case since the dataset we input to the LightGBMRiskClassifier
+        # has already been transformed by the metrics (i.e., feature engineering) devised by Grainger and Dr. Hernandez. Thus, lambda_l1 should be very small (in fact,
+        # probably 0) and lambda_l2 should be large (or, at least, the upper bound of the search space of lambda_l2 should be large).
+
+        # num_leaves is the number of leaves to use in the decision trees of gradient-boosted tree learning. I found that validation accuracy dropped when I replaced 256
+        # with 512 as the upper bound of the search space of num_leaves for the original 340-sample dataset that Grainger gave. Maybe experiment with values larger than
+        # 256 for larger datasets? Values of num_leaves that are too large will lead to overfitting, of course.
+
+        # feature_fraction and bagging_fraction are both floats <= 1.0 and should both be positive. I felt that [0.01, 1.0] was a pretty large (i.e., inclusive) search
+        # space for both feature_fraction and bagging_fraction. Future experiments should try changing (increasing) the lower bound of the search space of feature_fraction
+        # and/or bagging_fraction from 0.01 to some larger number <= 1.0.
+
+        # bagging_freq should be a positive integer that denotes the number of decision trees after which bagging should be performed. Larger values of bagging_freq
+        # will obviously lead to lower variance but may also lead to the LightGBM model underfitting. Smaller values of bagging_freq will lead to larger variance
+        # and may not lower the bias by a significant amount.
+        # Future experiments should change the upper bound for the search space of bagging_freq (I came up with the number 20 in my head randomly).
+
+        # min_child_samples is a positive integer denoting the minimum number of data samples needed in a leaf of a decision tree. The LightGBM documentation says that
+        # this hyperparameter is very important for preventing overfitting. I do not know what a good search space is for min_child_samples, but I do
+        # know that excessively small values of min_child_samples will cause overfitting. The lightgbm_simple.py file from the Optuna authors referenced above
+        # uses [5, 100] as the search space for min_child_samples. Because the dataset that they use has more samples than the original 340-sample dataset
+        # that Grainger gave, I reduced the lower bound of the search space for min_child_samples from 5 to 3 and used the same upper bound of 100.
+
+        # Looking at the LightGBM docs, there are a number of LightGBM hyperparameters that the params dict below does not include. However, the hyperparameters that the
+        # params dict does include seem to be by far the most important hyperparameters, and the hyperparameters that do not appear in the below params dict seem largely
+        # to be variations of the hyperparameters appearing in the below params dict or I/O parameters (which do not affect training), hyperparameters
+        # to aid distributed or GPU learning, or hyperparameters to control logging messages during training.
+
+        # However, if one wants to use second-order optimization training instead of first-order, then include the hyperparameter min_sum_hessian_in_leaf
+        # in the below params dict, and make sure that the lower bound of the search space of min_sum_hessian_in_leaf is not too small (if it is too small,
+        # then overfitting will happen).
+
+        # This finishes the entire discussion on LightGBM hyperparameters.
+        :param trial:
+        :return:
+        """
+        # get current dataset and then perform validation split
+        x = self.current_dataset[0]
+        y = self.current_dataset[1]
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.33)
+        # x_train_t, x_test_t = self.scale_train_test_data(x_train, x_test)
+        # create lgb dataset for lightgbm training
+        lgbdata = lgb.Dataset(x_train, label=y_train)
+        params = {
+            "objective": "multiclassova",
+            "metric": "multi_logloss",
+            "num_classes": 3,
+            "verbosity": -1,
+            "boosting_type": "gbdt",
+            "lambda_l1": trial.suggest_float("lambda_l1", 1e-15, 60.0,
+                                             log=True),
+            "lambda_l2": trial.suggest_float("lambda_l2", 1e-15, 60.0,
+                                             log=True),
+            "num_leaves": trial.suggest_int("num_leaves", 2, 256),
+            "feature_fraction": trial.suggest_float("feature_fraction",
+                                                    0.01, 1.0),
+            "bagging_fraction": trial.suggest_float("bagging_fraction",
+                                                    0.01, 1.0),
+            "bagging_freq": trial.suggest_int("bagging_freq", 1, 20),
+            "min_child_samples": trial.suggest_int("min_child_samples", 3,
+                                                   100),
+        }
+        my_lgbm = lgb.train(params, lgbdata)
+        self.model = my_lgbm
+        y_pred = self.make_prediction(np.array(x_test), multiclass=True)
+        # acc = self.assess_accuracy(y_test, y_pred)
+        rmse = mean_squared_error(y_test, y_pred) ** 0.5
         return rmse
 
 
