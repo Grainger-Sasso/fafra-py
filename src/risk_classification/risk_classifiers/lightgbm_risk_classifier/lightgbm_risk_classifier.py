@@ -72,7 +72,7 @@ class LightGBMRiskClassifier(Classifier):
         trial = study.best_trial
         lgbdata = lgb.Dataset(x, label=y, feature_name=kwargs['names'])
         trial.params["objective"]="binary"
-        trial.params['is_unbalanced'] = kwargs['is_unbalanced']
+        trial.params['is_unbalance'] = kwargs['is_unbalance']
         self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
         print("in LightGMB",trial.params,model.params)
@@ -91,7 +91,7 @@ class LightGBMRiskClassifier(Classifier):
         # TODO: need to specify the number of classes for classifier, see error on debug
         trial.params["objective"] = "multiclass"
         trial.params["num_classes"] = num_classes
-        trial.params['is_unbalanced'] = kwargs['is_unbalanced']
+        trial.params['is_unbalance'] = kwargs['is_unbalance']
         self.params = trial.params
         model = lgb.train(trial.params, lgbdata)
         print("in LightGMB", trial.params, model.params)
@@ -108,7 +108,7 @@ class LightGBMRiskClassifier(Classifier):
         params['max_depth'] = 10
         params["objective"] = "multiclass"
         params["num_classes"] = num_classes
-        params['is_unbalanced'] = kwargs['is_unbalanced']
+        params['is_unbalance'] = kwargs['is_unbalance']
         model = lgb.train(params, lgbdata)
         self.set_model(model)
 
@@ -120,7 +120,7 @@ class LightGBMRiskClassifier(Classifier):
         params['objective'] = 'binary'  # Binary target feature
         params['metric'] = 'binary_logloss'  # metric for binary classification
         params['max_depth'] = 10
-        # params['is_unbalanced'] = kwargs['is_unbalanced']
+        # params['is_unbalance'] = kwargs['is_unbalance']
         model = lgb.train(params, lgbdata)
         self.set_model(model)
 
@@ -438,7 +438,7 @@ class LightGBMRiskClassifier(Classifier):
         # create lgb dataset for lightgbm training
         lgbdata = lgb.Dataset(x_train, label=y_train)
         params = {
-            "objective": "multiclassova",
+            "objective": "multiclass",
             "metric": "multi_logloss",
             "num_classes": 3,
             "verbosity": -1,

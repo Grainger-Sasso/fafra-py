@@ -3,6 +3,8 @@ import os
 import json
 import joblib
 import math
+
+import numpy
 import numpy as np
 import matplotlib.pyplot as plt
 from imblearn.over_sampling import SMOTE
@@ -48,9 +50,46 @@ class ModelTrainer:
         # return model_path, scaler_path
         return self.rc
 
+    def assess_input_feature(self, metrics_path, output_path):
+        cl_ev = ClassifierEvaluator()
+        eval_metrics = [ClassifierMetrics.SHAP_GBM]
+        classifiers = [self.rc]
+        input_metrics = self.import_metrics(metrics_path)
+        x, names = input_metrics.get_metric_matrix()
+        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
+        x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
+        num_classes = 3
+        classifiers[0].train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
+        cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)#the SHAP function
+        y_pred = self.rc.make_prediction(x_test, True)
+        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
+        self.plot_confusion_matrix(cm, y_test)
+        print(self.rc.assess_roc_auc(y_test,self.rc.model.predict(x_test),1))# sample assess_roc_auc call\
+
+    def plot_cv_indices(self, x, ax, train_ixs, test_ixs, split_num, lw):
+        """Create a sample plot for indices of a cross-validation object."""
+        cmap_data = plt.cm.Paired
+        cmap_cv = plt.cm.coolwarm
+        # Generate the training/testing visualizations for each CV split
+        # Fill in indices with the training/test groups
+        indices = np.array([np.nan] * len(x))
+        indices[test_ixs] = 1
+        indices[train_ixs] = 0
+        # Visualize the results
+        ax.scatter(
+            range(len(indices)),
+            [split_num + 0.5] * len(indices),
+            c=indices,
+            marker="_",
+            lw=lw,
+            cmap=cmap_cv,
+            vmin=-0.2,
+            vmax=1.2,
+        )
+
     def test_model(self, metric_path, clin_demo_path,
                    cv, multiclass, n_splits, output_path,
-                   viz, smote):
+                   viz):
         input_metrics = self.import_metrics(metric_path)
         clin_demo_data = self.read_clin_demo_file(clin_demo_path)
         x, names = input_metrics.get_metric_matrix()
@@ -59,19 +98,16 @@ class ModelTrainer:
             y = self.cast_labels_bin(y)
         groups = np.array(input_metrics.get_user_ids())
         mono_groups = self.map_groups(groups)
-        if smote:
-            y = LabelEncoder().fit_transform(y)
-            # transform the dataset
-            oversample = SMOTE()
-            X, y = oversample.fit_resample(x, y)
         # Characterize dataset
-        self.characterize_dataset(x, y, groups, clin_demo_data, output_path)
-        if viz:
-            self.violin_plot_metrics(input_metrics)
+        # self.characterize_dataset(x, y, groups, clin_demo_data, output_path)
         # TODO: PICKUP: Plot metric distribution for users and classes
         # Evaluate classification performance
-        scores, pm_mean = self.group_cv(
+        scores, pm_mean, fi, fn = self.group_cv(
             x, y, mono_groups, names, multiclass, cv, n_splits, viz)
+        imp_f_10 = self.assess_feature_importance(fi, fn)
+        if viz:
+            self.violin_plot_metrics(input_metrics, imp_f_10)
+        # TODO: plot the feature importance across all folds: https://stackoverflow.com/questions/53413701/feature-importance-using-lightgbm
         self.print_avgs(scores, pm_mean)
 
     def group_cv(self, x, y, groups, feature_names, multiclass, cv, n_splits, viz):
@@ -80,6 +116,7 @@ class ModelTrainer:
         # x, y, groups = self.shuffle_groups(x, y, groups)
         # For every split, scale data, train model, and score model, append to results
         scores = []
+        feature_importances = []
         fig, ax = plt.subplots()
         for split_num, (train_ixs, test_ixs) in enumerate(cv.split(x, y, groups)):
             x_train = [x[ix] for ix in train_ixs]
@@ -89,13 +126,17 @@ class ModelTrainer:
             x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
             num_classes = 3
             if multiclass:
-                self.rc.train_model_optuna_multiclass(x_train, y_train, num_classes, names=feature_names,
-                                                   is_unbalanced=True)
+                self.rc.train_model_optuna_multiclass(
+                    x_train, y_train, num_classes,
+                    names=feature_names, is_unbalance=True)
             else:
-                self.rc.train_model_optuna(x_train, y_train, names=feature_names, is_unbalanced=True)
+                self.rc.train_model_optuna(
+                    x_train, y_train,
+                    names=feature_names, is_unbalance=True)
             y_pred = self.rc.make_prediction(x_test, multiclass)
             scores.append(self.rc.score_model_pred(y_test, y_pred, multiclass))
-            # TODO: average the performance metrics from each round
+            feature_importances.append(self.rc.model.feature_importance())
+
             if viz:
                 self.rc.plot_feature_importance()
                 self.plot_cv_indices(x, ax, train_ixs, test_ixs, split_num, lw)
@@ -124,77 +165,53 @@ class ModelTrainer:
             ax.set_title("{}".format(type(cv).__name__), fontsize=15)
             plt.show()
             self.rc.viz_groups(y, groups)
-        return scores, pm_mean
+        return scores, pm_mean, feature_importances, feature_names
 
-    def assess_input_feature(self, metrics_path, output_path):
-        cl_ev = ClassifierEvaluator()
-        eval_metrics = [ClassifierMetrics.SHAP_GBM]
-        classifiers = [self.rc]
-        input_metrics = self.import_metrics(metrics_path)
-        x, names = input_metrics.get_metric_matrix()
-        x_train, x_test, y_train, y_test = self.rc.split_input_metrics(input_metrics)
-        x_train, x_test = self.rc.scale_train_test_data(x_train, x_test)
-        num_classes = 3
-        classifiers[0].train_model_optuna_multiclass(x_train, y_train, num_classes, names=names)
-        cl_ev.run_models_evaluation(eval_metrics, classifiers, input_metrics, output_path)#the SHAP function
-        y_pred = self.rc.make_prediction(x_test, True)
-        cm = self.rc.multilabel_confusion_matrix(y_test, y_pred)
-        self.plot_confusion_matrix(cm, y_test)
-        print(self.rc.assess_roc_auc(y_test,self.rc.model.predict(x_test),1))# sample assess_roc_auc call
+    def assess_feature_importance(self, feature_importance, feature_names):
+        # Average all values across the folds
+        folds = numpy.array([f.tolist() for f in feature_importance])
+        avg_fi = folds.mean(axis=0).tolist()
+        # Sort them from greatest to least
+        most_imp_fi = sorted(avg_fi, reverse=True)
+        most_imp_names = [name for _, name in sorted(zip(avg_fi, feature_names), reverse=True)]
+        # Return the top 10 most importance features
+        return most_imp_names[:12]
 
-    def plot_cv_indices(self, x, ax, train_ixs, test_ixs, split_num, lw):
-        """Create a sample plot for indices of a cross-validation object."""
-        cmap_data = plt.cm.Paired
-        cmap_cv = plt.cm.coolwarm
-        # Generate the training/testing visualizations for each CV split
-        # Fill in indices with the training/test groups
-        indices = np.array([np.nan] * len(x))
-        indices[test_ixs] = 1
-        indices[train_ixs] = 0
-        # Visualize the results
-        ax.scatter(
-            range(len(indices)),
-            [split_num + 0.5] * len(indices),
-            c=indices,
-            marker="_",
-            lw=lw,
-            cmap=cmap_cv,
-            vmin=-0.2,
-            vmax=1.2,
-        )
-
-    def violin_plot_metrics(self, input_metrics: InputMetrics):
+    def violin_plot_metrics(self, input_metrics: InputMetrics, important_metrics):
         # fig, axes = plt.subplots(1, len(x))
-        fig = plt.figure()
+        fig = plt.figure(figsize=(5,8))
         ix = 0
         cols = 3
         # rows = int(math.ceil(len(x) / cols))
-        rows = int(math.ceil(len(input_metrics.get_metrics()) / cols))
-        gs = gridspec.GridSpec(rows, cols)
+        rows = int(math.ceil(len(important_metrics) / cols))
+        gs = gridspec.GridSpec(rows, cols, figure=fig)
         for name, metric in input_metrics.get_metrics().items():
-            labels = []
-            metric_value = metric.get_value()
-            # faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 1])
-            # non_faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 0])
-            faller = np.array([val for ix, val in
-                               enumerate(metric_value) if input_metrics.get_labels()[ix] == 1 or
-                               input_metrics.get_labels()[ix] == 2])
-            non_faller = np.array([val for ix, val in
-                                   enumerate(metric_value) if input_metrics.get_labels()[ix] == 0])
-            pd_data = []
-            for i in faller:
-                pd_data.append({'fall_status': 'faller',
-                                'metric': i, 'name': name + '_faller'})
-            for i in non_faller:
-                pd_data.append({'fall_status': 'non_faller',
-                                'metric': i, 'name': name + '_nonfaller'})
-            df = pd.DataFrame(pd_data)
-            ax = fig.add_subplot(gs[ix])
-            sns.violinplot(x='name', y='metric', hue='fall_status',
-                           data=df, ax=ax)
-            labels.extend([name + '_faller', name + '_nonfaller'])
-            ix += 1
-        fig.tight_layout()
+            if name in important_metrics:
+                labels = []
+                metric_value = metric.get_value()
+                # faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 1])
+                # non_faller = np.array([val for ix, val in enumerate(metric_value) if y[ix] == 0])
+                faller = np.array([val for ix, val in
+                                   enumerate(metric_value) if input_metrics.get_labels()[ix] == 1 or
+                                   input_metrics.get_labels()[ix] == 2])
+                non_faller = np.array([val for ix, val in
+                                       enumerate(metric_value) if input_metrics.get_labels()[ix] == 0])
+                pd_data = []
+                for i in faller:
+                    pd_data.append({'fall_status': 'faller',
+                                    'metric': i, 'name': name + '_faller'})
+                for i in non_faller:
+                    pd_data.append({'fall_status': 'non_faller',
+                                    'metric': i, 'name': name + '_nonfaller'})
+                df = pd.DataFrame(pd_data)
+                ax = fig.add_subplot(gs[ix])
+                ax.title.set_text(name)
+                sns.violinplot(x='name', y='metric', hue='fall_status',
+                               data=df, ax=ax)
+                ax.set(xticklabels=[])
+                ax.set(xlabel=None)
+                # labels.extend([name + '_faller', name + '_nonfaller'])
+                ix += 1
         plt.show()
 
     def characterize_dataset(self, x, y, groups, clin_demo_data, output_path):
@@ -363,13 +380,12 @@ def main():
     multiclass = True
     n_splits = 5
     viz = False
-    smote = False
     # cv = KFold(n_splits=n_splits, shuffle=True)
     # cv = GroupShuffleSplit(n_splits=n_splits)
     # cv = GroupKFold(n_splits=n_splits)
     cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
     mt.test_model(model_path, clin_demo_path, cv, multiclass, n_splits,
-                  output_path, viz, smote)
+                  output_path, viz)
     # mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
 
 
