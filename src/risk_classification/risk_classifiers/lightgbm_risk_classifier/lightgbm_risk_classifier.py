@@ -56,9 +56,10 @@ class LightGBMRiskClassifier(Classifier):
         self.current_dataset = None
 
     def plot_feature_importance(self):
-        lightgbm.plot_importance(self.model)
+        fig, ax = plt.subplots()
+        ax = lightgbm.plot_importance(self.model, ax)
         plt.tight_layout()
-        plt.show()
+        return ax
 
     # train lightgbm risk classifier using 33% holdout cross-validation
     def train_model_optuna(self,  x, y, **kwargs):

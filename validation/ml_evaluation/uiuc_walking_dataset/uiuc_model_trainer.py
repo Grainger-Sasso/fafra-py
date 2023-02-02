@@ -94,7 +94,12 @@ class ModelTrainer:
         clin_demo_data = self.read_clin_demo_file(clin_demo_path)
         x, names = input_metrics.get_metric_matrix()
         y = input_metrics.get_labels()
-        if not multiclass:
+        cv_name = cv['name']
+        cv = cv['cv']
+        if multiclass:
+            classify_type = 'multiclass'
+        else:
+            classify_type = 'binary'
             y = self.cast_labels_bin(y)
         groups = np.array(input_metrics.get_user_ids())
         mono_groups = self.map_groups(groups)
@@ -103,14 +108,18 @@ class ModelTrainer:
         # TODO: PICKUP: Plot metric distribution for users and classes
         # Evaluate classification performance
         scores, pm_mean, fi, fn = self.group_cv(
-            x, y, mono_groups, names, multiclass, cv, n_splits, viz)
-        imp_f_10 = self.assess_feature_importance(fi, fn)
+            x, y, mono_groups, names, multiclass, cv, n_splits, viz, classify_type, output_path)
+        avg_fi, imp_f_10 = self.assess_feature_importance(fi, fn)
         if viz:
-            self.violin_plot_metrics(input_metrics, imp_f_10)
+            # self.violin_plot_metrics(input_metrics, imp_f_10)
+            self.plot_feature_importance(avg_fi, fn, cv_name, classify_type, output_path)
         # TODO: plot the feature importance across all folds: https://stackoverflow.com/questions/53413701/feature-importance-using-lightgbm
-        self.print_avgs(scores, pm_mean)
+        self.export_avgs(
+            scores, pm_mean, avg_fi, fn, classify_type, cv_name, output_path
+        )
 
-    def group_cv(self, x, y, groups, feature_names, multiclass, cv, n_splits, viz):
+    def group_cv(self, x, y, groups, feature_names, multiclass,
+                 cv, n_splits, viz, classify_type, output_path):
         lw = 10
         # Shuffle the groups to create uniform distribution of classes in splits
         # x, y, groups = self.shuffle_groups(x, y, groups)
@@ -138,7 +147,7 @@ class ModelTrainer:
             feature_importances.append(self.rc.model.feature_importance())
 
             if viz:
-                self.rc.plot_feature_importance()
+                # self.rc.plot_feature_importance()
                 self.plot_cv_indices(x, ax, train_ixs, test_ixs, split_num, lw)
         pm = pd.concat([score['performance_metrics'] for score in scores])
         pm_mean = pm.groupby(level=0).mean()
@@ -162,9 +171,11 @@ class ModelTrainer:
                 ylabel="CV iteration",
                 ylim=[n_splits + 2.2, -0.2],
             )
-            ax.set_title("{}".format(type(cv).__name__), fontsize=15)
-            plt.show()
-            self.rc.viz_groups(y, groups)
+            cv_info = str(type(cv).__name__) + '; ' + classify_type
+            title = 'Cross-Validation Dataset Sampling; ' + cv_info
+            ax.set_title(title, fontsize=15)
+            filename = 'cv_data_sampling_' + str(type(cv).__name__) + '_' + classify_type + '.png'
+            plt.savefig(os.path.join(output_path, filename))
         return scores, pm_mean, feature_importances, feature_names
 
     def assess_feature_importance(self, feature_importance, feature_names):
@@ -175,7 +186,20 @@ class ModelTrainer:
         most_imp_fi = sorted(avg_fi, reverse=True)
         most_imp_names = [name for _, name in sorted(zip(avg_fi, feature_names), reverse=True)]
         # Return the top 10 most importance features
-        return most_imp_names[:12]
+        return avg_fi, most_imp_names[:12]
+
+    def plot_feature_importance(self, avg_fi, fn, cv_name, class_type, output_path):
+        feature_imp = pd.DataFrame({'Value': avg_fi, 'Feature': fn})
+        plt.figure()
+        sns.barplot(
+            x="Value", y="Feature", data=feature_imp.sort_values(by="Value",ascending=False),
+            color='navy'
+        )
+        title = 'LightGBM Features (avg over folds); ' + cv_name + '; ' + class_type
+        plt.title(title)
+        filename = 'lgbm_avg_fi_' + cv_name + '_' + class_type + '.png'
+        plt.tight_layout()
+        plt.savefig(os.path.join(output_path, filename))
 
     def violin_plot_metrics(self, input_metrics: InputMetrics, important_metrics):
         # fig, axes = plt.subplots(1, len(x))
@@ -250,17 +274,32 @@ class ModelTrainer:
                 new_labels.append(0)
         return np.array(new_labels)
 
-    def print_avgs(self, scores, pm_mean):
+    def export_avgs(self, scores, pm_mean, avg_fi, fn, classify_type, cv_name, output_path):
+        acc = 0
+        for score in scores:
+            acc += score['accuracy']
+        mean_acc = acc/5
+        # Print the performance metris
         for score in scores:
             print(score['performance_metrics'])
         print('\n\n')
-        a = 0
-        for score in scores:
-            a += score['accuracy']
-        print('mean accuracy: ' + str(a/5))
+        print('mean accuracy: ' + str(mean_acc))
         print('\n\n')
         print(pm_mean)
-        print('done')
+        output = {
+            'accuracy': mean_acc,
+            'performance_metrics': pm_mean.to_dict(orient='records'),
+            'feature_importance': [
+                {'feature_name': name, 'feature_importance': val}
+                for name, val in zip(fn, avg_fi)
+            ]
+        }
+        filename = 'ml_evaluation_results_' + classify_type + '_' + \
+                   cv_name + '_' + time.strftime("%Y%m%d-%H%M%S") + '.json'
+        file_path = os.path.join(output_path, filename)
+        with open(file_path, 'w') as f:
+            json.dump(output, f)
+        return file_path
 
     def plot_confusion_matrix(self, conf_matrix, y_test):
         fig, ax = plt.subplots(1,3)
@@ -379,13 +418,16 @@ def main():
     output_path = '/home/grainger/Desktop/skdh_testing/uiuc_ml_analysis/results/'
     multiclass = True
     n_splits = 5
-    viz = False
-    # cv = KFold(n_splits=n_splits, shuffle=True)
-    # cv = GroupShuffleSplit(n_splits=n_splits)
-    # cv = GroupKFold(n_splits=n_splits)
-    cv = StratifiedGroupKFold(n_splits=n_splits, shuffle=True)
-    mt.test_model(model_path, clin_demo_path, cv, multiclass, n_splits,
-                  output_path, viz)
+    viz = True
+    kcv = {'name': 'kfold', 'cv': KFold(n_splits=n_splits, shuffle=True)}
+    gkcv = {'name': 'group_kfold', 'cv': GroupKFold(n_splits=n_splits)}
+    multi = [True, False]
+    cv = [kcv, gkcv]
+    for classify_type in multi:
+        for cross_val in cv:
+            mt.test_model(model_path, clin_demo_path, cross_val, classify_type, n_splits,
+                      output_path, viz)
+    # cv = {'name': 'stratified_group_kfold', 'cv': StratifiedGroupKFold(n_splits=n_splits, shuffle=True)}
     # mt.assess_input_feature(path,r'F:\long-term-movement-monitoring-database-1.0.0\output_dir')
 
 
