@@ -174,8 +174,8 @@ class ModelTrainer:
             cv_info = str(type(cv).__name__) + '; ' + classify_type
             title = 'Cross-Validation Dataset Sampling; ' + cv_info
             ax.set_title(title, fontsize=15)
-            filename = 'cv_data_sampling_' + str(type(cv).__name__) + '_' + classify_type + '.png'
-            plt.savefig(os.path.join(output_path, filename))
+            filename = 'cv_data_sampling_' + str(type(cv).__name__) + '_' + classify_type + '.eps'
+            plt.savefig(os.path.join(output_path, filename), format='eps')
         return scores, pm_mean, feature_importances, feature_names
 
     def assess_feature_importance(self, feature_importance, feature_names):
@@ -197,9 +197,9 @@ class ModelTrainer:
         )
         title = 'LightGBM Features (avg over folds); ' + cv_name + '; ' + class_type
         plt.title(title)
-        filename = 'lgbm_avg_fi_' + cv_name + '_' + class_type + '.png'
+        filename = 'lgbm_avg_fi_' + cv_name + '_' + class_type + '.eps'
         plt.tight_layout()
-        plt.savefig(os.path.join(output_path, filename))
+        plt.savefig(os.path.join(output_path, filename), format='eps')
 
     def violin_plot_metrics(self, input_metrics: InputMetrics, important_metrics):
         # fig, axes = plt.subplots(1, len(x))
