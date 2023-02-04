@@ -66,26 +66,7 @@ class ModelTrainer:
         self.plot_confusion_matrix(cm, y_test)
         print(self.rc.assess_roc_auc(y_test,self.rc.model.predict(x_test),1))# sample assess_roc_auc call\
 
-    def plot_cv_indices(self, x, ax, train_ixs, test_ixs, split_num, lw):
-        """Create a sample plot for indices of a cross-validation object."""
-        cmap_data = plt.cm.Paired
-        cmap_cv = plt.cm.coolwarm
-        # Generate the training/testing visualizations for each CV split
-        # Fill in indices with the training/test groups
-        indices = np.array([np.nan] * len(x))
-        indices[test_ixs] = 1
-        indices[train_ixs] = 0
-        # Visualize the results
-        ax.scatter(
-            range(len(indices)),
-            [split_num + 0.5] * len(indices),
-            c=indices,
-            marker="_",
-            lw=lw,
-            cmap=cmap_cv,
-            vmin=-0.2,
-            vmax=1.2,
-        )
+
 
     def test_model(self, metric_path, clin_demo_path,
                    cv, multiclass, n_splits, output_path,
@@ -126,7 +107,7 @@ class ModelTrainer:
         # For every split, scale data, train model, and score model, append to results
         scores = []
         feature_importances = []
-        fig, ax = plt.subplots()
+        fig, ax = plt.subplots(figsize=(10,8))
         for split_num, (train_ixs, test_ixs) in enumerate(cv.split(x, y, groups)):
             x_train = [x[ix] for ix in train_ixs]
             y_train = [y[ix] for ix in train_ixs]
@@ -145,7 +126,6 @@ class ModelTrainer:
             y_pred = self.rc.make_prediction(x_test, multiclass)
             scores.append(self.rc.score_model_pred(y_test, y_pred, multiclass))
             feature_importances.append(self.rc.model.feature_importance())
-
             if viz:
                 # self.rc.plot_feature_importance()
                 self.plot_cv_indices(x, ax, train_ixs, test_ixs, split_num, lw)
@@ -174,9 +154,30 @@ class ModelTrainer:
             cv_info = str(type(cv).__name__) + '; ' + classify_type
             title = 'Cross-Validation Dataset Sampling; ' + cv_info
             ax.set_title(title, fontsize=15)
-            filename = 'cv_data_sampling_' + str(type(cv).__name__) + '_' + classify_type + '.eps'
-            plt.savefig(os.path.join(output_path, filename), format='eps')
+            filename = 'cv_data_sampling_' + str(type(cv).__name__) + '_' + classify_type + '.svg'
+            plt.savefig(os.path.join(output_path, filename), format='svg', dpi=1200)
         return scores, pm_mean, feature_importances, feature_names
+
+    def plot_cv_indices(self, x, ax, train_ixs, test_ixs, split_num, lw):
+        """Create a sample plot for indices of a cross-validation object."""
+        cmap_data = plt.cm.Paired
+        cmap_cv = plt.cm.coolwarm
+        # Generate the training/testing visualizations for each CV split
+        # Fill in indices with the training/test groups
+        indices = np.array([np.nan] * len(x))
+        indices[test_ixs] = 1
+        indices[train_ixs] = 0
+        # Visualize the results
+        ax.scatter(
+            range(len(indices)),
+            [split_num + 0.5] * len(indices),
+            c=indices,
+            marker="_",
+            lw=lw,
+            cmap=cmap_cv,
+            vmin=-0.2,
+            vmax=1.2,
+        )
 
     def assess_feature_importance(self, feature_importance, feature_names):
         # Average all values across the folds
@@ -190,16 +191,16 @@ class ModelTrainer:
 
     def plot_feature_importance(self, avg_fi, fn, cv_name, class_type, output_path):
         feature_imp = pd.DataFrame({'Value': avg_fi, 'Feature': fn})
-        plt.figure()
+        plt.figure(figsize=(10, 8))
         sns.barplot(
-            x="Value", y="Feature", data=feature_imp.sort_values(by="Value",ascending=False),
+            x="Value", y="Feature", data=feature_imp.sort_values(by="Value", ascending=False),
             color='navy'
         )
         title = 'LightGBM Features (avg over folds); ' + cv_name + '; ' + class_type
         plt.title(title)
-        filename = 'lgbm_avg_fi_' + cv_name + '_' + class_type + '.eps'
+        filename = 'lgbm_avg_fi_' + cv_name + '_' + class_type + '.svg'
         plt.tight_layout()
-        plt.savefig(os.path.join(output_path, filename), format='eps')
+        plt.savefig(os.path.join(output_path, filename), format='svg', dpi=1200)
 
     def violin_plot_metrics(self, input_metrics: InputMetrics, important_metrics):
         # fig, axes = plt.subplots(1, len(x))
