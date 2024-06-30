@@ -1,58 +1,78 @@
+import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
-from typing import List
-from src.dataset_tools.motion_data.acceleration.triaxial_acceleration import TriaxialAcceleration
-from src.dataset_tools.motion_data.acceleration.acceleration import Acceleration
-from src.dataset_tools.params.motion_dataset import MotionDataset
-from src.dataset_tools.params.subject import Subject
-from src.dataset_tools.params.activity import Activity
+
+from src.dataset_tools.risk_assessment_data.user_data import UserData
+from src.dataset_tools.risk_assessment_data.imu_data_filter_type import IMUDataFilterType
 
 
 class MotionVisualizer:
+    def plot_acceleration_data(self, user_data: UserData):
+        colors = {IMUDataFilterType.RAW: 'cornflowerblue',
+                  IMUDataFilterType.LPF: 'red',
+                  IMUDataFilterType.KF: 'yellow'}
+        fig, (ax_v, ax_ml, ax_ap) = self._generate_fig_axes()
+        axes = {'axis_vertical': ax_v,
+                'axis_mediolateral': ax_ml,
+                'axis_anteroposterior': ax_ap}
+        for filt_type, imu_data in user_data.get_imu_data().items():
+            tri_lin_acc = imu_data.get_triax_acc_data()
+            time = imu_data.get_time()
+            self._plot_triaxial_acc(tri_lin_acc, time, filt_type, axes, colors)
+        id = user_data.get_clinical_demo_data().get_id()
+        fig.suptitle(f'Acceleration Data for ID: {id}', fontsize=16)
+        return fig, axes
 
-    def plot_motion_data(self, dataset: MotionDataset, subject, activity, trial):
-        motion_data = dataset.get_data(subject, activity, trial)
-        subject_data = motion_data.get_subject()
-        activity_data = motion_data.get_activity()
-        self.__plot_triaxial_acc(motion_data.tri_lin_accs, subject_data, activity_data, trial)
-        self.__plot_triaxial_acc(motion_data.tri_ang_accs, subject_data, activity_data, trial)
+    def plot_gyroscope_data(self, user_data: UserData):
+        colors = {IMUDataFilterType.RAW: 'cornflowerblue',
+                  IMUDataFilterType.LPF: 'red',
+                  IMUDataFilterType.KF: 'yellow'}
+        fig, (ax_y, ax_p, ax_r) = self._generate_fig_axes()
+        axes = {'axis_yaw': ax_y,
+                'axis_pitch': ax_p,
+                'axis_roll': ax_r}
+        for filt_type, imu_data in user_data.get_imu_data().items():
+            tri_gyr = imu_data.get_triax_gyr_data()
+            time = imu_data.get_time()
+            self._plot_triaxial_gyr(tri_gyr, time, filt_type, axes, colors)
+        id = user_data.get_clinical_demo_data().get_id()
+        fig.suptitle(f'Gyroscope Data for ID: {id}', fontsize=16)
+        return fig, axes
 
-    def __plot_triaxial_acc(self, tri_accs: List[TriaxialAcceleration], subject_data: Subject, activity_data: Activity,
-                            trial):
-        raw_color = 'navajowhite'
-        lp_filtered_color = 'cornflowerblue'
-        kf_filtered_color = 'deeppink'
-        first_derivative_color = 'olivedrab'
-        colors = {'raw': raw_color, 'lp_filtered': lp_filtered_color, 'kf_filtered': kf_filtered_color, 'first_derivative': first_derivative_color}
-        if tri_accs:
-            for tri_acc in tri_accs:
-                fig, (ax_x, ax_y, ax_z) = plt.subplots(3, sharex=True)
-                fig.suptitle(tri_acc.name + ': ' + tri_acc.sensor_name + '\n Subject Data: ' + subject_data.get_subject_identifier() + ', ' + str(subject_data.get_subject_age()) + ', ' + subject_data.get_subject_gender() + '\n Activity: ' + activity_data.get_description())
-                # Plot x axis data
-                self.__plot_single_axis(ax_x, tri_acc.x_axis, colors)
-                self.__plot_single_axis(ax_y, tri_acc.y_axis, colors)
-                self.__plot_single_axis(ax_z, tri_acc.z_axis, colors)
-            plt.show()
+    def _generate_fig_axes(self):
+        return plt.subplots(3, sharex=True)
 
-    def __plot_single_axis(self, ax: Axes, axis_data: Acceleration, colors):
-        ax.set_title('Axis: ' + axis_data.axis + ' - ' + axis_data.anatomical_axis)
-        pr = ax.plot(axis_data.time, axis_data.acceleration_data, color=colors['raw'], label='Raw Data')
-        handles = [pr[0]]
-        title = 'Raw Data'
-        if axis_data.kf_filtered_data.any():
-            pkf = ax.plot(axis_data.time, axis_data.kf_filtered_data, color=colors['kf_filtered'], label='KF Filtered Data')
-            handles.append(pkf[0])
-            title += ', Kalman Filtered Data'
-        if axis_data.lp_filtered_data.any():
-            plpf = ax.plot(axis_data.time, axis_data.lp_filtered_data, color=colors['lp_filtered'], label='LP Filtered Data')
-            handles.append(plpf[0])
-            title += ', Low-pass Filtered Data'
+    def _plot_triaxial_acc(self, tri_acc, time, filt_type, axes, colors):
+        axes['axis_vertical'].grid(True, 'both')
+        axes['axis_mediolateral'].grid(True, 'both')
+        axes['axis_anteroposterior'].grid(True, 'both')
+        self._plot_single_axis(axes['axis_vertical'], tri_acc['vertical'],
+                               time, 'vertical', colors[filt_type], filt_type.get_value())
+        self._plot_single_axis(axes['axis_mediolateral'], tri_acc['mediolateral'],
+                               time, 'mediolateral', colors[filt_type], filt_type.get_value())
+        self._plot_single_axis(axes['axis_anteroposterior'], tri_acc['anteroposterior'],
+                               time, 'anteroposterior', colors[filt_type], filt_type.get_value())
 
-        # TODO: Put first derivative on seperate graph, scale and layout does not work with the other filtered data + it's sort of unrelated to raw and filtered data
-        # if axis_data.first_derivative_data.any():
-        #     pfd = ax.plot(axis_data.time[1:], axis_data.first_derivative_data, color=colors['first_derivative'], label='First Derivative (dx/dt) Data')
-        #     handles.append(pfd[0])
-        #     title += ', and First Derivative (dx/dt) Data'
+    def _plot_triaxial_gyr(self, tri_gyr, time, filt_type, axes, colors):
+        axes['axis_yaw'].grid(True, 'both')
+        axes['axis_pitch'].grid(True, 'both')
+        axes['axis_roll'].grid(True, 'both')
+        self._plot_single_axis(axes['axis_yaw'], tri_gyr['yaw'],
+                               time, 'yaw', colors[filt_type], filt_type.get_value())
+        self._plot_single_axis(axes['axis_pitch'], tri_gyr['pitch'],
+                               time, 'pitch', colors[filt_type], filt_type.get_value())
+        self._plot_single_axis(axes['axis_roll'], tri_gyr['roll'],
+                               time, 'roll', colors[filt_type], filt_type.get_value())
 
-        ax.legend(handles=handles, title=title)
+    def _plot_single_axis(self, ax: Axes, axis_data, time,
+                          name, color, filt_type):
+        ax.set_title('Axis: ' + name)
+        ax.plot(time, axis_data, color=color, label=filt_type)
+        ax.legend()
+        # pr = ax.plot(time, axis_data, color=color, label=filt_type)
+        # handles = [pr[0]]
+        # title = 'Acc Data'
+        # ax.legend(handles=handles, title=title)
 
+    def show_plot(self):
+        plt.show()
