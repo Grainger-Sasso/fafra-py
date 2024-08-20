@@ -2,3 +2,6 @@
 /venv3/
 /venv2/
 /venv/
+__pycache__/
+*.pyc
+*.pyo
